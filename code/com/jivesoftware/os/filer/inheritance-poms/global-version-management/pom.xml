@@ -21,6 +21,21 @@
             </dependency>
             <dependency>
                 <groupId>com.jivesoftware.os.filer</groupId>
+                <artifactId>queue-processor</artifactId>
+                <version>0.3-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>com.jivesoftware.os.filer</groupId>
+                <artifactId>queue-store</artifactId>
+                <version>0.3-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>com.jivesoftware.os.filer</groupId>
+                <artifactId>queue-guaranteed-delivery</artifactId>
+                <version>0.3-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>com.jivesoftware.os.filer</groupId>
                 <artifactId>map-store</artifactId>
                 <version>0.3-SNAPSHOT</version>
             </dependency>
@@ -37,6 +52,11 @@
             <dependency>
                 <groupId>com.jivesoftware.os.jive.utils</groupId>
                 <artifactId>logger</artifactId>
+                <version>${jive.utils.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.jivesoftware.os.jive.utils</groupId>
+                <artifactId>base</artifactId>
                 <version>${jive.utils.version}</version>
             </dependency>
             <dependency>
