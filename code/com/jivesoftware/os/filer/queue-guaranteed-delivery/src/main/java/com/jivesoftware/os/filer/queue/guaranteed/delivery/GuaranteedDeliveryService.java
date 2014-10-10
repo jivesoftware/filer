@@ -19,11 +19,13 @@ public interface GuaranteedDeliveryService {
     /**
      * Adds one batch to be processed by the service. Throws DeliveryServiceException if the batch cannot be added to the underlying storage. This is not the
      * same as failing to be processed. Rather it is failure to be accepted as a candidate for eventual guaranteed delivery.
+     * @param add
      */
     void add(List<byte[]> add) throws DeliveryServiceException;
 
     /**
      * Returns a status object reporting both delivered and un-delivered items.
+     * @return
      */
     GuaranteedDeliveryServiceStatus getStatus();
 

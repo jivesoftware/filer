@@ -18,7 +18,6 @@
         <dependency>
             <groupId>com.jivesoftware.os.filer</groupId>
             <artifactId>queue-processor</artifactId>
-            <version>0.4-SNAPSHOT</version>
             <type>jar</type>
         </dependency>
 

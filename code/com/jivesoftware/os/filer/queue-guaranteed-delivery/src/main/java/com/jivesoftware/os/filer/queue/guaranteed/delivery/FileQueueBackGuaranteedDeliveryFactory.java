@@ -38,20 +38,20 @@ public class FileQueueBackGuaranteedDeliveryFactory {
      * @throws IOException
      */
     public static GuaranteedDeliveryService createService(FileQueueBackGuaranteedDeliveryServiceConfig serviceConfig,
-            DeliveryCallback deliveryCallback) throws IOException {
+        DeliveryCallback deliveryCallback) throws IOException {
 
         final MutableLong undelivered = new MutableLong(0);
         final MutableLong delivered = new MutableLong(0);
         final FileQueueImpl queue = new FileQueueImpl(serviceConfig.getPathToQueueFiles(),
-                serviceConfig.getQueueName(),
-                serviceConfig.getTakableWhenCreationTimestampIsOlderThanXMillis(),
-                serviceConfig.getTakableWhenLastAppendedIsOlderThanXMillis(),
-                serviceConfig.getTakableWhenLargerThanXEntries(),
-                serviceConfig.getMaxPageSizeInBytes(),
-                serviceConfig.getPushbackAtEnqueuedSize(),
-                serviceConfig.isDeleteOnExit(),
-                undelivered,
-                serviceConfig.isTakeFullQueuesOnly());
+            serviceConfig.getQueueName(),
+            serviceConfig.getTakableWhenCreationTimestampIsOlderThanXMillis(),
+            serviceConfig.getTakableWhenLastAppendedIsOlderThanXMillis(),
+            serviceConfig.getTakableWhenLargerThanXEntries(),
+            serviceConfig.getMaxPageSizeInBytes(),
+            serviceConfig.getPushbackAtEnqueuedSize(),
+            serviceConfig.isDeleteOnExit(),
+            undelivered,
+            serviceConfig.isTakeFullQueuesOnly());
 
         final GuaranteedDeliveryServiceStatus status = new GuaranteedDeliveryServiceStatus() {
             @Override
@@ -66,7 +66,11 @@ public class FileQueueBackGuaranteedDeliveryFactory {
         };
 
         final QueueProcessorPool processorPool = new QueueProcessorPool(
-                queue, 1, serviceConfig.getQueueProcessorConfig(), delivered, deliveryCallback);
+            queue,
+            serviceConfig.getNumberOfConsumers(),
+            serviceConfig.getQueueProcessorConfig(),
+            delivered,
+            deliveryCallback);
 
         GuaranteedDeliveryService service = new GuaranteedDeliveryService() {
             private final AtomicBoolean running = new AtomicBoolean(false);
@@ -115,10 +119,10 @@ public class FileQueueBackGuaranteedDeliveryFactory {
         private final ExecutorService queueProcessorsThreads;
 
         public QueueProcessorPool(PhasedQueue queue,
-                int numberOfConsumers,
-                PhasedQueueProcessorConfig queueProcessorConfig,
-                final MutableLong delivered,
-                final DeliveryCallback deliveryCallback) {
+            int numberOfConsumers,
+            PhasedQueueProcessorConfig queueProcessorConfig,
+            final MutableLong delivered,
+            final DeliveryCallback deliveryCallback) {
 
             this.queueProcessorsThreads = Executors.newFixedThreadPool(numberOfConsumers);
             this.queueProcessors = new PhasedQueueProcessor[numberOfConsumers];
