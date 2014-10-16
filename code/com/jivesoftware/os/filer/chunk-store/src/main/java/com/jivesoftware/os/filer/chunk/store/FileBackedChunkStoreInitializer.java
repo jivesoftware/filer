@@ -25,7 +25,7 @@ public class FileBackedChunkStoreInitializer {
             chunkStore.setup(referenceNumber);
 
             Filer filer = new RandomAccessFiler(chunkStoreFile, "rw" + ((sync) ? "s" : ""));
-            chunkStore.open(new SubsetableFiler(filer, 0, Long.MAX_VALUE, 0));
+            chunkStore.createAndOpen(new SubsetableFiler(filer, 0, Long.MAX_VALUE, 0));
         }
         return chunkStore;
     }

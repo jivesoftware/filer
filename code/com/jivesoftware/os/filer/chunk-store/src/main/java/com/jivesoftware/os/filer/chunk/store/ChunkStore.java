@@ -48,7 +48,7 @@ public class ChunkStore {
         return Long.MAX_VALUE;
     }
 
-    public void open(SubsetableFiler _filer) throws Exception {
+    public void createAndOpen(SubsetableFiler _filer) throws Exception {
         filer = _filer;
         synchronized (filer.lock()) {
             FilerIO.writeLong(filer, lengthOfFile, "lengthOfFile");
