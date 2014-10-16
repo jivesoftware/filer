@@ -25,7 +25,7 @@ public class ChunkStoreInitializer {
 
         MultiChunkStoreBuilder builder = new MultiChunkStoreBuilder();
 
-        for (int index = 0; index < chunkPaths.length; index++) {
+        for (int index = 0; index < numberOfChunkStores; index++) {
             File chunkStoreFile = getChunkStoreFile(chunkPaths, chunkPrefix, index);
             builder.addChunkStore(openOrCreate(chunkStoreFile, chunkStoreCapacityInBytes, autoResize));
 
