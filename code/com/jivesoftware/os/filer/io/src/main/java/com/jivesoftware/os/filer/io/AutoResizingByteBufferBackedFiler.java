@@ -37,7 +37,7 @@ public class AutoResizingByteBufferBackedFiler implements Filer {
         ByteBuffer buffer = bufferReference.get();
         int currentCapacity = buffer.capacity();
         while (currentCapacity < size) {
-            if (bufferReference.compareAndSet(buffer, factory.allocate(FilerIO.chunkLength(FilerIO.chunkPower(size, 0))))) {
+            if (bufferReference.compareAndSet(buffer, factory.reallocate(buffer, FilerIO.chunkLength(FilerIO.chunkPower(size, 0))))) {
                 break;
             }
             buffer = bufferReference.get();

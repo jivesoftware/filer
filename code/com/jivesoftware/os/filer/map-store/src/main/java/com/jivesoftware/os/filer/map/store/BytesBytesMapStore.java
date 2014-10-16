@@ -9,7 +9,6 @@ import com.jivesoftware.os.filer.map.store.api.PartitionedKeyValueStore;
 import com.jivesoftware.os.filer.map.store.extractors.ExtractIndex;
 import com.jivesoftware.os.filer.map.store.extractors.ExtractKey;
 import com.jivesoftware.os.filer.map.store.extractors.ExtractPayload;
-import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -150,12 +149,7 @@ public abstract class BytesBytesMapStore<K, V> implements PartitionedKeyValueSto
 
     private MapChunk allocate(int maxCapacity) {
         return mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, maxCapacity, keySize, payloadSize,
-            new ByteBufferFactory() {
-                @Override
-                public ByteBuffer allocate(long _size) {
-                    return byteBufferFactory.allocate(_size);
-                }
-            });
+            byteBufferFactory);
     }
 
     @Override

@@ -59,6 +59,11 @@ public class FileBackedMemMappedByteBufferFactory implements ByteBufferFactory {
         }
         return buf;
     }
+    
+    @Override
+    public ByteBuffer reallocate(ByteBuffer oldBuffer, long newSize) {
+        return allocate(newSize);
+    }
 
     // this was borrowed from lucene ByteBufferIndexInput
     ByteBuffer[] map(RandomAccessFile raf, long offset, long length) throws IOException {

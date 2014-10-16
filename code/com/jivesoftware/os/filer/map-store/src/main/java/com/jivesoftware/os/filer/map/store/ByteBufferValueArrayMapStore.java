@@ -2,7 +2,6 @@ package com.jivesoftware.os.filer.map.store;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
-import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore.Entry;
@@ -163,12 +162,7 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
 
     private Index allocate(int maxCapacity) {
         MapChunk chunk = mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, maxCapacity, keySize, 0,
-            new ByteBufferFactory() {
-                @Override
-                public ByteBuffer allocate(long _size) {
-                    return byteBufferFactory.allocate(_size);
-                }
-            });
+            new HeapByteBufferFactory());
         return new Index(
             chunk,
             allocateValue(mapStore.getCapacity(chunk)));

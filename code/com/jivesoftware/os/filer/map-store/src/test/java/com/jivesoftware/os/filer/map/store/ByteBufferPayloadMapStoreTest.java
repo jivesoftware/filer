@@ -2,9 +2,8 @@ package com.jivesoftware.os.filer.map.store;
 
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
-import org.testng.annotations.Test;
-
 import static org.testng.Assert.assertTrue;
+import org.testng.annotations.Test;
 
 public class ByteBufferPayloadMapStoreTest {
 

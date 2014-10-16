@@ -2,8 +2,8 @@ package com.jivesoftware.os.filer.map.store;
 
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.map.store.extractors.ExtractorStream;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -22,13 +22,7 @@ public class SkipListSet_TestDoubles {
     public static void main(String[] _args) throws Exception {
 
         Random random = new Random(1_234);
-        ByteBufferFactory factory = new ByteBufferFactory() {
-
-            @Override
-            public ByteBuffer allocate(long _size) {
-                return ByteBuffer.allocate((int) _size);
-            }
-        };
+        ByteBufferFactory factory = new HeapByteBufferFactory();
         int keySize = 8;
         int payloadSize = 0;
         byte[] headKey = new byte[keySize];

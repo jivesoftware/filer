@@ -2,9 +2,9 @@ package com.jivesoftware.os.filer.map.store;
 
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.map.store.extractors.ExtractKey;
 import com.jivesoftware.os.filer.map.store.extractors.ExtractorStream;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Random;
@@ -25,13 +25,7 @@ public class SkipListSet_Test {
 
         long maxCountBetweenZeroAndOne = (long) (1d / Double.MIN_VALUE);
         System.out.println(maxCountBetweenZeroAndOne + " " + Double.MAX_VALUE);
-        ByteBufferFactory factory = new ByteBufferFactory() {
-
-            @Override
-            public ByteBuffer allocate(long _size) {
-                return ByteBuffer.allocate((int) _size);
-            }
-        };
+        ByteBufferFactory factory = new HeapByteBufferFactory();
 
         //chart(factory);
         //System.exit(0);

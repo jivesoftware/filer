@@ -3,7 +3,6 @@ package com.jivesoftware.os.filer.map.store;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.FileBackedMemMappedByteBufferFactory;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
 import com.jivesoftware.os.filer.map.store.api.PartitionedKeyValueStore;
@@ -15,7 +14,6 @@ import com.jivesoftware.os.jive.utils.logger.MetricLoggerFactory;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -219,13 +217,7 @@ public abstract class FileBackMapStore<K, V> implements PartitionedKeyValueStore
         } else {
             MapChunk set = mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, maxCapacity, keySize,
                 payloadSize,
-                new ByteBufferFactory() {
-
-                    @Override
-                    public ByteBuffer allocate(long _size) {
-                        return pageFactory.allocate(_size);
-                    }
-                });
+                pageFactory);
             return set;
         }
     }

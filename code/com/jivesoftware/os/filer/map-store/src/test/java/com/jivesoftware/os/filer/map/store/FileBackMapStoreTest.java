@@ -10,9 +10,8 @@ import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.map.store.api.PartitionedKeyValueStore;
 import java.nio.file.Files;
 import java.util.Set;
-import org.testng.annotations.Test;
-
 import static org.testng.Assert.assertEquals;
+import org.testng.annotations.Test;
 
 public class FileBackMapStoreTest {
 

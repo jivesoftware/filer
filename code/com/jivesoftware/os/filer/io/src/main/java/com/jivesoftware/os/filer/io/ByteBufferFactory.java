@@ -14,5 +14,13 @@ public interface ByteBufferFactory {
      * @return
      */
     ByteBuffer allocate(long _size);
+    
+    /**
+     * 
+     * @param oldBuffer can be null and if it is you could have just called allocate which is what implementation should do.
+     * @param newSize
+     * @return 
+     */
+    ByteBuffer reallocate(ByteBuffer oldBuffer, long newSize);
 
 }

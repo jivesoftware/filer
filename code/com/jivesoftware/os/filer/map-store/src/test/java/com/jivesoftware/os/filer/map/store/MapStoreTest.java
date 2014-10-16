@@ -2,10 +2,10 @@ package com.jivesoftware.os.filer.map.store;
 
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.map.store.extractors.ExtractIndex;
 import com.jivesoftware.os.filer.map.store.extractors.ExtractKey;
 import com.jivesoftware.os.filer.map.store.extractors.ExtractPayload;
-import java.nio.ByteBuffer;
 import java.util.HashSet;
 import java.util.Random;
 import org.testng.annotations.Test;
@@ -45,13 +45,7 @@ public class MapStoreTest {
         int ksize = 4;
         for (int i = 0; i < 10; i++) {
             System.out.println("----------------- " + i + " -----------------");
-            test(it, ksize, it, new ByteBufferFactory() {
-
-                @Override
-                public ByteBuffer allocate(long _size) {
-                    return ByteBuffer.allocate((int) _size);
-                }
-            });
+            test(it, ksize, it, new HeapByteBufferFactory());
         }
     }
 
