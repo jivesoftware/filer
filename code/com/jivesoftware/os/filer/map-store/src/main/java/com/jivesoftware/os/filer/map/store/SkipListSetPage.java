@@ -36,7 +36,7 @@ public class SkipListSetPage {
     public void init() {
         map.init();
         maxHeight = heightFit(map.capacity);
-        headIndex = map.mapStore.get(map, headKey, new ExtractIndex());
+        headIndex = map.mapStore.get(map, headKey, ExtractIndex.SINGLETON);
         if (headIndex == -1) {
             throw new RuntimeException("SkipListSetPage:Invalid Page!");
         }

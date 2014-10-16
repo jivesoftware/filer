@@ -8,6 +8,11 @@ import com.jivesoftware.os.filer.map.store.MapChunk;
  */
 public class ExtractPayload implements Extractor<byte[]> {
 
+    public static final ExtractPayload SINGLETON = new ExtractPayload();
+
+    private ExtractPayload() {
+    }
+
     @Override
     public byte[] extract(int i, long _startIndex, int _keySize, int _payloadSize, MapChunk page) {
         byte[] p = new byte[_payloadSize];

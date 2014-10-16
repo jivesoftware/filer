@@ -24,8 +24,8 @@ import java.util.Arrays;
  */
 public class SkipListSet {
 
-    private final Extractor<Integer> extractIndex = new ExtractIndex();
-    final MapStore map = new MapStore(extractIndex, new ExtractKey(), new ExtractPayload());
+    private final Extractor<Integer> extractIndex = ExtractIndex.SINGLETON;
+    final MapStore map = new MapStore(extractIndex, ExtractKey.SINGLETON, ExtractPayload.SINGLETON);
 
     public SkipListSet() {
     }

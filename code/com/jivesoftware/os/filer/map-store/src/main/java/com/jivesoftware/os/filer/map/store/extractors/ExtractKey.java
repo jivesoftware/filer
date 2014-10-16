@@ -16,6 +16,11 @@ import com.jivesoftware.os.filer.map.store.MapChunk;
  */
 public class ExtractKey implements Extractor<byte[]> {
 
+    public static final ExtractKey SINGLETON = new ExtractKey();
+
+    private ExtractKey() {
+    }
+
     @Override
     public byte[] extract(int i, long _startIndex, int _keySize, int _payloadSize, MapChunk page) {
         byte[] k = new byte[_keySize];

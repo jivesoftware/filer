@@ -57,7 +57,7 @@ public class MapStoreTest {
 
     private static boolean test(int _iterations, int keySize, int _maxSize, ByteBufferFactory factory) {
 
-        MapStore pset = new MapStore(new ExtractIndex(), new ExtractKey(), new ExtractPayload());
+        MapStore pset = new MapStore(ExtractIndex.SINGLETON, ExtractKey.SINGLETON, ExtractPayload.SINGLETON);
         int payloadSize = 4;
 
         System.out.println("Upper Bound Max Count = " + pset.absoluteMaxCount(keySize, payloadSize));
@@ -89,7 +89,7 @@ public class MapStoreTest {
 
         random = new Random(seed);
         for (int i = 0; i < pset.getCount(set); i++) {
-            byte[] got = pset.get(set, TestUtils.randomLowerCaseAlphaBytes(random, keySize), new ExtractPayload());
+            byte[] got = pset.get(set, TestUtils.randomLowerCaseAlphaBytes(random, keySize), ExtractPayload.SINGLETON);
             assert got != null : "shouldn't be null";
             //int v = UIO.bytesInt(got);
             //assert v == i : "should be the same";
@@ -166,7 +166,7 @@ public class MapStoreTest {
             if (i % 2 == 0) {
                 TestUtils.randomLowerCaseAlphaBytes(random, keySize);
             } else {
-                pset.get(set, TestUtils.randomLowerCaseAlphaBytes(random, keySize), new ExtractPayload());
+                pset.get(set, TestUtils.randomLowerCaseAlphaBytes(random, keySize), ExtractPayload.SINGLETON);
                 //assert got == i;
             }
         }

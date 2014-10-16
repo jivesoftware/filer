@@ -23,9 +23,9 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
     private static final byte[] EMPTY_ID = new byte[16];
     private static final byte[] EMPTY_PAYLOAD = new byte[0];
 
-    private final ExtractPayload extractPayload = new ExtractPayload();
-    private final ExtractIndex extractIndex = new ExtractIndex();
-    private final MapStore mapStore = new MapStore(extractIndex, new ExtractKey(), extractPayload);
+    private final ExtractPayload extractPayload = ExtractPayload.SINGLETON;
+    private final ExtractIndex extractIndex = ExtractIndex.SINGLETON;
+    private final MapStore mapStore = new MapStore(extractIndex, ExtractKey.SINGLETON, extractPayload);
     private final AtomicReference<Index> indexRef = new AtomicReference<>();
     private final int keySize;
     private final int payloadSize;

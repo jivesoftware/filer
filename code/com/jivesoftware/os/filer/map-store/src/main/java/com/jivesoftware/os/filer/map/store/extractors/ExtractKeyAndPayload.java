@@ -7,6 +7,11 @@ import com.jivesoftware.os.filer.map.store.MapChunk;
  * @author jonathan.colt
  */
 public class ExtractKeyAndPayload implements Extractor<KeyAndPayload> {
+    
+    public static final ExtractKeyAndPayload SINGLETON = new ExtractKeyAndPayload();
+
+    private ExtractKeyAndPayload() {
+    }
 
     @Override
     public KeyAndPayload extract(int i, long _startIndex, int _keySize, int _payloadSize, MapChunk page) {

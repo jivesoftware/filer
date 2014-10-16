@@ -42,12 +42,12 @@ public class MapStore {
     private final byte cSkip = -1;
     private final byte cNull = 0;
 
-    private final Extractor<Integer> extractIndex;
+    private final Extractor<Integer> ExtractIndex;
     private final Extractor<byte[]> extractKey;
     private final Extractor<byte[]> extractPayload;
 
-    public MapStore(Extractor<Integer> extractIndex, Extractor<byte[]> extractKey, Extractor<byte[]> extractPayload) {
-        this.extractIndex = extractIndex;
+    public MapStore(Extractor<Integer> ExtractIndex, Extractor<byte[]> extractKey, Extractor<byte[]> extractPayload) {
+        this.ExtractIndex = ExtractIndex;
         this.extractKey = extractKey;
         this.extractPayload = extractPayload;
     }
@@ -335,7 +335,7 @@ public class MapStore {
      * @return
      */
     public boolean contains(MapChunk page, byte[] _key) {
-        return get(page, _key, extractIndex) != -1;
+        return get(page, _key, ExtractIndex) != -1;
     }
 
     /**

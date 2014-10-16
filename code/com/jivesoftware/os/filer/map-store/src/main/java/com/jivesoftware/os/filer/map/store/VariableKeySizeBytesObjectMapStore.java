@@ -4,7 +4,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
-import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
 import java.util.Iterator;
@@ -14,14 +13,13 @@ public abstract class VariableKeySizeBytesObjectMapStore<K, V> implements KeyVal
 
     private final int[] keySizeThresholds;
     private final BytesObjectMapStore<K, V>[] mapStores;
-
+    
     @SuppressWarnings("unchecked")
-    public VariableKeySizeBytesObjectMapStore(int[] keySizeThresholds, int initialPageCapacity, V returnWhenGetReturnsNull) {
+    public VariableKeySizeBytesObjectMapStore(int[] keySizeThresholds, int initialPageCapacity, V returnWhenGetReturnsNull, ByteBufferFactory byteBufferFactory) {
 
         this.keySizeThresholds = keySizeThresholds;
         this.mapStores = new BytesObjectMapStore[keySizeThresholds.length];
-
-        ByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
+        
         for (int i = 0; i < keySizeThresholds.length; i++) {
             Preconditions.checkArgument(i == 0 || keySizeThresholds[i] > keySizeThresholds[i - 1], "Thresholds must be monotonically increasing");
 

@@ -41,8 +41,7 @@ public abstract class FileBackMapStore<K, V> implements PartitionedKeyValueStore
 
     private static final byte[] EMPTY_ID = new byte[16];
 
-    private final ExtractPayload extractPayload = new ExtractPayload();
-    private final MapStore mapStore = new MapStore(new ExtractIndex(), new ExtractKey(), extractPayload);
+    private final MapStore mapStore = new MapStore(ExtractIndex.SINGLETON, ExtractKey.SINGLETON, ExtractPayload.SINGLETON);
     private final String[] pathsToPartitions;
     private final int keySize;
     private final int payloadSize;
@@ -104,7 +103,7 @@ public abstract class FileBackMapStore<K, V> implements PartitionedKeyValueStore
                 throw new KeyValueStoreException("Error when expanding size of partition!", e);
             }
 
-            byte[] payload = mapStore.get(index, keyBytes, extractPayload);
+            byte[] payload = mapStore.get(index, keyBytes, ExtractPayload.SINGLETON);
             if (payload == null) {
                 payload = new byte[(payloadSize)];
             }
@@ -148,7 +147,7 @@ public abstract class FileBackMapStore<K, V> implements PartitionedKeyValueStore
         }
         MapChunk index = index(key);
         byte[] keyBytes = keyBytes(key);
-        byte[] payload = mapStore.get(index.duplicate(), keyBytes, extractPayload);
+        byte[] payload = mapStore.get(index.duplicate(), keyBytes, ExtractPayload.SINGLETON);
 
         if (payload == null) {
             return returnWhenGetReturnsNull;
@@ -165,7 +164,7 @@ public abstract class FileBackMapStore<K, V> implements PartitionedKeyValueStore
         byte[] payload;
         synchronized (keyLocksProvider.lock(keyPartition(key))) {
             MapChunk index = index(key);
-            payload = mapStore.get(index, keyBytes, extractPayload);
+            payload = mapStore.get(index, keyBytes, ExtractPayload.SINGLETON);
         }
         if (payload == null) {
             return returnWhenGetReturnsNull;

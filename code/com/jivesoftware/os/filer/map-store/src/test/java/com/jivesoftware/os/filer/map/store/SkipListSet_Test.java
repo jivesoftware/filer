@@ -134,7 +134,7 @@ public class SkipListSet_Test {
         }
         //sls.toSysOut();
         if (sls.slgetCount(slsp) != 0) {
-            sls.map.get(slsp.map, new ExtractKey(), new ExtractorStream<byte[], Exception>() {
+            sls.map.get(slsp.map, ExtractKey.SINGLETON, new ExtractorStream<byte[], Exception>() {
 
                 @Override
                 public byte[] stream(byte[] v) throws Exception {
