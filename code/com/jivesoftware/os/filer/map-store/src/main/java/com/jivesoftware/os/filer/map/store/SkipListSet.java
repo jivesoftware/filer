@@ -24,8 +24,7 @@ import java.util.Arrays;
  */
 public class SkipListSet {
 
-    private final Extractor<Integer> extractIndex = ExtractIndex.SINGLETON;
-    final MapStore map = new MapStore(extractIndex, ExtractKey.SINGLETON, ExtractPayload.SINGLETON);
+    static final MapStore map =  MapStore.DEFAULT;
 
     public SkipListSet() {
     }
@@ -103,7 +102,7 @@ public class SkipListSet {
      */
     public void sladd(SkipListSetPage page, byte[] _key, byte[] _payload) {
 
-        int index = map.get(page.map, _key, extractIndex);
+        int index = map.get(page.map, _key, map.extractIndex);
         if (index != -1) { // aready exists so just update payload
             map.setPayloadAtIndex(page.map, index, startOfPayload(page.maxHeight), _payload, 0, _payload.length);
             return;
@@ -157,7 +156,7 @@ public class SkipListSet {
      */
     public byte[] slfindWouldInsertAfter(SkipListSetPage page, byte[] _key) {
 
-        int index = map.get(page.map, _key, extractIndex);
+        int index = map.get(page.map, _key, map.extractIndex);
         if (index != -1) { // aready exists so return self
             return _key;
         }
@@ -217,7 +216,7 @@ public class SkipListSet {
         if (_key == null || _key.length == 0) {
             throw new RuntimeException("null not supported");
         }
-        int removeIndex = map.get(page.map, _key, extractIndex);
+        int removeIndex = map.get(page.map, _key, map.extractIndex);
         if (removeIndex == -1) { // doesn't exists so return
             return;
         }
@@ -262,7 +261,7 @@ public class SkipListSet {
         if (_key == null || _key.length == 0) {
             return null;
         }
-        int index = map.get(page.map, _key, extractIndex);
+        int index = map.get(page.map, _key, map.extractIndex);
         if (index == -1) {
             return null;
         } else {
@@ -289,7 +288,7 @@ public class SkipListSet {
         if (_key == null || _key.length == 0) {
             return null;
         }
-        int index = map.get(page.map, _key, extractIndex);
+        int index = map.get(page.map, _key, map.extractIndex);
         if (index == -1) {
             return null;
         } else {
@@ -312,7 +311,7 @@ public class SkipListSet {
         if (_key == null || _key.length == 0) {
             throw new RuntimeException("null not supported");
         }
-        int index = map.get(page.map, _key, extractIndex);
+        int index = map.get(page.map, _key, map.extractIndex);
         if (index == -1) {
             return null;
         } else {
@@ -330,7 +329,7 @@ public class SkipListSet {
         if (key == null || key.length == 0) {
             throw new RuntimeException("null not supported");
         }
-        int index = map.get(page.map, key, extractIndex);
+        int index = map.get(page.map, key, map.extractIndex);
         if (index == -1) {
             return null;
         }
@@ -352,14 +351,14 @@ public class SkipListSet {
         final KeyPayload sent = new KeyPayload(null, null);
         int at;
         if (from != null && from.length > 0) {
-            at = map.get(page.map, from, extractIndex);
+            at = map.get(page.map, from, map.extractIndex);
             if (at == -1) {
                 byte[] found = slfindWouldInsertAfter(page, from);
                 if (found == null) {
                     _get.stream(null); // done cause from doesn't exist
                     return;
                 }
-                at = map.get(page.map, found, extractIndex);
+                at = map.get(page.map, found, map.extractIndex);
                 at = rcolumnLevel(page, at, 1); // move to next because we found the one before
             }
 

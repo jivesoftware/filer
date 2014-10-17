@@ -5,8 +5,6 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
 import com.jivesoftware.os.filer.map.store.api.PartitionedKeyValueStore;
-import com.jivesoftware.os.filer.map.store.extractors.ExtractIndex;
-import com.jivesoftware.os.filer.map.store.extractors.ExtractKey;
 import com.jivesoftware.os.filer.map.store.extractors.ExtractPayload;
 import java.util.Iterator;
 import java.util.List;
@@ -20,7 +18,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
  */
 public abstract class PartitionedMapChunkBackedMapStore<K, V> implements PartitionedKeyValueStore<K, V> {
 
-    private static final MapStore mapStore = new MapStore(ExtractIndex.SINGLETON, ExtractKey.SINGLETON, ExtractPayload.SINGLETON);
+    private static final MapStore mapStore = MapStore.DEFAULT;
 
     private final MapChunkFactory chunkFactory;
     private final StripingLocksProvider<String> keyLocksProvider;

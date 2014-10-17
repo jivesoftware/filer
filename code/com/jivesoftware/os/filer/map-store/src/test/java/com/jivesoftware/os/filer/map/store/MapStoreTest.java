@@ -51,7 +51,7 @@ public class MapStoreTest {
 
     private static boolean test(int _iterations, int keySize, int _maxSize, ByteBufferFactory factory) {
 
-        MapStore pset = new MapStore(ExtractIndex.SINGLETON, ExtractKey.SINGLETON, ExtractPayload.SINGLETON);
+        MapStore pset = MapStore.DEFAULT;
         int payloadSize = 4;
 
         System.out.println("Upper Bound Max Count = " + pset.absoluteMaxCount(keySize, payloadSize));

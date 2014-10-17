@@ -6,9 +6,6 @@ import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore.Entry;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
-import com.jivesoftware.os.filer.map.store.extractors.ExtractIndex;
-import com.jivesoftware.os.filer.map.store.extractors.ExtractKey;
-import com.jivesoftware.os.filer.map.store.extractors.ExtractPayload;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
@@ -22,9 +19,7 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
     private static final byte[] EMPTY_ID = new byte[16];
     private static final byte[] EMPTY_PAYLOAD = new byte[0];
 
-    private final ExtractPayload extractPayload = ExtractPayload.SINGLETON;
-    private final ExtractIndex extractIndex = ExtractIndex.SINGLETON;
-    private final MapStore mapStore = new MapStore(extractIndex, ExtractKey.SINGLETON, extractPayload);
+    private final MapStore mapStore = MapStore.DEFAULT;
     private final AtomicReference<Index> indexRef = new AtomicReference<>();
     private final int keySize;
     private final int payloadSize;
@@ -114,7 +109,7 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
         int payloadIndex;
         synchronized (indexRef) {
             Index index = index();
-            payloadIndex = mapStore.get(index.chunk, keyBytes, extractIndex);
+            payloadIndex = mapStore.get(index.chunk, keyBytes, mapStore.extractIndex);
             if (payloadIndex < 0) {
                 return returnWhenGetReturnsNull;
             }
@@ -130,7 +125,7 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
         }
         byte[] keyBytes = keyBytes(key);
         Index index = index();
-        int payloadIndex = mapStore.get(index.chunk.duplicate(), keyBytes, extractIndex);
+        int payloadIndex = mapStore.get(index.chunk.duplicate(), keyBytes, mapStore.extractIndex);
         if (payloadIndex < 0) {
             return returnWhenGetReturnsNull;
         }

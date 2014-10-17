@@ -88,8 +88,7 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
     }
 
     private MapChunk mmap(MapStore mapStore, final File file, int maxCapacity) throws FileNotFoundException, IOException {
-        final FileBackedMemMappedByteBufferFactory pageFactory = new FileBackedMemMappedByteBufferFactory(file,
-                FileBackedMemMappedByteBufferFactory.DEFAULT_64BIT_MAX_BUFF);
+        final FileBackedMemMappedByteBufferFactory pageFactory = new FileBackedMemMappedByteBufferFactory(file);
         if (file.exists()) {
             MappedByteBuffer buffer = pageFactory.open();
             MapChunk page = new MapChunk(buffer);

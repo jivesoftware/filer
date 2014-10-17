@@ -22,9 +22,7 @@ public abstract class BytesBytesMapStore<K, V> implements PartitionedKeyValueSto
 
     private static final byte[] EMPTY_ID = new byte[16];
 
-    private final ExtractPayload extractPayload = ExtractPayload.SINGLETON;
-    private final ExtractIndex extractIndex = ExtractIndex.SINGLETON;
-    private final MapStore mapStore = new MapStore(extractIndex, ExtractKey.SINGLETON, extractPayload);
+    private final MapStore mapStore = MapStore.DEFAULT;
     private final AtomicReference<MapChunk> indexRef = new AtomicReference<>();
     private final int keySize;
     private final int payloadSize;
@@ -101,7 +99,7 @@ public abstract class BytesBytesMapStore<K, V> implements PartitionedKeyValueSto
         byte[] keyBytes = keyBytes(key);
         synchronized (indexRef) {
             MapChunk index = index();
-            byte[] valueBytes = mapStore.get(index, keyBytes, extractPayload);
+            byte[] valueBytes = mapStore.get(index, keyBytes, mapStore.extractPayload);
             if (valueBytes == null) {
                 return returnWhenGetReturnsNull;
             }
@@ -117,7 +115,7 @@ public abstract class BytesBytesMapStore<K, V> implements PartitionedKeyValueSto
         }
         byte[] keyBytes = keyBytes(key);
         MapChunk index = index();
-        byte[] valueBytes = mapStore.get(index.duplicate(), keyBytes, extractPayload);
+        byte[] valueBytes = mapStore.get(index.duplicate(), keyBytes, mapStore.extractPayload);
         if (valueBytes == null) {
             return returnWhenGetReturnsNull;
         }

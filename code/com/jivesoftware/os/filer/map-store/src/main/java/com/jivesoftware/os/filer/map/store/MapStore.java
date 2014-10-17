@@ -2,6 +2,9 @@ package com.jivesoftware.os.filer.map.store;
 
 //!! POORLY TESTING
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.map.store.extractors.ExtractIndex;
+import com.jivesoftware.os.filer.map.store.extractors.ExtractKey;
+import com.jivesoftware.os.filer.map.store.extractors.ExtractPayload;
 import com.jivesoftware.os.filer.map.store.extractors.Extractor;
 import com.jivesoftware.os.filer.map.store.extractors.ExtractorStream;
 import java.util.Iterator;
@@ -15,39 +18,41 @@ import java.util.Iterator;
  * @author jonathan
  */
 public class MapStore {
+    
+    public static final MapStore DEFAULT = new MapStore(ExtractIndex.SINGLETON, ExtractKey.SINGLETON, ExtractPayload.SINGLETON);
 
-    public final byte cPageFamily = 1;
-    public final byte cPageVersion = 1;
-    private final int cPageVersionSize = 1;
-    private final int cPageFamilySize = 1;
-    private final int cIdSize = 16;
-    private final int cVersion = 8;
-    private final int cCountSize = 4;
-    private final int cMaxCountSize = 4;
-    private final int cMaxCapacitySize = 4;
-    private final int cKeySizeSize = 4;
-    private final int cPayloadSize = 4;
-    private final int cHeaderSize = cPageFamilySize + cPageVersionSize + cIdSize + cVersion + cCountSize
+    public static final byte cPageFamily = 1;
+    public static final byte cPageVersion = 1;
+    private static final int cPageVersionSize = 1;
+    private static final int cPageFamilySize = 1;
+    private static final int cIdSize = 16;
+    private static final int cVersion = 8;
+    private static final int cCountSize = 4;
+    private static final int cMaxCountSize = 4;
+    private static final int cMaxCapacitySize = 4;
+    private static final int cKeySizeSize = 4;
+    private static final int cPayloadSize = 4;
+    private static final int cHeaderSize = cPageFamilySize + cPageVersionSize + cIdSize + cVersion + cCountSize
         + cMaxCountSize + cMaxCapacitySize + cKeySizeSize + cPayloadSize;
-    private final int cPageFamilyOffset = 0;
-    private final int cPageVersionOffset = cPageFamilySize;
-    private final int cIdOffset = cPageFamilySize + cPageVersionSize;
-    private final int cVersionOffset = cPageFamilySize + cPageVersionSize + cIdSize;
-    private final int cCountOffset = cPageFamilySize + cPageVersionSize + cIdSize + cVersion;
-    private final int cMaxCountOffset = cPageFamilySize + cPageVersionSize + cIdSize + cVersion + cCountSize;
-    private final int cCapacityOffset = cPageFamilySize + cPageVersionSize + cIdSize + cVersion + cCountSize + cMaxCountSize;
-    private final int cKeySizeOffset = cPageFamilySize + cPageVersionSize + cIdSize + cVersion + cCountSize + cMaxCountSize + cMaxCapacitySize;
-    private final int cPayloadOffset = cPageFamilySize + cPageVersionSize + cIdSize + cVersion + cCountSize + cMaxCountSize + cMaxCapacitySize + cKeySizeSize;
-    private final double cSetDensity = 0.6d;
-    private final byte cSkip = -1;
-    private final byte cNull = 0;
+    private static final int cPageFamilyOffset = 0;
+    private static final int cPageVersionOffset = cPageFamilySize;
+    private static final int cIdOffset = cPageFamilySize + cPageVersionSize;
+    private static final int cVersionOffset = cPageFamilySize + cPageVersionSize + cIdSize;
+    private static final int cCountOffset = cPageFamilySize + cPageVersionSize + cIdSize + cVersion;
+    private static final int cMaxCountOffset = cPageFamilySize + cPageVersionSize + cIdSize + cVersion + cCountSize;
+    private static final int cCapacityOffset = cPageFamilySize + cPageVersionSize + cIdSize + cVersion + cCountSize + cMaxCountSize;
+    private static final int cKeySizeOffset = cPageFamilySize + cPageVersionSize + cIdSize + cVersion + cCountSize + cMaxCountSize + cMaxCapacitySize;
+    private static final int cPayloadOffset = cPageFamilySize + cPageVersionSize + cIdSize + cVersion + cCountSize + cMaxCountSize + cMaxCapacitySize + cKeySizeSize;
+    private static final double cSetDensity = 0.6d;
+    private static final byte cSkip = -1;
+    private static final byte cNull = 0;
 
-    private final Extractor<Integer> ExtractIndex;
-    private final Extractor<byte[]> extractKey;
-    private final Extractor<byte[]> extractPayload;
+    public final Extractor<Integer> extractIndex;
+    public final Extractor<byte[]> extractKey;
+    public final Extractor<byte[]> extractPayload;
 
-    public MapStore(Extractor<Integer> ExtractIndex, Extractor<byte[]> extractKey, Extractor<byte[]> extractPayload) {
-        this.ExtractIndex = ExtractIndex;
+    public MapStore(Extractor<Integer> extractIndex, Extractor<byte[]> extractKey, Extractor<byte[]> extractPayload) {
+        this.extractIndex = extractIndex;
         this.extractKey = extractKey;
         this.extractPayload = extractPayload;
     }
@@ -335,7 +340,7 @@ public class MapStore {
      * @return
      */
     public boolean contains(MapChunk page, byte[] _key) {
-        return get(page, _key, ExtractIndex) != -1;
+        return get(page, _key, extractIndex) != -1;
     }
 
     /**

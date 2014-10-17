@@ -21,9 +21,7 @@ public abstract class BytesObjectMapStore<K, V> implements KeyValueStore<K, V> {
     private static final byte[] EMPTY_ID = new byte[16];
     private static final byte[] EMPTY_PAYLOAD = new byte[0];
 
-    private final ExtractPayload extractPayload = ExtractPayload.SINGLETON;
-    private final ExtractIndex extractIndex = ExtractIndex.SINGLETON;
-    private final MapStore mapStore = new MapStore(extractIndex, ExtractKey.SINGLETON, extractPayload);
+    private final MapStore mapStore = MapStore.DEFAULT;
     private final AtomicReference<Index> indexRef = new AtomicReference<>();
     private final int keySize;
     private final int initialPageCapacity;
@@ -115,7 +113,7 @@ public abstract class BytesObjectMapStore<K, V> implements KeyValueStore<K, V> {
         int payloadIndex;
         synchronized (indexRef) {
             Index index = index();
-            payloadIndex = mapStore.get(index.chunk, keyBytes, extractIndex);
+            payloadIndex = mapStore.get(index.chunk, keyBytes, mapStore.extractIndex);
             if (payloadIndex < 0) {
                 return returnWhenGetReturnsNull;
             }
@@ -131,7 +129,7 @@ public abstract class BytesObjectMapStore<K, V> implements KeyValueStore<K, V> {
         }
         byte[] keyBytes = keyBytes(key);
         Index index = index();
-        int payloadIndex = mapStore.get(index.chunk.duplicate(), keyBytes, extractIndex);
+        int payloadIndex = mapStore.get(index.chunk.duplicate(), keyBytes, mapStore.extractIndex);
         if (payloadIndex < 0) {
             return returnWhenGetReturnsNull;
         }
