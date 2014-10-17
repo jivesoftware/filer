@@ -3,6 +3,9 @@ package com.jivesoftware.os.filer.map.store;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
+import com.jivesoftware.os.filer.map.store.extractors.ExtractIndex;
+import com.jivesoftware.os.filer.map.store.extractors.ExtractKey;
+import com.jivesoftware.os.filer.map.store.extractors.ExtractPayload;
 import com.jivesoftware.os.filer.map.store.extractors.ExtractorStream;
 import java.util.Arrays;
 import java.util.Random;
@@ -28,7 +31,8 @@ public class SkipListSet_TestDoubles {
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
         SkipListSet sls = new SkipListSet();
-        SkipListSetPage page = sls.slallocate(new byte[16], 0, 16, headKey, keySize, payloadSize, DoubleSkipListComparator.cSingleton, factory);
+        MapStore pset = new MapStore(ExtractIndex.SINGLETON, ExtractKey.SINGLETON, ExtractPayload.SINGLETON);
+        SkipListSetPage page = sls.slallocate(pset, new byte[16], 0, 16, headKey, keySize, payloadSize, DoubleSkipListComparator.cSingleton, factory);
         for (int i = 0; i < 16; i++) {
             sls.sladd(page, FilerIO.doubleBytes(random.nextInt(32)), new byte[0]);
         }

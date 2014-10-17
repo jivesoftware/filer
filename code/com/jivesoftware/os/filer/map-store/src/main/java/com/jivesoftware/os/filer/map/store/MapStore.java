@@ -105,7 +105,7 @@ public class MapStore {
         int maxCapacity = (int) (maxCount + (maxCount - (maxCount * cSetDensity)));
 
         int arraySize = cost(maxCount, keySize, payloadSize);
-        MapChunk page = new MapChunk(this, factory.allocate(arraySize));
+        MapChunk page = new MapChunk(factory.allocate(arraySize));
         setPageFamily(page, pageFamily);
         setPageVersion(page, pageVersion);
         setId(page, id);
@@ -115,7 +115,7 @@ public class MapStore {
         setCapacity(page, maxCapacity); // good to use prime
         setKeySize(page, keySize);
         setPayloadSize(page, payloadSize);
-        page.init();
+        page.init(this);
         return page;
     }
 

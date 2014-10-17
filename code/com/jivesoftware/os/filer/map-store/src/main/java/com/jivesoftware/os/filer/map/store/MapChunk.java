@@ -9,7 +9,6 @@ import java.nio.MappedByteBuffer;
  */
 public class MapChunk {
 
-    final MapStore mapStore;
     private final ByteBuffer array;
     int keySize; // read only
     int payloadSize; // read only
@@ -18,16 +17,14 @@ public class MapChunk {
 
     /**
      *
-     * @param mapStore
      * @param array
      */
-    public MapChunk(MapStore mapStore, ByteBuffer array) {
-        this.mapStore = mapStore;
+    public MapChunk(ByteBuffer array) {
         this.array = array;
     }
 
     public MapChunk duplicate() {
-        MapChunk mapChunk = new MapChunk(mapStore, array.duplicate());
+        MapChunk mapChunk = new MapChunk(array.duplicate());
         mapChunk.keySize = keySize;
         mapChunk.payloadSize = payloadSize;
         mapChunk.capacity = capacity;
@@ -37,8 +34,9 @@ public class MapChunk {
 
     /**
      *
+     * @param mapStore
      */
-    public void init() {
+    public void init(MapStore mapStore) {
         keySize = mapStore.getKeySize(this);
         payloadSize = mapStore.getPayloadSize(this);
         maxCount = mapStore.getMaxCount(this);

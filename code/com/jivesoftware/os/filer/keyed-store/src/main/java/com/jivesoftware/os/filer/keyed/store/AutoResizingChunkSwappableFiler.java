@@ -3,7 +3,7 @@ package com.jivesoftware.os.filer.keyed.store;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
-import com.jivesoftware.os.filer.map.store.FileBackMapStore;
+import com.jivesoftware.os.filer.map.store.PartitionedMapChunkBackedMapStore;
 import java.io.IOException;
 
 /**
@@ -15,11 +15,11 @@ public class AutoResizingChunkSwappableFiler implements SwappableFiler {
     private final AutoResizingChunkFiler filer;
     private final MultiChunkStore chunkStore;
     private final IBA key;
-    private final FileBackMapStore<IBA, IBA> mapStore;
-    private final FileBackMapStore<IBA, IBA> swapStore;
+    private final PartitionedMapChunkBackedMapStore<IBA, IBA> mapStore;
+    private final PartitionedMapChunkBackedMapStore<IBA, IBA> swapStore;
 
     public AutoResizingChunkSwappableFiler(AutoResizingChunkFiler filer, MultiChunkStore chunkStore, IBA key,
-            FileBackMapStore<IBA, IBA> mapStore, FileBackMapStore<IBA, IBA> swapStore)
+            PartitionedMapChunkBackedMapStore<IBA, IBA> mapStore, PartitionedMapChunkBackedMapStore<IBA, IBA> swapStore)
     {
         this.filer = filer;
         this.chunkStore = chunkStore;

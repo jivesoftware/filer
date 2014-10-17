@@ -53,8 +53,7 @@ public class ByteBufferValueArrayMapStoreTest {
                     mapStore.add(key, values[fieldId * numFields + termId]);
                 }
             }
-            System.out.println(
-                "ByteBufferValueArrayMapStore: Inserted " + mapStore.estimatedMaxNumberOfKeys() + " in " + (System.currentTimeMillis() - start) + "ms");
+            
 
             // bytebuffer mapstore retrieve
             start = System.currentTimeMillis();
@@ -70,8 +69,6 @@ public class ByteBufferValueArrayMapStoreTest {
                 Thread.sleep(600_000);
             }
 
-            System.out.println(
-                "ByteBufferValueArrayMapStore: Retrieved " + mapStore.estimatedMaxNumberOfKeys() + " in " + (System.currentTimeMillis() - start) + "ms");
         }
     }
 }

@@ -124,11 +124,6 @@ public abstract class BytesBytesMapStore<K, V> implements PartitionedKeyValueSto
         return bytesValue(key, valueBytes, 0);
     }
 
-    @Override
-    public long estimatedMaxNumberOfKeys() {
-        return mapStore.absoluteMaxCount(8, 0);
-    }
-
     private MapChunk index() {
         MapChunk got = indexRef.get();
         if (got != null) {

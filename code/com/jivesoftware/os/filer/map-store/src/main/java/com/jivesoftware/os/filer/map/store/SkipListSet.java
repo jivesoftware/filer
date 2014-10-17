@@ -35,6 +35,7 @@ public class SkipListSet {
     /**
      * new
      *
+     * @param mapStore
      * @param id
      * @param version
      * @param _maxCount
@@ -45,7 +46,7 @@ public class SkipListSet {
      * @param factory
      * @return
      */
-    public SkipListSetPage slallocate(byte[] id,
+    public SkipListSetPage slallocate(MapStore mapStore, byte[] id,
             long version, int _maxCount, byte[] headKey, int _keySize, int _payloadSize, SkipListComparator _valueComparator, ByteBufferFactory factory) {
         if (headKey.length != _keySize) {
             throw new RuntimeException("Expected that headKey.length == keySize");
@@ -60,7 +61,7 @@ public class SkipListSet {
         map.add(setPage, (byte) 1, headKey, newColumn(headPayload, maxHeight, maxHeight));
         //stoSysOut(setPage);
         SkipListSetPage slsPage = new SkipListSetPage(setPage, headKey, _valueComparator);
-        slsPage.init();
+        slsPage.init(mapStore);
         return slsPage;
     }
 

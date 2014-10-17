@@ -33,10 +33,10 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
     private final HeapByteBufferFactory byteBufferFactory;
 
     public ByteBufferValueArrayMapStore(int keySize,
-        int payloadSize,
-        int initialPageCapacity,
-        V returnWhenGetReturnsNull,
-        HeapByteBufferFactory byteBufferFactory) {
+            int payloadSize,
+            int initialPageCapacity,
+            V returnWhenGetReturnsNull,
+            HeapByteBufferFactory byteBufferFactory) {
         this.keySize = keySize;
         this.payloadSize = payloadSize;
         this.initialPageCapacity = initialPageCapacity;
@@ -137,11 +137,6 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
         return getValue(index, key, payloadIndex);
     }
 
-    @Override
-    public long estimatedMaxNumberOfKeys() {
-        return mapStore.absoluteMaxCount(8, 0);
-    }
-
     private Index index() {
         Index got = indexRef.get();
         if (got != null) {
@@ -162,10 +157,10 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
 
     private Index allocate(int maxCapacity) {
         MapChunk chunk = mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, maxCapacity, keySize, 0,
-            new HeapByteBufferFactory());
+                byteBufferFactory);
         return new Index(
-            chunk,
-            allocateValue(mapStore.getCapacity(chunk)));
+                chunk,
+                allocateValue(mapStore.getCapacity(chunk)));
     }
 
     public long sizeInBytes() throws IOException {
@@ -221,6 +216,7 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
     }
 
     private static class Index {
+
         public final MapChunk chunk;
         public final ByteBuffer payloads;
 

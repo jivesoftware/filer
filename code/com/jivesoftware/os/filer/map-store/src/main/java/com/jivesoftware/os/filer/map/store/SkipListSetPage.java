@@ -32,11 +32,12 @@ public class SkipListSetPage {
 
     /**
      *
+     * @param mapStore
      */
-    public void init() {
-        map.init();
+    public void init(MapStore mapStore) {
+        map.init(mapStore);
         maxHeight = heightFit(map.capacity);
-        headIndex = map.mapStore.get(map, headKey, ExtractIndex.SINGLETON);
+        headIndex = mapStore.get(map, headKey, ExtractIndex.SINGLETON);
         if (headIndex == -1) {
             throw new RuntimeException("SkipListSetPage:Invalid Page!");
         }
@@ -76,7 +77,7 @@ public class SkipListSetPage {
      * @return
      */
     public int compare(int startOfAKey, byte[] _key) {
-        return valueComparator.compare(map, startOfAKey, new MapChunk(map.mapStore, ByteBuffer.wrap(_key)), 0, map.keySize);
+        return valueComparator.compare(map, startOfAKey, new MapChunk(ByteBuffer.wrap(_key)), 0, map.keySize);
     }
 
     /**

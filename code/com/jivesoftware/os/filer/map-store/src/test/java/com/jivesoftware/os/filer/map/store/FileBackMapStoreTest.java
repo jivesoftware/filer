@@ -25,7 +25,8 @@ public class FileBackMapStoreTest {
             Files.createTempDirectory("testIterator").toFile().getAbsolutePath(),
             Files.createTempDirectory("testIterator").toFile().getAbsolutePath()
         };
-        FileBackMapStore<Integer, Long> fileBackMapStore = new FileBackMapStore<Integer, Long>(paths, 4, 8, 512, 4, null) {
+        FileBackedMapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(4, 8, 512, paths);
+        PartitionedMapChunkBackedMapStore<Integer, Long> fileBackMapStore = new PartitionedMapChunkBackedMapStore<Integer, Long>(mapChunkFactory, 4, null) {
             @Override
             public String keyPartition(Integer key) {
                 return String.valueOf(key % 10);

@@ -26,8 +26,6 @@ public interface KeyValueStore<K, V> extends Iterable<Entry<K, V>> {
 
     V getUnsafe(K key) throws KeyValueStoreException;
 
-    long estimatedMaxNumberOfKeys();
-
     long estimateSizeInBytes() throws Exception;
 
     interface Entry<K, V> {

@@ -42,8 +42,7 @@ public class ByteBufferObjectMapStoreTest {
                     byteBufferObjectMapStore.add(key, obj[fieldId * numFields + termId]);
                 }
             }
-            System.out.println("ByteBufferObjectMapStore: Inserted " + byteBufferObjectMapStore.estimatedMaxNumberOfKeys() + " in " + (System.
-                currentTimeMillis() - start) + "ms");
+          
 
             // bytebuffer mapstore retrieve
             start = System.currentTimeMillis();
@@ -54,8 +53,7 @@ public class ByteBufferObjectMapStoreTest {
                     assertTrue(retrieved == obj[fieldId * numFields + termId], "Failed at " + fieldId + ", " + termId);
                 }
             }
-            System.out.println("ByteBufferObjectMapStore: Retrieved " + byteBufferObjectMapStore.estimatedMaxNumberOfKeys() + " in " + (System.
-                currentTimeMillis() - start) + "ms");
+            
         }
     }
 

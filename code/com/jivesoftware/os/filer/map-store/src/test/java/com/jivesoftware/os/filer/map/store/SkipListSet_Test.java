@@ -3,7 +3,9 @@ package com.jivesoftware.os.filer.map.store;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
+import com.jivesoftware.os.filer.map.store.extractors.ExtractIndex;
 import com.jivesoftware.os.filer.map.store.extractors.ExtractKey;
+import com.jivesoftware.os.filer.map.store.extractors.ExtractPayload;
 import com.jivesoftware.os.filer.map.store.extractors.ExtractorStream;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -40,7 +42,10 @@ public class SkipListSet_Test {
 
         SkipListSet sls = new SkipListSet();
         byte[] headKey = new byte[]{Byte.MIN_VALUE};
-        SkipListSetPage slsp = sls.slallocate(new byte[16], 0, it, headKey, keySize, payloadSize, new SkipListComparator() {
+        
+        MapStore pset = new MapStore(ExtractIndex.SINGLETON, ExtractKey.SINGLETON, ExtractPayload.SINGLETON); 
+        
+        SkipListSetPage slsp = sls.slallocate(pset, new byte[16], 0, it, headKey, keySize, payloadSize, new SkipListComparator() {
 
             @Override
             public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) {
@@ -179,7 +184,8 @@ public class SkipListSet_Test {
         int keySize = _keySize;
         int payloadSize = 4;
         SkipListSet sls = new SkipListSet();
-        SkipListSetPage slsp = sls.slallocate(new byte[16], 0, _maxSize, headKey, keySize, payloadSize, new SkipListComparator() {
+        MapStore pset = new MapStore(ExtractIndex.SINGLETON, ExtractKey.SINGLETON, ExtractPayload.SINGLETON);
+        SkipListSetPage slsp = sls.slallocate(pset, new byte[16], 0, _maxSize, headKey, keySize, payloadSize, new SkipListComparator() {
 
             @Override
             public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) {
@@ -374,7 +380,8 @@ public class SkipListSet_Test {
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
         SkipListSet sls = new SkipListSet();
-        SkipListSetPage slsp = sls.slallocate(new byte[16], 0, _maxSize, headKey, keySize, payloadSize, new SkipListComparator() {
+        MapStore pset = new MapStore(ExtractIndex.SINGLETON, ExtractKey.SINGLETON, ExtractPayload.SINGLETON);
+        SkipListSetPage slsp = sls.slallocate(pset, new byte[16], 0, _maxSize, headKey, keySize, payloadSize, new SkipListComparator() {
 
             @Override
             public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) {
@@ -412,7 +419,8 @@ public class SkipListSet_Test {
         if (set == null) {
             byte[] headKey = new byte[keySize];
             Arrays.fill(headKey, Byte.MIN_VALUE);
-            set = sls.slallocate(new byte[16], 0, _maxSize, headKey, keySize, payloadSize, new SkipListComparator() {
+            MapStore pset = new MapStore(ExtractIndex.SINGLETON, ExtractKey.SINGLETON, ExtractPayload.SINGLETON);
+            set = sls.slallocate(pset, new byte[16], 0, _maxSize, headKey, keySize, payloadSize, new SkipListComparator() {
 
                 @Override
                 public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) {

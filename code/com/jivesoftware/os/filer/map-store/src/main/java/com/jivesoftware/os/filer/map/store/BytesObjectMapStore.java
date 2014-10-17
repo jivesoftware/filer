@@ -138,11 +138,6 @@ public abstract class BytesObjectMapStore<K, V> implements KeyValueStore<K, V> {
         return (V) index.payloads[payloadIndex];
     }
 
-    @Override
-    public long estimatedMaxNumberOfKeys() {
-        return mapStore.absoluteMaxCount(8, 0);
-    }
-
     private Index index() {
         Index got = indexRef.get();
         if (got != null) {

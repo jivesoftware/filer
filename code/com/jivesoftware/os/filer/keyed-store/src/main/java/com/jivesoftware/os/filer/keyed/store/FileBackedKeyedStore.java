@@ -1,7 +1,8 @@
 package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
-import com.jivesoftware.os.filer.map.store.FileBackMapStore;
+import com.jivesoftware.os.filer.map.store.PartitionedMapChunkBackedMapStore;
+import com.jivesoftware.os.filer.map.store.FileBackedMapChunkFactory;
 import java.util.Arrays;
 
 /**
@@ -9,8 +10,8 @@ import java.util.Arrays;
  */
 public class FileBackedKeyedStore implements KeyedFilerStore {
 
-    private final FileBackMapStore<IBA, IBA> mapStore;
-    private final FileBackMapStore<IBA, IBA> swapStore;
+    private final PartitionedMapChunkBackedMapStore<IBA, IBA> mapStore;
+    private final PartitionedMapChunkBackedMapStore<IBA, IBA> swapStore;
     private final MultiChunkStore chunkStore;
     private final String[] partitions;
 
@@ -25,8 +26,11 @@ public class FileBackedKeyedStore implements KeyedFilerStore {
         }
     }
 
-    private FileBackMapStore<IBA, IBA> initializeMapStore(String[] mapDirectories, int mapKeySize, long initialMapKeyCapacity) throws Exception {
-        return new FileBackMapStore<IBA, IBA>(mapDirectories, mapKeySize, 8, (int) initialMapKeyCapacity, 100, null) {
+    private PartitionedMapChunkBackedMapStore<IBA, IBA> initializeMapStore(String[] mapDirectories, int mapKeySize, long initialMapKeyCapacity) throws Exception {
+        
+        // TODO push up factory!
+        FileBackedMapChunkFactory chunkFactory = new FileBackedMapChunkFactory(mapKeySize, 8, (int)initialMapKeyCapacity, mapDirectories);
+        return new PartitionedMapChunkBackedMapStore<IBA, IBA>(chunkFactory, 100, null) {
             @Override
             public String keyPartition(IBA key) {
                 return partitions[Math.abs(key.hashCode()) % partitions.length];

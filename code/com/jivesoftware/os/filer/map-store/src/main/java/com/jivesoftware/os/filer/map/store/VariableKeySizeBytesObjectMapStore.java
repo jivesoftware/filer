@@ -93,15 +93,6 @@ public abstract class VariableKeySizeBytesObjectMapStore<K, V> implements KeyVal
     }
 
     @Override
-    public long estimatedMaxNumberOfKeys() {
-        long estimate = 0;
-        for (BytesObjectMapStore<K, V> mapStore : mapStores) {
-            estimate += mapStore.estimatedMaxNumberOfKeys();
-        }
-        return estimate;
-    }
-
-    @Override
     public Iterator<Entry<K, V>> iterator() {
         List<Iterator<Entry<K, V>>> iterators = Lists.newArrayListWithCapacity(mapStores.length);
         for (BytesObjectMapStore<K, V> mapStore : mapStores) {
