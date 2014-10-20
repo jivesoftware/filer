@@ -12,6 +12,8 @@ import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.map.store.FileBackedMapChunkFactory;
+import com.jivesoftware.os.filer.map.store.MapChunkFactory;
 import java.nio.file.Files;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -23,15 +25,15 @@ public class FileBackedKeyedStoreTest {
 
     @Test
     public void keyedStoreTest() throws Exception {
-        String[] mapDirs = new String[] {
+        String[] mapDirs = new String[]{
             Files.createTempDirectory("map").toFile().getAbsolutePath(),
             Files.createTempDirectory("map").toFile().getAbsolutePath()
         };
-        String[] swapDirs = new String[] {
+        String[] swapDirs = new String[]{
             Files.createTempDirectory("swap").toFile().getAbsolutePath(),
             Files.createTempDirectory("swap").toFile().getAbsolutePath()
         };
-        String[] chunkDirs = new String[] {
+        String[] chunkDirs = new String[]{
             Files.createTempDirectory("chunk").toFile().getAbsolutePath(),
             Files.createTempDirectory("chunk").toFile().getAbsolutePath()
         };
@@ -39,7 +41,10 @@ public class FileBackedKeyedStoreTest {
         ChunkStoreInitializer chunkStoreInitializer = new ChunkStoreInitializer();
         MultiChunkStore multChunkStore = chunkStoreInitializer.initializeMulti(chunkDirs, "data", 4, 4096, false);
         int newFilerInitialCapacity = 512;
-        FileBackedKeyedStore fileBackedKeyedStore = new FileBackedKeyedStore(mapDirs, swapDirs, 4, 100, multChunkStore, 4);
+
+        MapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
+        MapChunkFactory swapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, swapDirs);
+        FileBackedKeyedStore fileBackedKeyedStore = new FileBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4);
 
         byte[] key = FilerIO.intBytes(1010);
         Filer filer = fileBackedKeyedStore.get(key, newFilerInitialCapacity);
@@ -47,7 +52,9 @@ public class FileBackedKeyedStoreTest {
             FilerIO.writeInt(filer, 10, "");
         }
 
-        fileBackedKeyedStore = new FileBackedKeyedStore(mapDirs, swapDirs, 4, 100, multChunkStore, 4);
+        mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
+        swapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, swapDirs);
+        fileBackedKeyedStore = new FileBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4);
         filer = fileBackedKeyedStore.get(key, newFilerInitialCapacity);
         synchronized (filer.lock()) {
             filer.seek(0);
@@ -59,15 +66,15 @@ public class FileBackedKeyedStoreTest {
 
     @Test
     public void swapTest() throws Exception {
-        String[] mapDirs = new String[] {
+        String[] mapDirs = new String[]{
             Files.createTempDirectory("map").toFile().getAbsolutePath(),
             Files.createTempDirectory("map").toFile().getAbsolutePath()
         };
-        String[] swapDirs = new String[] {
+        String[] swapDirs = new String[]{
             Files.createTempDirectory("swap").toFile().getAbsolutePath(),
             Files.createTempDirectory("swap").toFile().getAbsolutePath()
         };
-        String[] chunkDirs = new String[] {
+        String[] chunkDirs = new String[]{
             Files.createTempDirectory("chunk").toFile().getAbsolutePath(),
             Files.createTempDirectory("chunk").toFile().getAbsolutePath()
         };
@@ -75,7 +82,9 @@ public class FileBackedKeyedStoreTest {
         ChunkStoreInitializer chunkStoreInitializer = new ChunkStoreInitializer();
         MultiChunkStore multChunkStore = chunkStoreInitializer.initializeMulti(chunkDirs, "data", 4, 4096, false);
         int newFilerInitialCapacity = 512;
-        FileBackedKeyedStore fileBackedKeyedStore = new FileBackedKeyedStore(mapDirs, swapDirs, 4, 100, multChunkStore, 4);
+        MapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
+        MapChunkFactory swapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, swapDirs);
+        FileBackedKeyedStore fileBackedKeyedStore = new FileBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4);
 
         byte[] key = FilerIO.intBytes(1020);
         SwappableFiler filer = fileBackedKeyedStore.get(key, newFilerInitialCapacity);
@@ -88,7 +97,9 @@ public class FileBackedKeyedStoreTest {
             swappingFiler.commit();
         }
 
-        fileBackedKeyedStore = new FileBackedKeyedStore(mapDirs, swapDirs, 4, 100, multChunkStore, 4);
+        mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
+        swapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, swapDirs);
+        fileBackedKeyedStore = new FileBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4);
         filer = fileBackedKeyedStore.get(key, newFilerInitialCapacity);
         synchronized (filer.lock()) {
             filer.sync();

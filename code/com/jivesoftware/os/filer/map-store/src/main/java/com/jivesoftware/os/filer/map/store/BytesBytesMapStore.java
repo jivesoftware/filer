@@ -4,42 +4,51 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.io.KeyValueMarshaller;
+import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
+import com.jivesoftware.os.filer.map.store.api.KeyValueStore.Entry;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
-import com.jivesoftware.os.filer.map.store.api.PartitionedKeyValueStore;
-import com.jivesoftware.os.filer.map.store.extractors.ExtractIndex;
-import com.jivesoftware.os.filer.map.store.extractors.ExtractKey;
-import com.jivesoftware.os.filer.map.store.extractors.ExtractPayload;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Bytes key to bytes value.
+ *
  * @param <K>
  * @param <V>
  */
-public abstract class BytesBytesMapStore<K, V> implements PartitionedKeyValueStore<K, V> {
+public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
 
     private static final byte[] EMPTY_ID = new byte[16];
 
     private final MapStore mapStore = MapStore.DEFAULT;
     private final AtomicReference<MapChunk> indexRef = new AtomicReference<>();
     private final int keySize;
+    private final boolean variableKeySizes;
     private final int payloadSize;
+    private final boolean variablePayloadSizes;
     private final int initialPageCapacity;
     private final V returnWhenGetReturnsNull;
     private final ByteBufferFactory byteBufferFactory;
+    private final KeyValueMarshaller<K, V> keyValueMarshaller;
 
     public BytesBytesMapStore(int keySize,
-        int payloadSize,
-        int initialPageCapacity,
-        V returnWhenGetReturnsNull,
-        ByteBufferFactory byteBufferFactory) {
+            boolean variableKeySizes,
+            int payloadSize,
+            boolean variablePayloadSizes,
+            int initialPageCapacity,
+            V returnWhenGetReturnsNull,
+            ByteBufferFactory byteBufferFactory,
+            KeyValueMarshaller<K, V> keyValueMarshaller) {
         this.keySize = keySize;
+        this.variableKeySizes = variableKeySizes;
         this.payloadSize = payloadSize;
+        this.variablePayloadSizes = variablePayloadSizes;
         this.initialPageCapacity = initialPageCapacity;
         this.returnWhenGetReturnsNull = returnWhenGetReturnsNull;
         this.byteBufferFactory = byteBufferFactory;
+        this.keyValueMarshaller = keyValueMarshaller;
     }
 
     @Override
@@ -48,8 +57,8 @@ public abstract class BytesBytesMapStore<K, V> implements PartitionedKeyValueSto
             return;
         }
 
-        byte[] keyBytes = keyBytes(key);
-        byte[] valueBytes = valueBytes(value);
+        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
+        byte[] valueBytes = keyValueMarshaller.valueBytes(value);
         if (valueBytes == null) {
             return;
         }
@@ -78,16 +87,11 @@ public abstract class BytesBytesMapStore<K, V> implements PartitionedKeyValueSto
             return;
         }
 
-        byte[] keyBytes = keyBytes(key);
+        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         synchronized (indexRef) {
             MapChunk index = index();
             mapStore.remove(index, keyBytes);
         }
-    }
-
-    @Override
-    public String keyPartition(K key) {
-        return null;
     }
 
     @Override
@@ -96,14 +100,14 @@ public abstract class BytesBytesMapStore<K, V> implements PartitionedKeyValueSto
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
-        byte[] keyBytes = keyBytes(key);
+        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         synchronized (indexRef) {
             MapChunk index = index();
-            byte[] valueBytes = mapStore.get(index, keyBytes, mapStore.extractPayload);
+            byte[] valueBytes = mapStore.getPayload(index, keyBytes);
             if (valueBytes == null) {
                 return returnWhenGetReturnsNull;
             }
-            return bytesValue(key, valueBytes, 0);
+            return keyValueMarshaller.bytesValue(key, valueBytes, 0);
         }
     }
 
@@ -113,13 +117,13 @@ public abstract class BytesBytesMapStore<K, V> implements PartitionedKeyValueSto
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
-        byte[] keyBytes = keyBytes(key);
+        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         MapChunk index = index();
-        byte[] valueBytes = mapStore.get(index.duplicate(), keyBytes, mapStore.extractPayload);
+        byte[] valueBytes = mapStore.getPayload(index.duplicate(), keyBytes);
         if (valueBytes == null) {
             return returnWhenGetReturnsNull;
         }
-        return bytesValue(key, valueBytes, 0);
+        return keyValueMarshaller.bytesValue(key, valueBytes, 0);
     }
 
     private MapChunk index() {
@@ -141,8 +145,8 @@ public abstract class BytesBytesMapStore<K, V> implements PartitionedKeyValueSto
     }
 
     private MapChunk allocate(int maxCapacity) {
-        return mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, maxCapacity, keySize, payloadSize,
-            byteBufferFactory);
+        return mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, maxCapacity, keySize, variableKeySizes, payloadSize, variablePayloadSizes,
+                byteBufferFactory);
     }
 
     @Override
@@ -162,8 +166,8 @@ public abstract class BytesBytesMapStore<K, V> implements PartitionedKeyValueSto
             iterators.add(Iterators.transform(mapStore.iterator(got), new Function<MapStore.Entry, Entry<K, V>>() {
                 @Override
                 public Entry<K, V> apply(final MapStore.Entry input) {
-                    final K key = bytesKey(input.key, 0);
-                    final V value = bytesValue(key, input.payload, 0);
+                    final K key = keyValueMarshaller.bytesKey(input.key, 0);
+                    final V value = keyValueMarshaller.bytesValue(key, input.payload, 0);
 
                     return new Entry<K, V>() {
                         @Override

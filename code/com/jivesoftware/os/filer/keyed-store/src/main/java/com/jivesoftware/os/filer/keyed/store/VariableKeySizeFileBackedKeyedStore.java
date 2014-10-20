@@ -1,63 +1,65 @@
 package com.jivesoftware.os.filer.keyed.store;
 
-import com.google.common.base.Preconditions;
-import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
-import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class VariableKeySizeFileBackedKeyedStore implements KeyedFilerStore {
 
-    private final int[] keySizeThresholds;
-    private final FileBackedKeyedStore[] keyedStores;
 
-    public VariableKeySizeFileBackedKeyedStore(String[] baseMapDirectories,
-        String[] baseSwapDirectories,
-        MultiChunkStore chunkStore,
-        int[] keySizeThresholds,
-        long initialMapKeyCapacity,
-        int numPartitions)
-        throws Exception {
+    public static class Builder {
 
-        this.keySizeThresholds = keySizeThresholds;
-        this.keyedStores = new FileBackedKeyedStore[keySizeThresholds.length];
-        for (int keySizeIndex = 0; keySizeIndex < keySizeThresholds.length; keySizeIndex++) {
-            Preconditions.checkArgument(keySizeIndex == 0 || keySizeThresholds[keySizeIndex] > keySizeThresholds[keySizeIndex - 1],
-                "Thresholds must be monotonically increasing");
+        private final List<ParitionSizedByKeyStore> stores = new ArrayList<>();
 
-            final int keySize = keySizeThresholds[keySizeIndex];
-            String[] mapDirectories = buildMapDirectories(baseMapDirectories, keySize);
-            String[] swapDirectories = buildMapDirectories(baseSwapDirectories, keySize);
-            keyedStores[keySizeIndex] = new FileBackedKeyedStore(mapDirectories, swapDirectories, keySize, initialMapKeyCapacity, chunkStore, numPartitions);
+        public Builder add(int keySize, FileBackedKeyedStore fileBackedKeyedStore) {
+            stores.add(new ParitionSizedByKeyStore(keySize, fileBackedKeyedStore));
+            return this;
         }
+
+        public VariableKeySizeFileBackedKeyedStore build() throws Exception {
+            Collections.sort(stores);
+            return new VariableKeySizeFileBackedKeyedStore(stores.toArray(new ParitionSizedByKeyStore[stores.size()]));
+
+        }
+
     }
 
-    private String[] buildMapDirectories(String[] baseMapDirectories, int keySize) {
-        String[] mapDirectories = new String[baseMapDirectories.length];
-        for (int basePathIndex = 0; basePathIndex < baseMapDirectories.length; basePathIndex++) {
-            mapDirectories[basePathIndex] = new File(baseMapDirectories[basePathIndex], String.valueOf(keySize)).getAbsolutePath();
+    private static class ParitionSizedByKeyStore implements Comparable<ParitionSizedByKeyStore> {
+
+        final int keySize;
+        final FileBackedKeyedStore store;
+
+        public ParitionSizedByKeyStore(int keySize, FileBackedKeyedStore store) {
+            this.keySize = keySize;
+            this.store = store;
         }
-        return mapDirectories;
+
+        @Override
+        public int compareTo(ParitionSizedByKeyStore o) {
+            return Integer.compare(keySize, o.keySize);
+        }
+
     }
 
-    private int keySize(byte[] key) {
-        for (int keySize : keySizeThresholds) {
-            if (keySize >= key.length) {
-                return keySize;
-            }
-        }
-        throw new IndexOutOfBoundsException("Key is too long");
+    private final ParitionSizedByKeyStore[] keyedStores;
+
+    private VariableKeySizeFileBackedKeyedStore(ParitionSizedByKeyStore[] keyedStores)
+            throws Exception {
+        this.keyedStores = keyedStores;
     }
 
-    private FileBackedKeyedStore getKeyedStore(byte[] key) {
-        for (int i = 0; i < keySizeThresholds.length; i++) {
-            if (keySizeThresholds[i] >= key.length) {
-                return keyedStores[i];
+    private ParitionSizedByKeyStore get(byte[] key) {
+
+        for (ParitionSizedByKeyStore keyedStore : keyedStores) {
+            if (keyedStore.keySize >= key.length) {
+                return keyedStore;
             }
         }
         throw new IndexOutOfBoundsException("Key is too long");
     }
 
     private byte[] pad(byte[] key) {
-        int keySize = keySize(key);
+        int keySize = get(key).keySize;
         byte[] padded = new byte[keySize];
         System.arraycopy(key, 0, padded, 0, key.length);
         return padded;
@@ -65,22 +67,22 @@ public class VariableKeySizeFileBackedKeyedStore implements KeyedFilerStore {
 
     @Override
     public SwappableFiler get(byte[] keyBytes, long newFilerInitialCapacity) throws Exception {
-        return getKeyedStore(keyBytes).get(pad(keyBytes), newFilerInitialCapacity);
+        return get(keyBytes).store.get(pad(keyBytes), newFilerInitialCapacity);
     }
 
     @Override
     public long sizeInBytes() throws Exception {
         long sizeInBytes = 0;
-        for (FileBackedKeyedStore keyedStore : keyedStores) {
-            sizeInBytes += keyedStore.mapStoreSizeInBytes();
+        for (ParitionSizedByKeyStore keyedStore : keyedStores) {
+            sizeInBytes += keyedStore.store.mapStoreSizeInBytes();
         }
         return sizeInBytes;
     }
 
     @Override
     public void close() {
-        for (FileBackedKeyedStore keyedStore : keyedStores) {
-            keyedStore.close();
+        for (ParitionSizedByKeyStore keyedStore : keyedStores) {
+            keyedStore.store.close();
         }
     }
 }

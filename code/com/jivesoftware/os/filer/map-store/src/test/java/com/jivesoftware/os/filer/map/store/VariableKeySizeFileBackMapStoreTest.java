@@ -2,7 +2,10 @@ package com.jivesoftware.os.filer.map.store;
 
 import com.google.common.base.Charsets;
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.io.KeyPartitioner;
+import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
+import java.io.File;
 import java.nio.file.Files;
 import java.util.Collections;
 import org.testng.Assert;
@@ -18,58 +21,67 @@ public class VariableKeySizeFileBackMapStoreTest {
 
     @BeforeMethod
     public void setUp() throws Exception {
-        pathsToPartitions = new String[] {
+        pathsToPartitions = new String[]{
             Files.createTempDirectory(getClass().getSimpleName()).toFile().getAbsolutePath(),
             Files.createTempDirectory(getClass().getSimpleName()).toFile().getAbsolutePath()
         };
     }
 
-    private VariableKeySizeFileBackMapStore<String, Long> createMapStore(String[] pathsToPartitions, int[] keySizeThresholds) {
-        return new VariableKeySizeFileBackMapStore<String, Long>(pathsToPartitions, keySizeThresholds, 8, 10, 1, null) {
+    private VariableKeySizeFileBackMapStore<String, Long> createMapStore(String[] pathsToPartitions, int[] keySizeThresholds) throws Exception {
 
-            @Override
-            protected int keyLength(String key) {
-                return key.getBytes(Charsets.US_ASCII).length;
-            }
+        VariableKeySizeFileBackMapStore.Builder<String, Long> builder = new VariableKeySizeFileBackMapStore.Builder<>(1,
+                null,
+                new KeyValueMarshaller<String, Long>() {
 
-            @Override
-            public String keyPartition(String key) {
-                return "0";
-            }
+                    @Override
+                    public byte[] keyBytes(String key) {
+                        return key.getBytes(Charsets.US_ASCII);
+                    }
 
-            @Override
-            protected Iterable<String> keyPartitions(int keyLength) {
-                return Collections.singletonList("0");
-            }
+                    @Override
+                    public byte[] valueBytes(Long value) {
+                        return FilerIO.longBytes(value);
+                    }
 
-            @Override
-            public byte[] keyBytes(String key) {
-                return key.getBytes(Charsets.US_ASCII);
-            }
+                    @Override
+                    public String bytesKey(byte[] bytes, int offset) {
+                        return new String(bytes, offset, bytes.length - offset, Charsets.US_ASCII);
+                    }
 
-            @Override
-            public byte[] valueBytes(Long value) {
-                return FilerIO.longBytes(value);
+                    @Override
+                    public Long bytesValue(String key, byte[] bytes, int offset) {
+                        return FilerIO.bytesLong(bytes, offset);
+                    }
+                });
+        for (int keySize : keySizeThresholds) {
+            String[] keySizePaths = new String[pathsToPartitions.length];
+            for (int i = 0; i < keySizePaths.length; i++) {
+                keySizePaths[i] = pathsToPartitions[i] + File.separator + keySize;
             }
+            builder.add(keySize, new FileBackedMapChunkFactory(keySize, true, 8, false, 2, keySizePaths), new KeyPartitioner<String>() {
 
-            @Override
-            public String bytesKey(byte[] bytes, int offset) {
-                return new String(bytes, offset, bytes.length - offset, Charsets.US_ASCII);
-            }
+                @Override
+                public String keyPartition(String key) {
+                    return "0";
+                }
 
-            @Override
-            public Long bytesValue(String key, byte[] bytes, int offset) {
-                return FilerIO.bytesLong(bytes, offset);
-            }
-        };
+                @Override
+                public Iterable<String> allPartitions() {
+                    return Collections.singletonList("0");
+                }
+
+            });
+        }
+        return builder.build();
     }
 
     @Test
-    public void testAddGet() throws KeyValueStoreException {
-        int[] keySizeThresholds = new int[] { 4, 16, 64, 256, 1_024 };
+    public void testAddGet() throws Exception {
+        int[] keySizeThresholds = new int[]{4, 16, 64, 256, 1_024};
         VariableKeySizeFileBackMapStore<String, Long> mapStore = createMapStore(pathsToPartitions, keySizeThresholds);
 
         for (int i = 0; i < keySizeThresholds.length; i++) {
+            System.out.println("hmm:" + i);
             String key = keyOfLength(keySizeThresholds[i]);
             long expected = i;
             mapStore.add(key, expected);
@@ -77,18 +89,18 @@ public class VariableKeySizeFileBackMapStoreTest {
         }
     }
 
-    @Test(expectedExceptions = { IndexOutOfBoundsException.class })
-    public void testKeyTooBig() throws KeyValueStoreException {
-        int[] keySizeThresholds = new int[] { 1, 2, 4 };
+    @Test(expectedExceptions = {IndexOutOfBoundsException.class})
+    public void testKeyTooBig() throws KeyValueStoreException, Exception {
+        int[] keySizeThresholds = new int[]{1, 2, 4};
         VariableKeySizeFileBackMapStore<String, Long> mapStore = createMapStore(pathsToPartitions, keySizeThresholds);
 
         int maxLength = keySizeThresholds[keySizeThresholds.length - 1];
         mapStore.add(keyOfLength(maxLength + 1), 0l);
     }
 
-    @Test(expectedExceptions = { IllegalArgumentException.class })
-    public void testBadThresholds() throws KeyValueStoreException {
-        int[] keySizeThresholds = new int[] { 0, 0 };
+    @Test(expectedExceptions = {IllegalStateException.class})
+    public void testBadThresholds() throws KeyValueStoreException, Exception {
+        int[] keySizeThresholds = new int[]{0, 0};
         createMapStore(pathsToPartitions, keySizeThresholds);
     }
 

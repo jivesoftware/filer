@@ -2,6 +2,7 @@ package com.jivesoftware.os.filer.map.store;
 
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
+import com.jivesoftware.os.filer.io.KeyMarshaller;
 import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
 
@@ -22,8 +23,9 @@ public class ByteBufferObjectMapStoreTest {
             System.out.println("---------------------- " + i + " ----------------------");
 
             // bytebuffer mapstore setup
-            BytesObjectMapStore<Long, Object> byteBufferObjectMapStore = new BytesObjectMapStore<Long, Object>(8, 10, null, new HeapByteBufferFactory()) {
-                @Override
+            BytesObjectMapStore<Long, Object> byteBufferObjectMapStore = new BytesObjectMapStore<>(8, false, 10, null, new HeapByteBufferFactory(), new KeyMarshaller<Long>() {
+
+               @Override
                 public byte[] keyBytes(Long key) {
                     return FilerIO.longBytes(key);
                 }
@@ -32,7 +34,7 @@ public class ByteBufferObjectMapStoreTest {
                 public Long bytesKey(byte[] bytes, int offset) {
                     return FilerIO.bytesLong(bytes, offset);
                 }
-            };
+            });
 
             // bytebuffer mapstore insert
             long start = System.currentTimeMillis();

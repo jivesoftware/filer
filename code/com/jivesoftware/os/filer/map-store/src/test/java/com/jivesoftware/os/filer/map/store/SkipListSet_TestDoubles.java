@@ -3,7 +3,7 @@ package com.jivesoftware.os.filer.map.store;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
-import com.jivesoftware.os.filer.map.store.extractors.ExtractorStream;
+import com.jivesoftware.os.filer.map.store.extractors.IndexStream;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,7 +29,7 @@ public class SkipListSet_TestDoubles {
         Arrays.fill(headKey, Byte.MIN_VALUE);
         SkipListSet sls = new SkipListSet();
         MapStore pset = MapStore.DEFAULT;
-        SkipListSetPage page = sls.slallocate(pset, new byte[16], 0, 16, headKey, keySize, payloadSize, DoubleSkipListComparator.cSingleton, factory);
+        SkipListSetPage page = sls.slallocate(pset, new byte[16], 0, 16, headKey, keySize,false,  payloadSize,false,  DoubleSkipListComparator.cSingleton, factory);
         for (int i = 0; i < 16; i++) {
             sls.sladd(page, FilerIO.doubleBytes(random.nextInt(32)), new byte[0]);
         }
@@ -43,16 +43,15 @@ public class SkipListSet_TestDoubles {
         System.out.println(FilerIO.byteDouble(got) + " + 4 key=" + FilerIO.byteDouble(find));
 
         final AtomicInteger i = new AtomicInteger(1);
-        sls.slgetSlice(page, find, null, 4, new ExtractorStream<KeyPayload, Exception>() {
+        sls.slgetSlice(page, find, null, 4, new IndexStream<Exception>() {
 
             @Override
-            public KeyPayload stream(KeyPayload v) throws Exception {
-                if (v == null) {
-                    return v;
+            public boolean stream(long v) throws Exception {
+                if (v != -1) {
+                    System.out.println(i + ":" + v); //toStringer.bytesToString(v.key));
+                    i.incrementAndGet();
                 }
-                System.out.println(i + ":" + toStringer.bytesToString(v.key));
-                i.incrementAndGet();
-                return v;
+                return true;
             }
         });
 
@@ -60,16 +59,15 @@ public class SkipListSet_TestDoubles {
         double from = random.nextInt(32);
         double to = random.nextInt(6);
         System.out.println(from + "->" + (from + to));
-        sls.slgetSlice(page, FilerIO.doubleBytes(from), FilerIO.doubleBytes(from + to), -1, new ExtractorStream<KeyPayload, Exception>() {
+        sls.slgetSlice(page, FilerIO.doubleBytes(from), FilerIO.doubleBytes(from + to), -1, new IndexStream<Exception>() {
 
             @Override
-            public KeyPayload stream(KeyPayload v) throws Exception {
-                if (v == null) {
-                    return v;
+            public boolean stream(long v) throws Exception {
+                if (v != -1) {
+                    System.out.println(i + ":" + v); //toStringer.bytesToString(v.key));
+                    i.incrementAndGet();
                 }
-                System.out.println(i + ":" + toStringer.bytesToString(v.key));
-                i.incrementAndGet();
-                return v;
+                return true;
             }
         });
 

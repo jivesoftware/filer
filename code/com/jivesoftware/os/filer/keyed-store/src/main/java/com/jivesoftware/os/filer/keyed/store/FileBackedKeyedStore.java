@@ -1,8 +1,10 @@
 package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
+import com.jivesoftware.os.filer.io.KeyPartitioner;
+import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.PartitionedMapChunkBackedMapStore;
-import com.jivesoftware.os.filer.map.store.FileBackedMapChunkFactory;
+import com.jivesoftware.os.filer.map.store.MapChunkFactory;
 import java.util.Arrays;
 
 /**
@@ -15,10 +17,12 @@ public class FileBackedKeyedStore implements KeyedFilerStore {
     private final MultiChunkStore chunkStore;
     private final String[] partitions;
 
-    public FileBackedKeyedStore(String[] mapDirectories, String[] swapDirectories, int mapKeySize, long initialMapKeyCapacity,
-        MultiChunkStore chunkStore, int numPartitions) throws Exception {
-        this.mapStore = initializeMapStore(mapDirectories, mapKeySize, initialMapKeyCapacity);
-        this.swapStore = initializeMapStore(swapDirectories, mapKeySize, initialMapKeyCapacity);
+    public FileBackedKeyedStore(MapChunkFactory mapChunkFactory,
+            MapChunkFactory swapChunkFactory,
+            MultiChunkStore chunkStore, int numPartitions) throws Exception {
+
+        this.mapStore = initializeMapStore(mapChunkFactory);
+        this.swapStore = initializeMapStore(swapChunkFactory);
         this.chunkStore = chunkStore;
         this.partitions = new String[numPartitions];
         for (int i = 0; i < numPartitions; i++) {
@@ -26,41 +30,43 @@ public class FileBackedKeyedStore implements KeyedFilerStore {
         }
     }
 
-    private PartitionedMapChunkBackedMapStore<IBA, IBA> initializeMapStore(String[] mapDirectories, int mapKeySize, long initialMapKeyCapacity) throws Exception {
-        
+    private PartitionedMapChunkBackedMapStore<IBA, IBA> initializeMapStore(MapChunkFactory chunkFactory) throws Exception {
+
         // TODO push up factory!
-        FileBackedMapChunkFactory chunkFactory = new FileBackedMapChunkFactory(mapKeySize, 8, (int)initialMapKeyCapacity, mapDirectories);
-        return new PartitionedMapChunkBackedMapStore<IBA, IBA>(chunkFactory, 100, null) {
-            @Override
-            public String keyPartition(IBA key) {
-                return partitions[Math.abs(key.hashCode()) % partitions.length];
-            }
+        return new PartitionedMapChunkBackedMapStore<>(chunkFactory,
+                100,
+                null, new KeyPartitioner<IBA>() {
+                    @Override
+                    public String keyPartition(IBA key) {
+                        return partitions[Math.abs(key.hashCode()) % partitions.length];
+                    }
 
-            @Override
-            public Iterable<String> keyPartitions() {
-                return Arrays.asList(partitions);
-            }
+                    @Override
+                    public Iterable<String> allPartitions() {
+                        return Arrays.asList(partitions);
+                    }
+                }, new KeyValueMarshaller<IBA, IBA>() {
 
-            @Override
-            public byte[] keyBytes(IBA key) {
-                return key.getBytes();
-            }
+                    @Override
+                    public byte[] keyBytes(IBA key) {
+                        return key.getBytes();
+                    }
 
-            @Override
-            public byte[] valueBytes(IBA value) {
-                return value.getBytes();
-            }
+                    @Override
+                    public byte[] valueBytes(IBA value) {
+                        return value.getBytes();
+                    }
 
-            @Override
-            public IBA bytesKey(byte[] keyBytes, int offset) {
-                return new IBA(keyBytes);
-            }
+                    @Override
+                    public IBA bytesKey(byte[] keyBytes, int offset) {
+                        return new IBA(keyBytes);
+                    }
 
-            @Override
-            public IBA bytesValue(IBA key, byte[] value, int valueOffset) {
-                return new IBA(value);
-            }
-        };
+                    @Override
+                    public IBA bytesValue(IBA key, byte[] value, int valueOffset) {
+                        return new IBA(value);
+                    }
+                });
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.jivesoftware.os.filer.map.store;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
+import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 
 /*
@@ -36,7 +37,7 @@ public class PrimitivesMapStoresBuilder {
     }
 
     public KeyValueStore<Long, Long> buildLongLong() {
-        return new BytesBytesMapStore<Long, Long>(8, 8, initialPageCapacity, null, bufferFactory) {
+        return new BytesBytesMapStore<>(8, false, 8, false, initialPageCapacity, null, bufferFactory, new KeyValueMarshaller<Long, Long>() {
 
             @Override
             public byte[] keyBytes(Long key) {
@@ -57,11 +58,11 @@ public class PrimitivesMapStoresBuilder {
             public Long bytesValue(Long key, byte[] bytes, int offset) {
                 return FilerIO.bytesLong(bytes, offset);
             }
-        };
+        });
     }
 
     public KeyValueStore<Long, Integer> buildLongInt() {
-        return new BytesBytesMapStore<Long, Integer>(8, 4, initialPageCapacity, null, bufferFactory) {
+        return new BytesBytesMapStore<>(8, false, 4, false, initialPageCapacity, null, bufferFactory, new KeyValueMarshaller<Long, Integer>() {
 
             @Override
             public byte[] keyBytes(Long key) {
@@ -82,6 +83,6 @@ public class PrimitivesMapStoresBuilder {
             public Integer bytesValue(Long key, byte[] bytes, int offset) {
                 return FilerIO.bytesInt(bytes, offset);
             }
-        };
+        });
     }
 }

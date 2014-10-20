@@ -32,16 +32,22 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
     private static final byte[] EMPTY_ID = new byte[16];
 
     private final int keySize;
+    private final boolean variableKeySizes;
     private final int payloadSize;
+    private final boolean variablePayloadSizes;
     private final int initialPageCapacity;  
     private final String[] pathsToPartitions;
 
     public FileBackedMapChunkFactory(int keySize,
+            boolean variableKeySizes,
             int payloadSize,
+            boolean variablePayloadSizes,
             int initialPageCapacity,
             String[] pathsToPartitions) {
         this.keySize = keySize;
+        this.variableKeySizes =variableKeySizes;
         this.payloadSize = payloadSize;
+        this.variablePayloadSizes =variablePayloadSizes;
         this.initialPageCapacity = initialPageCapacity;
         this.pathsToPartitions = pathsToPartitions;
     }
@@ -95,8 +101,15 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
             page.init(mapStore);
             return page;
         } else {
-            MapChunk set = mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, maxCapacity, keySize,
+            MapChunk set = mapStore.allocate((byte) 0,
+                    (byte) 0,
+                    EMPTY_ID,
+                    0,
+                    maxCapacity,
+                    keySize,
+                    variableKeySizes,
                     payloadSize,
+                    variablePayloadSizes,
                     pageFactory);
             return set;
         }

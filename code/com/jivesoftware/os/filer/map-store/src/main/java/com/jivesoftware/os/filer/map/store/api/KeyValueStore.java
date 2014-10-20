@@ -10,14 +10,6 @@ import com.jivesoftware.os.filer.map.store.api.KeyValueStore.Entry;
  */
 public interface KeyValueStore<K, V> extends Iterable<Entry<K, V>> {
 
-    byte[] keyBytes(K key);
-
-    byte[] valueBytes(V value);
-
-    K bytesKey(byte[] bytes, int offset);
-
-    V bytesValue(K key, byte[] bytes, int offset);
-
     void add(K key, V value) throws KeyValueStoreException;
 
     void remove(K key) throws KeyValueStoreException;

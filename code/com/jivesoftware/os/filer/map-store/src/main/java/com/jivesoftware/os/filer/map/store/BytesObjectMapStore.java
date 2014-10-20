@@ -4,11 +4,9 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.io.KeyMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
-import com.jivesoftware.os.filer.map.store.extractors.ExtractIndex;
-import com.jivesoftware.os.filer.map.store.extractors.ExtractKey;
-import com.jivesoftware.os.filer.map.store.extractors.ExtractPayload;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -16,7 +14,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Bytes key to index, index to object array.
  */
-public abstract class BytesObjectMapStore<K, V> implements KeyValueStore<K, V> {
+public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V> {
 
     private static final byte[] EMPTY_ID = new byte[16];
     private static final byte[] EMPTY_PAYLOAD = new byte[0];
@@ -24,18 +22,24 @@ public abstract class BytesObjectMapStore<K, V> implements KeyValueStore<K, V> {
     private final MapStore mapStore = MapStore.DEFAULT;
     private final AtomicReference<Index> indexRef = new AtomicReference<>();
     private final int keySize;
+    private final boolean variableKeySizes;
     private final int initialPageCapacity;
     private final V returnWhenGetReturnsNull;
     private final ByteBufferFactory byteBufferFactory;
+    private final KeyMarshaller<K> keyMarshaller;
 
     public BytesObjectMapStore(int keySize,
-        int initialPageCapacity,
-        V returnWhenGetReturnsNull,
-        ByteBufferFactory byteBufferFactory) {
+            boolean variableKeySizes,
+            int initialPageCapacity,
+            V returnWhenGetReturnsNull,
+            ByteBufferFactory byteBufferFactory,
+            KeyMarshaller<K> keyMarshaller) {
         this.keySize = keySize;
+        this.variableKeySizes = variableKeySizes;
         this.initialPageCapacity = initialPageCapacity;
         this.returnWhenGetReturnsNull = returnWhenGetReturnsNull;
         this.byteBufferFactory = byteBufferFactory;
+        this.keyMarshaller = keyMarshaller;
     }
 
     @Override
@@ -44,7 +48,7 @@ public abstract class BytesObjectMapStore<K, V> implements KeyValueStore<K, V> {
             return;
         }
 
-        byte[] keyBytes = keyBytes(key);
+        byte[] keyBytes = keyMarshaller.keyBytes(key);
         byte[] payload = EMPTY_PAYLOAD;
         synchronized (indexRef) {
             Index index = index();
@@ -85,7 +89,7 @@ public abstract class BytesObjectMapStore<K, V> implements KeyValueStore<K, V> {
             return;
         }
 
-        byte[] keyBytes = keyBytes(key);
+        byte[] keyBytes = keyMarshaller.keyBytes(key);
         synchronized (indexRef) {
             Index index = index();
             int payloadIndex = mapStore.remove(index.chunk, keyBytes);
@@ -94,46 +98,36 @@ public abstract class BytesObjectMapStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    final public V bytesValue(K key, byte[] bytes, int offset) {
-        return null;
-    }
-
-    @Override
-    final public byte[] valueBytes(V value) {
-        return EMPTY_PAYLOAD;
-    }
-
-    @Override
-    @SuppressWarnings ("unchecked")
+    @SuppressWarnings("unchecked")
     public V get(K key) throws KeyValueStoreException {
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
-        byte[] keyBytes = keyBytes(key);
-        int payloadIndex;
+        byte[] keyBytes = keyMarshaller.keyBytes(key);
+        long payloadIndex;
         synchronized (indexRef) {
             Index index = index();
-            payloadIndex = mapStore.get(index.chunk, keyBytes, mapStore.extractIndex);
+            payloadIndex = mapStore.get(index.chunk, keyBytes);
             if (payloadIndex < 0) {
                 return returnWhenGetReturnsNull;
             }
-            return (V) index.payloads[payloadIndex];
+            return (V) index.payloads[(int) payloadIndex];
         }
     }
 
-    @SuppressWarnings ("unchecked")
+    @SuppressWarnings("unchecked")
     @Override
     public V getUnsafe(K key) throws KeyValueStoreException {
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
-        byte[] keyBytes = keyBytes(key);
+        byte[] keyBytes = keyMarshaller.keyBytes(key);
         Index index = index();
-        int payloadIndex = mapStore.get(index.chunk.duplicate(), keyBytes, mapStore.extractIndex);
+        long payloadIndex = mapStore.get(index.chunk.duplicate(), keyBytes);
         if (payloadIndex < 0) {
             return returnWhenGetReturnsNull;
         }
-        return (V) index.payloads[payloadIndex];
+        return (V) index.payloads[(int) payloadIndex];
     }
 
     private Index index() {
@@ -155,10 +149,10 @@ public abstract class BytesObjectMapStore<K, V> implements KeyValueStore<K, V> {
     }
 
     private Index allocate(int maxCapacity) {
-        MapChunk chunk = mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, maxCapacity, keySize, 0, byteBufferFactory);
+        MapChunk chunk = mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, maxCapacity, keySize, variableKeySizes, 0, false, byteBufferFactory);
         return new Index(
-            chunk,
-            new Object[mapStore.getCapacity(chunk)]);
+                chunk,
+                new Object[mapStore.getCapacity(chunk)]);
     }
 
     @Override
@@ -178,9 +172,9 @@ public abstract class BytesObjectMapStore<K, V> implements KeyValueStore<K, V> {
             MapChunk got = index.chunk;
             iterators.add(Iterators.transform(mapStore.iterator(got), new Function<MapStore.Entry, Entry<K, V>>() {
                 @Override
-                @SuppressWarnings ("unchecked")
+                @SuppressWarnings("unchecked")
                 public Entry<K, V> apply(final MapStore.Entry input) {
-                    final K key = bytesKey(input.key, 0);
+                    final K key = keyMarshaller.bytesKey(input.key, 0);
                     final V value = (V) index.payloads[input.payloadIndex];
 
                     return new Entry<K, V>() {

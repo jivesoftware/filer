@@ -3,9 +3,6 @@ package com.jivesoftware.os.filer.map.store;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
-import com.jivesoftware.os.filer.map.store.extractors.ExtractIndex;
-import com.jivesoftware.os.filer.map.store.extractors.ExtractKey;
-import com.jivesoftware.os.filer.map.store.extractors.ExtractPayload;
 import java.util.HashSet;
 import java.util.Random;
 import org.testng.annotations.Test;
@@ -55,7 +52,7 @@ public class MapStoreTest {
         int payloadSize = 4;
 
         System.out.println("Upper Bound Max Count = " + pset.absoluteMaxCount(keySize, payloadSize));
-        MapChunk set = pset.allocate((byte) 0, (byte) 0, new byte[16], 0, _maxSize, keySize, payloadSize, factory);
+        MapChunk set = pset.allocate((byte) 0, (byte) 0, new byte[16], 0, _maxSize, keySize, false, payloadSize, false, factory);
         long seed = System.currentTimeMillis();
         int maxCapacity = pset.getCapacity(set);
         System.out.println("ByteSet size in mb for (" + _maxSize + ") is " + (set.size() / 1024d / 1024d) + "mb");
@@ -83,7 +80,7 @@ public class MapStoreTest {
 
         random = new Random(seed);
         for (int i = 0; i < pset.getCount(set); i++) {
-            byte[] got = pset.get(set, TestUtils.randomLowerCaseAlphaBytes(random, keySize), ExtractPayload.SINGLETON);
+            byte[] got = pset.getPayload(set, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
             assert got != null : "shouldn't be null";
             //int v = UIO.bytesInt(got);
             //assert v == i : "should be the same";
@@ -160,7 +157,7 @@ public class MapStoreTest {
             if (i % 2 == 0) {
                 TestUtils.randomLowerCaseAlphaBytes(random, keySize);
             } else {
-                pset.get(set, TestUtils.randomLowerCaseAlphaBytes(random, keySize), ExtractPayload.SINGLETON);
+                pset.getPayload(set, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
                 //assert got == i;
             }
         }

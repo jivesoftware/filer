@@ -2,7 +2,8 @@ package com.jivesoftware.os.filer.map.store;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
-import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
+import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore.Entry;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
@@ -14,7 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Bytes key to index, index to byte array offset.
  */
-public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStore<K, V> {
+public class ByteBufferValueArrayMapStore<K, V> implements KeyValueStore<K, V> {
 
     private static final byte[] EMPTY_ID = new byte[16];
     private static final byte[] EMPTY_PAYLOAD = new byte[0];
@@ -22,21 +23,30 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
     private final MapStore mapStore = MapStore.DEFAULT;
     private final AtomicReference<Index> indexRef = new AtomicReference<>();
     private final int keySize;
+    private final boolean variableKeySizes;
     private final int payloadSize;
+    private final boolean variablePayloadSizes;
     private final int initialPageCapacity;
     private final V returnWhenGetReturnsNull;
-    private final HeapByteBufferFactory byteBufferFactory;
+    private final ByteBufferFactory byteBufferFactory;
+    private final KeyValueMarshaller<K, V> keyValueMarshaller;
 
     public ByteBufferValueArrayMapStore(int keySize,
+            boolean variableKeySizes,
             int payloadSize,
+            boolean variablePayloadSizes,
             int initialPageCapacity,
             V returnWhenGetReturnsNull,
-            HeapByteBufferFactory byteBufferFactory) {
+            ByteBufferFactory byteBufferFactory,
+            KeyValueMarshaller<K, V> keyValueMarshaller) {
         this.keySize = keySize;
+        this.variableKeySizes = variableKeySizes;
         this.payloadSize = payloadSize;
+        this.variablePayloadSizes = variablePayloadSizes;
         this.initialPageCapacity = initialPageCapacity;
         this.returnWhenGetReturnsNull = returnWhenGetReturnsNull;
         this.byteBufferFactory = byteBufferFactory;
+        this.keyValueMarshaller = keyValueMarshaller;
     }
 
     @Override
@@ -54,8 +64,8 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
             return;
         }
 
-        byte[] keyBytes = keyBytes(key);
-        byte[] valueBytes = valueBytes(value);
+        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
+        byte[] valueBytes = keyValueMarshaller.valueBytes(value);
         if (valueBytes == null) {
             return;
         }
@@ -91,7 +101,7 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
             return;
         }
 
-        byte[] keyBytes = keyBytes(key);
+        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         synchronized (indexRef) {
             Index index = index();
             int payloadIndex = mapStore.remove(index.chunk, keyBytes);
@@ -105,11 +115,11 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
-        byte[] keyBytes = keyBytes(key);
-        int payloadIndex;
+        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
+        long payloadIndex;
         synchronized (indexRef) {
             Index index = index();
-            payloadIndex = mapStore.get(index.chunk, keyBytes, mapStore.extractIndex);
+            payloadIndex = mapStore.get(index.chunk, keyBytes);
             if (payloadIndex < 0) {
                 return returnWhenGetReturnsNull;
             }
@@ -123,9 +133,9 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
-        byte[] keyBytes = keyBytes(key);
+        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         Index index = index();
-        int payloadIndex = mapStore.get(index.chunk.duplicate(), keyBytes, mapStore.extractIndex);
+        long payloadIndex = mapStore.get(index.chunk.duplicate(), keyBytes);
         if (payloadIndex < 0) {
             return returnWhenGetReturnsNull;
         }
@@ -151,7 +161,7 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
     }
 
     private Index allocate(int maxCapacity) {
-        MapChunk chunk = mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, maxCapacity, keySize, 0,
+        MapChunk chunk = mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, maxCapacity, keySize, variableKeySizes, payloadSize, variablePayloadSizes,
                 byteBufferFactory);
         return new Index(
                 chunk,
@@ -175,7 +185,7 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
             return Iterators.transform(mapStore.iterator(dupe.chunk), new Function<MapStore.Entry, Entry<K, V>>() {
                 @Override
                 public Entry<K, V> apply(final MapStore.Entry input) {
-                    final K key = bytesKey(input.key, 0);
+                    final K key = keyValueMarshaller.bytesKey(input.key, 0);
                     final V value = getValue(dupe, key, input.payloadIndex);
 
                     return new Entry<K, V>() {
@@ -196,13 +206,13 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
         }
     }
 
-    private V getValue(Index index, K key, int offset) {
+    private V getValue(Index index, K key, long offset) {
         byte[] valueBytes = index.getValue(offset, payloadSize);
-        return bytesValue(key, valueBytes, 0);
+        return keyValueMarshaller.bytesValue(key, valueBytes, 0);
     }
 
     private void putValue(Index index, int offset, V value) {
-        byte[] valueBytes = value != null ? valueBytes(value) : new byte[payloadSize];
+        byte[] valueBytes = value != null ? keyValueMarshaller.valueBytes(value) : new byte[payloadSize];
         index.putValue(valueBytes, offset, payloadSize);
     }
 
@@ -220,9 +230,9 @@ public abstract class ByteBufferValueArrayMapStore<K, V> implements KeyValueStor
             this.payloads = payloads;
         }
 
-        private byte[] getValue(int offset, int payloadSize) {
+        private byte[] getValue(long offset, int payloadSize) {
             byte[] valueBytes = new byte[payloadSize];
-            payloads.position(offset * payloadSize);
+            payloads.position((int) (offset * payloadSize));
             payloads.get(valueBytes, 0, payloadSize);
             return valueBytes;
         }

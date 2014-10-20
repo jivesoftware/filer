@@ -27,8 +27,8 @@ public class LongSkipListComparator implements SkipListComparator {
 
     @Override
     public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) {
-        long al = a.readLong(astart);
-        long bl = b.readLong(bstart);
+        long al = MapStore.DEFAULT.readLong(a.array, astart);
+        long bl = MapStore.DEFAULT.readLong(b.array, bstart);
         return (al < bl ? -1 : (al == bl ? 0 : 1));
 
     }

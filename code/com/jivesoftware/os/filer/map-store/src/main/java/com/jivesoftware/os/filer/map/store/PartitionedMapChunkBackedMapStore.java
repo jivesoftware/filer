@@ -3,9 +3,11 @@ package com.jivesoftware.os.filer.map.store;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.jivesoftware.os.filer.io.KeyPartitioner;
+import com.jivesoftware.os.filer.io.KeyValueMarshaller;
+import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
+import com.jivesoftware.os.filer.map.store.api.KeyValueStore.Entry;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
-import com.jivesoftware.os.filer.map.store.api.PartitionedKeyValueStore;
-import com.jivesoftware.os.filer.map.store.extractors.ExtractPayload;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -16,7 +18,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
  * @param <K>
  * @param <V>
  */
-public abstract class PartitionedMapChunkBackedMapStore<K, V> implements PartitionedKeyValueStore<K, V> {
+public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K, V> {
 
     private static final MapStore mapStore = MapStore.DEFAULT;
 
@@ -24,15 +26,25 @@ public abstract class PartitionedMapChunkBackedMapStore<K, V> implements Partiti
     private final StripingLocksProvider<String> keyLocksProvider;
     private final Map<String, MapChunk> indexPages;
     private final V returnWhenGetReturnsNull;
+    private final KeyPartitioner<K> keyPartitioner;
+    private final KeyValueMarshaller<K, V> keyValueMarshaller;
 
     public PartitionedMapChunkBackedMapStore(MapChunkFactory chunkFactory,
             int concurrency,
-            V returnWhenGetReturnsNull) {
+            V returnWhenGetReturnsNull,
+            KeyPartitioner<K> keyPartitioner,
+            KeyValueMarshaller<K, V> keyValueMarshaller) {
 
         this.chunkFactory = chunkFactory;
         this.keyLocksProvider = new StripingLocksProvider<>(concurrency);
         this.returnWhenGetReturnsNull = returnWhenGetReturnsNull;
         this.indexPages = new ConcurrentSkipListMap<>();
+        this.keyPartitioner = keyPartitioner;
+        this.keyValueMarshaller = keyValueMarshaller;
+    }
+
+    public Iterable<String> allPartitions() {
+        return keyPartitioner.allPartitions();
     }
 
     @Override
@@ -41,12 +53,12 @@ public abstract class PartitionedMapChunkBackedMapStore<K, V> implements Partiti
             return;
         }
 
-        byte[] keyBytes = keyBytes(key);
-        byte[] valueBytes = valueBytes(value);
+        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
+        byte[] valueBytes = keyValueMarshaller.valueBytes(value);
         if (valueBytes == null) {
             return;
         }
-        String pageId = keyPartition(key);
+        String pageId = keyPartitioner.keyPartition(key);
         synchronized (keyLocksProvider.lock(pageId)) {
             MapChunk chunk = index(pageId);
             try {
@@ -55,7 +67,7 @@ public abstract class PartitionedMapChunkBackedMapStore<K, V> implements Partiti
                     int newSize = chunk.maxCount * 2;
 
                     chunk = chunkFactory.resize(mapStore, chunk, pageId, newSize);
-                    indexPages.put(keyPartition(key), chunk);
+                    indexPages.put(pageId, chunk);
                 }
             } catch (Exception e) {
                 throw new KeyValueStoreException("Error when expanding size of partition!", e);
@@ -71,8 +83,8 @@ public abstract class PartitionedMapChunkBackedMapStore<K, V> implements Partiti
             return;
         }
 
-        byte[] keyBytes = keyBytes(key);
-        String pageId = keyPartition(key);
+        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
+        String pageId = keyPartitioner.keyPartition(key);
         synchronized (keyLocksProvider.lock(pageId)) {
             MapChunk index = index(pageId);
             mapStore.remove(index, keyBytes);
@@ -84,15 +96,18 @@ public abstract class PartitionedMapChunkBackedMapStore<K, V> implements Partiti
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
-        String pageId = keyPartition(key);
+        String pageId = keyPartitioner.keyPartition(key);
         MapChunk index = index(pageId);
-        byte[] keyBytes = keyBytes(key);
-        byte[] payload = mapStore.get(index.duplicate(), keyBytes, ExtractPayload.SINGLETON);
+        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
+        
+        MapChunk duplicate = index.duplicate();
+        long ei = mapStore.get(duplicate, keyBytes);
+        byte[] payload = mapStore.getPayload(duplicate, ei);
 
         if (payload == null) {
             return returnWhenGetReturnsNull;
         }
-        return bytesValue(key, payload, 0);
+        return keyValueMarshaller.bytesValue(key, payload, 0);
     }
 
     @Override
@@ -100,17 +115,17 @@ public abstract class PartitionedMapChunkBackedMapStore<K, V> implements Partiti
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
-        byte[] keyBytes = keyBytes(key);
+        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         byte[] payload;
-        String pageId = keyPartition(key);
+        String pageId = keyPartitioner.keyPartition(key);
         synchronized (keyLocksProvider.lock(pageId)) {
             MapChunk index = index(pageId);
-            payload = mapStore.get(index, keyBytes, ExtractPayload.SINGLETON);
+            payload = mapStore.getPayload(index, keyBytes);
         }
         if (payload == null) {
             return returnWhenGetReturnsNull;
         }
-        return bytesValue(key, payload, 0);
+        return keyValueMarshaller.bytesValue(key, payload, 0);
     }
 
     private MapChunk index(String pageId) throws KeyValueStoreException {
@@ -144,7 +159,7 @@ public abstract class PartitionedMapChunkBackedMapStore<K, V> implements Partiti
     @Override
     public long estimateSizeInBytes() throws Exception {
         long sizeInBytes = 0;
-        for (String pageId : keyPartitions()) {
+        for (String pageId : keyPartitioner.allPartitions()) {
             MapChunk got = get(pageId, false);
             if (got != null) {
                 sizeInBytes += got.size();
@@ -153,12 +168,10 @@ public abstract class PartitionedMapChunkBackedMapStore<K, V> implements Partiti
         return sizeInBytes;
     }
 
-    protected abstract Iterable<String> keyPartitions();
-
     @Override
     public Iterator<Entry<K, V>> iterator() {
         List<Iterator<Entry<K, V>>> iterators = Lists.newArrayList();
-        for (String pageId : keyPartitions()) {
+        for (String pageId : keyPartitioner.allPartitions()) {
             MapChunk got;
             try {
                 got = get(pageId, false);
@@ -170,8 +183,8 @@ public abstract class PartitionedMapChunkBackedMapStore<K, V> implements Partiti
                 iterators.add(Iterators.transform(mapStore.iterator(got), new Function<MapStore.Entry, Entry<K, V>>() {
                     @Override
                     public Entry<K, V> apply(final MapStore.Entry input) {
-                        final K key = bytesKey(input.key, 0);
-                        final V value = bytesValue(key, input.payload, 0);
+                        final K key = keyValueMarshaller.bytesKey(input.key, 0);
+                        final V value = keyValueMarshaller.bytesValue(key, input.payload, 0);
 
                         return new Entry<K, V>() {
                             @Override

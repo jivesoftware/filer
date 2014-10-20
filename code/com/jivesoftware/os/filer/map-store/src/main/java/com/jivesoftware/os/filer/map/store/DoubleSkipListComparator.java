@@ -27,8 +27,8 @@ public class DoubleSkipListComparator implements SkipListComparator {
 
     @Override
     public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) {
-        double ad = a.readDouble(astart);
-        double bd = b.readDouble(bstart);
+        double ad = MapStore.DEFAULT.readDouble(a.array, astart);
+        double bd = MapStore.DEFAULT.readDouble(b.array, bstart);
         return Double.compare(ad, bd);
 
     }

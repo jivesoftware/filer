@@ -1,6 +1,5 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.map.store.extractors.ExtractIndex;
 import java.nio.ByteBuffer;
 
 /**
@@ -15,7 +14,7 @@ public class SkipListSetPage {
     final MapChunk map;
     byte maxHeight;
     SkipListComparator valueComparator;
-    int headIndex;
+    long headIndex;
     byte[] headKey;
 
     /**
@@ -37,7 +36,7 @@ public class SkipListSetPage {
     public void init(MapStore mapStore) {
         map.init(mapStore);
         maxHeight = heightFit(map.capacity);
-        headIndex = mapStore.get(map, headKey, ExtractIndex.SINGLETON);
+        headIndex = mapStore.get(map, headKey);
         if (headIndex == -1) {
             throw new RuntimeException("SkipListSetPage:Invalid Page!");
         }

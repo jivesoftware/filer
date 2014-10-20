@@ -26,31 +26,37 @@ public class ByteBufferFactoryBackedMapChunkFactory implements MapChunkFactory {
     private static final byte[] EMPTY_ID = new byte[16];
 
     private final int keySize;
+    private final boolean variableKeySizes;
     private final int payloadSize;
+    private final boolean variablePayloadSizes;
     private final int initialPageCapacity;
     private final ByteBufferFactory byteBufferFactory;
 
     public ByteBufferFactoryBackedMapChunkFactory(int keySize,
+            boolean variableKeySizes,
             int payloadSize,
+            boolean variablePayloadSizes,
             int initialPageCapacity, ByteBufferFactory byteBufferFactory) {
         this.keySize = keySize;
+        this.variableKeySizes = variableKeySizes;
         this.payloadSize = payloadSize;
+        this.variablePayloadSizes = variablePayloadSizes;
         this.initialPageCapacity = initialPageCapacity;
         this.byteBufferFactory = byteBufferFactory;
     }
 
     @Override
     public MapChunk getOrCreate(MapStore mapStore, String pageId) throws Exception {
-        MapChunk set = mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, initialPageCapacity, keySize,
-                payloadSize,
+        MapChunk set = mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, initialPageCapacity, keySize, variableKeySizes,
+                payloadSize, variablePayloadSizes,
                 byteBufferFactory);
         return set;
     }
 
     @Override
     public MapChunk resize(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception {
-        MapChunk newChunk =  mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, newSize, keySize,
-                payloadSize,
+        MapChunk newChunk = mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, newSize, keySize, variableKeySizes,
+                payloadSize, variablePayloadSizes,
                 byteBufferFactory);
         mapStore.copyTo(chunk, newChunk, null);
         return newChunk;
