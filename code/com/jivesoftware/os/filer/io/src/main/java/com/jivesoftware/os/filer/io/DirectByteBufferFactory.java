@@ -18,11 +18,10 @@ package com.jivesoftware.os.filer.io;
 import java.nio.ByteBuffer;
 
 /**
- *
  * @author jonathan.colt
  */
 public class DirectByteBufferFactory implements ByteBufferFactory {
-    
+
     @Override
     public ByteBuffer allocate(long _size) {
         return ByteBuffer.allocateDirect((int) _size);

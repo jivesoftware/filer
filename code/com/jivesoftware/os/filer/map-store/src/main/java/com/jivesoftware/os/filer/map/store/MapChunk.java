@@ -3,22 +3,20 @@ package com.jivesoftware.os.filer.map.store;
 import java.nio.ByteBuffer;
 
 /**
- *
  * @author jonathan
  */
 public class MapChunk {
 
     final ByteBuffer array;
     int keySize; // read only
-    byte keyLengthSize;// read only
+    byte keyLengthSize; // read only
     int payloadSize; // read only
-    byte payloadLengthSize;// read only
+    byte payloadLengthSize; // read only
     int capacity; // read only
     int maxCount; // read only
     int entrySize; // read only
 
     /**
-     *
      * @param array
      */
     public MapChunk(ByteBuffer array) {
@@ -38,7 +36,6 @@ public class MapChunk {
     }
 
     /**
-     *
      * @param mapStore
      */
     public void init(MapStore mapStore) {

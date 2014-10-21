@@ -21,19 +21,19 @@ import org.testng.annotations.Test;
 /**
  * @author jonathan.colt
  */
-public class FileBackedKeyedStoreTest {
+public class PartitionedMapChunkBackedKeyedStoreTest {
 
     @Test
     public void keyedStoreTest() throws Exception {
-        String[] mapDirs = new String[]{
+        String[] mapDirs = new String[] {
             Files.createTempDirectory("map").toFile().getAbsolutePath(),
             Files.createTempDirectory("map").toFile().getAbsolutePath()
         };
-        String[] swapDirs = new String[]{
+        String[] swapDirs = new String[] {
             Files.createTempDirectory("swap").toFile().getAbsolutePath(),
             Files.createTempDirectory("swap").toFile().getAbsolutePath()
         };
-        String[] chunkDirs = new String[]{
+        String[] chunkDirs = new String[] {
             Files.createTempDirectory("chunk").toFile().getAbsolutePath(),
             Files.createTempDirectory("chunk").toFile().getAbsolutePath()
         };
@@ -44,18 +44,19 @@ public class FileBackedKeyedStoreTest {
 
         MapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
         MapChunkFactory swapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, swapDirs);
-        FileBackedKeyedStore fileBackedKeyedStore = new FileBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4);
+        PartitionedMapChunkBackedKeyedStore partitionedMapChunkBackedKeyedStore = new PartitionedMapChunkBackedKeyedStore(
+            mapChunkFactory, swapChunkFactory, multChunkStore, 4);
 
         byte[] key = FilerIO.intBytes(1010);
-        Filer filer = fileBackedKeyedStore.get(key, newFilerInitialCapacity);
+        Filer filer = partitionedMapChunkBackedKeyedStore.get(key, newFilerInitialCapacity);
         synchronized (filer.lock()) {
             FilerIO.writeInt(filer, 10, "");
         }
 
         mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
         swapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, swapDirs);
-        fileBackedKeyedStore = new FileBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4);
-        filer = fileBackedKeyedStore.get(key, newFilerInitialCapacity);
+        partitionedMapChunkBackedKeyedStore = new PartitionedMapChunkBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4);
+        filer = partitionedMapChunkBackedKeyedStore.get(key, newFilerInitialCapacity);
         synchronized (filer.lock()) {
             filer.seek(0);
             int ten = FilerIO.readInt(filer, "");
@@ -66,15 +67,15 @@ public class FileBackedKeyedStoreTest {
 
     @Test
     public void swapTest() throws Exception {
-        String[] mapDirs = new String[]{
+        String[] mapDirs = new String[] {
             Files.createTempDirectory("map").toFile().getAbsolutePath(),
             Files.createTempDirectory("map").toFile().getAbsolutePath()
         };
-        String[] swapDirs = new String[]{
+        String[] swapDirs = new String[] {
             Files.createTempDirectory("swap").toFile().getAbsolutePath(),
             Files.createTempDirectory("swap").toFile().getAbsolutePath()
         };
-        String[] chunkDirs = new String[]{
+        String[] chunkDirs = new String[] {
             Files.createTempDirectory("chunk").toFile().getAbsolutePath(),
             Files.createTempDirectory("chunk").toFile().getAbsolutePath()
         };
@@ -84,10 +85,11 @@ public class FileBackedKeyedStoreTest {
         int newFilerInitialCapacity = 512;
         MapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
         MapChunkFactory swapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, swapDirs);
-        FileBackedKeyedStore fileBackedKeyedStore = new FileBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4);
+        PartitionedMapChunkBackedKeyedStore partitionedMapChunkBackedKeyedStore = new PartitionedMapChunkBackedKeyedStore(
+            mapChunkFactory, swapChunkFactory, multChunkStore, 4);
 
         byte[] key = FilerIO.intBytes(1020);
-        SwappableFiler filer = fileBackedKeyedStore.get(key, newFilerInitialCapacity);
+        SwappableFiler filer = partitionedMapChunkBackedKeyedStore.get(key, newFilerInitialCapacity);
         synchronized (filer.lock()) {
             filer.sync();
             FilerIO.writeInt(filer, 10, "");
@@ -99,8 +101,8 @@ public class FileBackedKeyedStoreTest {
 
         mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
         swapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, swapDirs);
-        fileBackedKeyedStore = new FileBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4);
-        filer = fileBackedKeyedStore.get(key, newFilerInitialCapacity);
+        partitionedMapChunkBackedKeyedStore = new PartitionedMapChunkBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4);
+        filer = partitionedMapChunkBackedKeyedStore.get(key, newFilerInitialCapacity);
         synchronized (filer.lock()) {
             filer.sync();
             filer.seek(0);

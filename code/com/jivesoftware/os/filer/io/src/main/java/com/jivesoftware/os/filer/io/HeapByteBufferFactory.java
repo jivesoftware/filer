@@ -6,12 +6,12 @@ import java.nio.ByteBuffer;
  *
  */
 public class HeapByteBufferFactory implements ByteBufferFactory {
-    
+
     @Override
     public ByteBuffer allocate(long _size) {
         return ByteBuffer.allocate((int) _size);
     }
-    
+
     @Override
     public ByteBuffer reallocate(ByteBuffer oldBuffer, long newSize) {
         ByteBuffer newBuffer = allocate(newSize);

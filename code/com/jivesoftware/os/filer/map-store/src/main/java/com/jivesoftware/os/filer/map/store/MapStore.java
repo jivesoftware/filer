@@ -398,8 +398,7 @@ public class MapStore {
     /**
      *
      * @param setIndex
-     * @param keySize
-     * @param payloadSize
+     * @param entrySize
      * @return
      */
     public int startOfKey(long setIndex, int entrySize) {
@@ -430,7 +429,6 @@ public class MapStore {
      *
      * @param setIndex
      * @param keySize
-     * @param payloadSize
      * @return
      */
     public long startOfPayload(long setIndex, int entrySize, int keyLength, int keySize) {

@@ -16,14 +16,12 @@
 package com.jivesoftware.os.filer.io;
 
 /**
- *
  * @author jonathan.colt
  */
 public interface KeyMarshaller<K> {
 
     byte[] keyBytes(K key);
-    
+
     K bytesKey(byte[] keyBytes, int offset);
 
-    
 }

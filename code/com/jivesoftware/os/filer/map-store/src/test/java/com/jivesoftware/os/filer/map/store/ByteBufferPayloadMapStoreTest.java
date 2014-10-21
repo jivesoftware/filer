@@ -3,8 +3,9 @@ package com.jivesoftware.os.filer.map.store;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
-import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
+
+import static org.testng.Assert.assertTrue;
 
 public class ByteBufferPayloadMapStoreTest {
 
@@ -22,29 +23,29 @@ public class ByteBufferPayloadMapStoreTest {
             System.out.println("---------------------- " + i + " ----------------------");
 
             // bytebuffer mapstore setup
-            BytesBytesMapStore<Long, Integer> mapStore
-                    = new BytesBytesMapStore<>(8, false, 4, false, 10, null, new HeapByteBufferFactory(), new KeyValueMarshaller<Long, Integer>() {
+            BytesBytesMapStore<Long, Integer> mapStore =
+                new BytesBytesMapStore<>(8, false, 4, false, 10, null, new HeapByteBufferFactory(), new KeyValueMarshaller<Long, Integer>() {
 
-                        @Override
-                        public byte[] keyBytes(Long key) {
-                            return FilerIO.longBytes(key);
-                        }
+                    @Override
+                    public byte[] keyBytes(Long key) {
+                        return FilerIO.longBytes(key);
+                    }
 
-                        @Override
-                        public Long bytesKey(byte[] bytes, int offset) {
-                            return FilerIO.bytesLong(bytes, offset);
-                        }
+                    @Override
+                    public Long bytesKey(byte[] bytes, int offset) {
+                        return FilerIO.bytesLong(bytes, offset);
+                    }
 
-                        @Override
-                        public byte[] valueBytes(Integer value) {
-                            return FilerIO.intBytes(value);
-                        }
+                    @Override
+                    public byte[] valueBytes(Integer value) {
+                        return FilerIO.intBytes(value);
+                    }
 
-                        @Override
-                        public Integer bytesValue(Long key, byte[] bytes, int offset) {
-                            return FilerIO.bytesInt(bytes, offset);
-                        }
-                    });
+                    @Override
+                    public Integer bytesValue(Long key, byte[] bytes, int offset) {
+                        return FilerIO.bytesInt(bytes, offset);
+                    }
+                });
 
             // bytebuffer mapstore insert
             long start = System.currentTimeMillis();

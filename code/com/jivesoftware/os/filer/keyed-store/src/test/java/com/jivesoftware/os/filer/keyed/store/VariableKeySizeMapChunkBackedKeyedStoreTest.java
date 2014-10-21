@@ -16,7 +16,7 @@ import org.testng.annotations.Test;
 /**
  *
  */
-public class VariableKeySizeFileBackedKeyedStoreTest {
+public class VariableKeySizeMapChunkBackedKeyedStoreTest {
 
     private String[] mapDirectories;
     private String[] swapDirectories;
@@ -24,15 +24,15 @@ public class VariableKeySizeFileBackedKeyedStoreTest {
 
     @BeforeMethod
     public void setUp() throws Exception {
-        mapDirectories = new String[]{
+        mapDirectories = new String[] {
             Files.createTempDirectory(getClass().getSimpleName()).toFile().getAbsolutePath(),
             Files.createTempDirectory(getClass().getSimpleName()).toFile().getAbsolutePath()
         };
-        swapDirectories = new String[]{
+        swapDirectories = new String[] {
             Files.createTempDirectory(getClass().getSimpleName()).toFile().getAbsolutePath(),
             Files.createTempDirectory(getClass().getSimpleName()).toFile().getAbsolutePath()
         };
-        chunkDirectories = new String[]{
+        chunkDirectories = new String[] {
             Files.createTempDirectory(getClass().getSimpleName()).toFile().getAbsolutePath(),
             Files.createTempDirectory(getClass().getSimpleName()).toFile().getAbsolutePath()
         };
@@ -48,21 +48,21 @@ public class VariableKeySizeFileBackedKeyedStoreTest {
 
     @Test
     public void testFilerAutoCreate() throws Exception {
-        final int[] keySizeThresholds = new int[]{4, 16, 64, 256, 1024};
+        final int[] keySizeThresholds = new int[] { 4, 16, 64, 256, 1024 };
         int chunkStoreCapacityInBytes = 30 * 1024 * 1024;
         MultiChunkStore multChunkStore = new ChunkStoreInitializer().initializeMulti(chunkDirectories, "data", 4, chunkStoreCapacityInBytes, false);
         long newFilerInitialCapacity = 512;
-        VariableKeySizeFileBackedKeyedStore.Builder builder = new VariableKeySizeFileBackedKeyedStore.Builder();
+        VariableKeySizeMapChunkBackedKeyedStore.Builder builder = new VariableKeySizeMapChunkBackedKeyedStore.Builder();
 
         for (int keySize : keySizeThresholds) {
-            FileBackedMapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(keySize, true, 8, false, 512, buildMapDirectories(mapDirectories, keySize));
-            FileBackedMapChunkFactory swapChunkFactory = new FileBackedMapChunkFactory(keySize, true, 8, false, 512, buildMapDirectories(swapDirectories, keySize));
-
-            builder.add(keySize, new FileBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4));
-
+            FileBackedMapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(keySize, true, 8, false, 512,
+                buildMapDirectories(mapDirectories, keySize));
+            FileBackedMapChunkFactory swapChunkFactory = new FileBackedMapChunkFactory(keySize, true, 8, false, 512,
+                buildMapDirectories(swapDirectories, keySize));
+            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4));
         }
 
-        VariableKeySizeFileBackedKeyedStore keyedStore = builder.build();
+        VariableKeySizeMapChunkBackedKeyedStore keyedStore = builder.build();
 
         for (int keySize : keySizeThresholds) {
             Filer filer = keyedStore.get(keyOfLength(keySize), newFilerInitialCapacity);
@@ -84,21 +84,21 @@ public class VariableKeySizeFileBackedKeyedStoreTest {
 
     @Test
     public void testFilerGrowsCapacity() throws Exception {
-        final int[] keySizeThresholds = new int[]{4, 16};
+        final int[] keySizeThresholds = new int[] { 4, 16 };
         int chunkStoreCapacityInBytes = 30 * 1024 * 1024;
         int newFilerInitialCapacity = 512;
         MultiChunkStore multChunkStore = new ChunkStoreInitializer().initializeMulti(chunkDirectories, "data", 4, chunkStoreCapacityInBytes, false);
-        VariableKeySizeFileBackedKeyedStore.Builder builder = new VariableKeySizeFileBackedKeyedStore.Builder();
+        VariableKeySizeMapChunkBackedKeyedStore.Builder builder = new VariableKeySizeMapChunkBackedKeyedStore.Builder();
 
         for (int keySize : keySizeThresholds) {
-            FileBackedMapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(keySize, true, 8, false, 512, buildMapDirectories(mapDirectories, keySize));
-            FileBackedMapChunkFactory swapChunkFactory = new FileBackedMapChunkFactory(keySize, true, 8, false, 512, buildMapDirectories(swapDirectories, keySize));
-
-            builder.add(keySize, new FileBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4));
-
+            FileBackedMapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(keySize, true, 8, false, 512,
+                buildMapDirectories(mapDirectories, keySize));
+            FileBackedMapChunkFactory swapChunkFactory = new FileBackedMapChunkFactory(keySize, true, 8, false, 512,
+                buildMapDirectories(swapDirectories, keySize));
+            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4));
         }
 
-        VariableKeySizeFileBackedKeyedStore keyedStore = builder.build();
+        VariableKeySizeMapChunkBackedKeyedStore keyedStore = builder.build();
 
         int numberOfIntsInInitialCapacity = newFilerInitialCapacity / 4;
         int numberOfIntsInActualCapacity = numberOfIntsInInitialCapacity * 2; // actual capacity is doubled

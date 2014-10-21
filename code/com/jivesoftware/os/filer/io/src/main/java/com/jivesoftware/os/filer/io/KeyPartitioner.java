@@ -16,12 +16,11 @@
 package com.jivesoftware.os.filer.io;
 
 /**
- *
  * @author jonathan.colt
  */
 public interface KeyPartitioner<K> {
 
     String keyPartition(K key);
-    
+
     Iterable<String> allPartitions();
 }

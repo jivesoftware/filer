@@ -11,13 +11,11 @@ import java.util.TreeSet;
 import java.util.concurrent.ConcurrentSkipListSet;
 
 /**
- *
  * @author jonathan
  */
 public class SkipListSet_Test {
 
     /**
-     *
      * @param _args
      */
     public static void main(String[] _args) {
@@ -38,11 +36,11 @@ public class SkipListSet_Test {
         it = 150;
 
         SkipListSet sls = new SkipListSet();
-        byte[] headKey = new byte[]{Byte.MIN_VALUE};
+        byte[] headKey = new byte[] { Byte.MIN_VALUE };
 
         MapStore pset = MapStore.DEFAULT;
 
-        SkipListSetPage slsp = sls.slallocate(pset, new byte[16], 0, it, headKey, keySize,false,  payloadSize,false,  new SkipListComparator() {
+        SkipListSetPage slsp = sls.slallocate(pset, new byte[16], 0, it, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
 
             @Override
             public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) {
@@ -73,10 +71,10 @@ public class SkipListSet_Test {
         }, factory);
 
         Random random = new Random(1_234);
-        byte[] a = new byte[]{65}; //URandom.randomLowerCaseAlphaBytes(keySize);
-        byte[] b = new byte[]{66}; //URandom.randomLowerCaseAlphaBytes(keySize);
-        byte[] c = new byte[]{67}; //URandom.randomLowerCaseAlphaBytes(keySize);
-        byte[] k4 = new byte[]{68}; //URandom.randomLowerCaseAlphaBytes(keySize);
+        byte[] a = new byte[] { 65 }; //URandom.randomLowerCaseAlphaBytes(keySize);
+        byte[] b = new byte[] { 66 }; //URandom.randomLowerCaseAlphaBytes(keySize);
+        byte[] c = new byte[] { 67 }; //URandom.randomLowerCaseAlphaBytes(keySize);
+        byte[] k4 = new byte[] { 68 }; //URandom.randomLowerCaseAlphaBytes(keySize);
         byte[] payload1 = TestUtils.randomLowerCaseAlphaBytes(random, payloadSize);
 
         int n = 1;
@@ -96,7 +94,7 @@ public class SkipListSet_Test {
 
         //}
         //System.exit(0);
-        Object[] keys = new Object[]{a, b, c};
+        Object[] keys = new Object[] { a, b, c };
         for (int i = 0; i < 100_000; i++) {
             if (Math.random() < 0.5d) {
                 byte[] ak = (byte[]) keys[random.nextInt(keys.length)];
@@ -182,7 +180,7 @@ public class SkipListSet_Test {
         int payloadSize = 4;
         SkipListSet sls = new SkipListSet();
         MapStore pset = MapStore.DEFAULT;
-        SkipListSetPage slsp = sls.slallocate(pset, new byte[16], 0, _maxSize, headKey, keySize,false,  payloadSize, false, new SkipListComparator() {
+        SkipListSetPage slsp = sls.slallocate(pset, new byte[16], 0, _maxSize, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
 
             @Override
             public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) {
@@ -337,7 +335,6 @@ public class SkipListSet_Test {
     }
 
     /**
-     *
      * @param factory
      */
     public static void chart(ByteBufferFactory factory) {
@@ -378,7 +375,7 @@ public class SkipListSet_Test {
         Arrays.fill(headKey, Byte.MIN_VALUE);
         SkipListSet sls = new SkipListSet();
         MapStore pset = MapStore.DEFAULT;
-        SkipListSetPage slsp = sls.slallocate(pset, new byte[16], 0, _maxSize, headKey, keySize,false, payloadSize,false,  new SkipListComparator() {
+        SkipListSetPage slsp = sls.slallocate(pset, new byte[16], 0, _maxSize, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
 
             @Override
             public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) {
@@ -411,7 +408,7 @@ public class SkipListSet_Test {
     }
 
     private static SkipListSetPage testSet(SkipListSet sls,
-            SkipListSetPage set, long seed, int _iterations, int keySize, int payloadSize, int _maxSize, int mode, boolean _out, ByteBufferFactory factory) {
+        SkipListSetPage set, long seed, int _iterations, int keySize, int payloadSize, int _maxSize, int mode, boolean _out, ByteBufferFactory factory) {
 
         if (set == null) {
             byte[] headKey = new byte[keySize];

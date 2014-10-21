@@ -15,44 +15,44 @@ import org.testng.annotations.Test;
 /**
  *
  */
-public class VariableKeySizeFileBackMapStoreTest {
+public class VariableKeySizeMapChunkBackedMapStoreTest {
 
     private String[] pathsToPartitions;
 
     @BeforeMethod
     public void setUp() throws Exception {
-        pathsToPartitions = new String[]{
+        pathsToPartitions = new String[] {
             Files.createTempDirectory(getClass().getSimpleName()).toFile().getAbsolutePath(),
             Files.createTempDirectory(getClass().getSimpleName()).toFile().getAbsolutePath()
         };
     }
 
-    private VariableKeySizeFileBackMapStore<String, Long> createMapStore(String[] pathsToPartitions, int[] keySizeThresholds) throws Exception {
+    private VariableKeySizeMapChunkBackedMapStore<String, Long> createMapStore(String[] pathsToPartitions, int[] keySizeThresholds) throws Exception {
 
-        VariableKeySizeFileBackMapStore.Builder<String, Long> builder = new VariableKeySizeFileBackMapStore.Builder<>(1,
-                null,
-                new KeyValueMarshaller<String, Long>() {
+        VariableKeySizeMapChunkBackedMapStore.Builder<String, Long> builder = new VariableKeySizeMapChunkBackedMapStore.Builder<>(1,
+            null,
+            new KeyValueMarshaller<String, Long>() {
 
-                    @Override
-                    public byte[] keyBytes(String key) {
-                        return key.getBytes(Charsets.US_ASCII);
-                    }
+                @Override
+                public byte[] keyBytes(String key) {
+                    return key.getBytes(Charsets.US_ASCII);
+                }
 
-                    @Override
-                    public byte[] valueBytes(Long value) {
-                        return FilerIO.longBytes(value);
-                    }
+                @Override
+                public byte[] valueBytes(Long value) {
+                    return FilerIO.longBytes(value);
+                }
 
-                    @Override
-                    public String bytesKey(byte[] bytes, int offset) {
-                        return new String(bytes, offset, bytes.length - offset, Charsets.US_ASCII);
-                    }
+                @Override
+                public String bytesKey(byte[] bytes, int offset) {
+                    return new String(bytes, offset, bytes.length - offset, Charsets.US_ASCII);
+                }
 
-                    @Override
-                    public Long bytesValue(String key, byte[] bytes, int offset) {
-                        return FilerIO.bytesLong(bytes, offset);
-                    }
-                });
+                @Override
+                public Long bytesValue(String key, byte[] bytes, int offset) {
+                    return FilerIO.bytesLong(bytes, offset);
+                }
+            });
         for (int keySize : keySizeThresholds) {
             String[] keySizePaths = new String[pathsToPartitions.length];
             for (int i = 0; i < keySizePaths.length; i++) {
@@ -77,8 +77,8 @@ public class VariableKeySizeFileBackMapStoreTest {
 
     @Test
     public void testAddGet() throws Exception {
-        int[] keySizeThresholds = new int[]{4, 16, 64, 256, 1_024};
-        VariableKeySizeFileBackMapStore<String, Long> mapStore = createMapStore(pathsToPartitions, keySizeThresholds);
+        int[] keySizeThresholds = new int[] { 4, 16, 64, 256, 1_024 };
+        VariableKeySizeMapChunkBackedMapStore<String, Long> mapStore = createMapStore(pathsToPartitions, keySizeThresholds);
 
         for (int i = 0; i < keySizeThresholds.length; i++) {
             System.out.println("hmm:" + i);
@@ -89,18 +89,18 @@ public class VariableKeySizeFileBackMapStoreTest {
         }
     }
 
-    @Test(expectedExceptions = {IndexOutOfBoundsException.class})
+    @Test(expectedExceptions = { IndexOutOfBoundsException.class })
     public void testKeyTooBig() throws KeyValueStoreException, Exception {
-        int[] keySizeThresholds = new int[]{1, 2, 4};
-        VariableKeySizeFileBackMapStore<String, Long> mapStore = createMapStore(pathsToPartitions, keySizeThresholds);
+        int[] keySizeThresholds = new int[] { 1, 2, 4 };
+        VariableKeySizeMapChunkBackedMapStore<String, Long> mapStore = createMapStore(pathsToPartitions, keySizeThresholds);
 
         int maxLength = keySizeThresholds[keySizeThresholds.length - 1];
         mapStore.add(keyOfLength(maxLength + 1), 0l);
     }
 
-    @Test(expectedExceptions = {IllegalStateException.class})
+    @Test(expectedExceptions = { IllegalStateException.class })
     public void testBadThresholds() throws KeyValueStoreException, Exception {
-        int[] keySizeThresholds = new int[]{0, 0};
+        int[] keySizeThresholds = new int[] { 0, 0 };
         createMapStore(pathsToPartitions, keySizeThresholds);
     }
 

@@ -6,7 +6,6 @@ import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
-import com.jivesoftware.os.filer.map.store.api.KeyValueStore.Entry;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
 import java.util.Iterator;
 import java.util.List;
@@ -96,14 +95,10 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
+        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         String pageId = keyPartitioner.keyPartition(key);
         MapChunk index = index(pageId);
-        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
-        
-        MapChunk duplicate = index.duplicate();
-        long ei = mapStore.get(duplicate, keyBytes);
-        byte[] payload = mapStore.getPayload(duplicate, ei);
-
+        byte[] payload = mapStore.getPayload(index.duplicate(), keyBytes);
         if (payload == null) {
             return returnWhenGetReturnsNull;
         }

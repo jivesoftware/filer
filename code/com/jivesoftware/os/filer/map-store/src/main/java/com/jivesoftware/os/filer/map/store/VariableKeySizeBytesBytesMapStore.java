@@ -16,8 +16,12 @@ public abstract class VariableKeySizeBytesBytesMapStore<K, V> implements KeyValu
     private final BytesBytesMapStore<K, V>[] mapStores;
 
     @SuppressWarnings("unchecked")
-    public VariableKeySizeBytesBytesMapStore(int[] keySizeThresholds, int payloadSize, int initialPageCapacity, V returnWhenGetReturnsNull,
-            ByteBufferFactory byteBufferFactory, KeyValueMarshaller<K, V> keyValueMarshaller) {
+    public VariableKeySizeBytesBytesMapStore(int[] keySizeThresholds,
+        int payloadSize,
+        int initialPageCapacity,
+        V returnWhenGetReturnsNull,
+        ByteBufferFactory byteBufferFactory,
+        KeyValueMarshaller<K, V> keyValueMarshaller) {
 
         this.keySizeThresholds = keySizeThresholds;
         this.mapStores = new BytesBytesMapStore[keySizeThresholds.length];
@@ -26,8 +30,8 @@ public abstract class VariableKeySizeBytesBytesMapStore<K, V> implements KeyValu
             Preconditions.checkArgument(i == 0 || keySizeThresholds[i] > keySizeThresholds[i - 1], "Thresholds must be monotonically increasing");
 
             final int keySize = keySizeThresholds[i];
-            mapStores[i] = new BytesBytesMapStore<>(keySize,true, payloadSize, false, initialPageCapacity, returnWhenGetReturnsNull, byteBufferFactory,
-                    keyValueMarshaller);
+            mapStores[i] = new BytesBytesMapStore<>(keySize, true, payloadSize, false, initialPageCapacity, returnWhenGetReturnsNull, byteBufferFactory,
+                keyValueMarshaller);
         }
     }
 

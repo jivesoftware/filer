@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.util.Arrays;
 
 /**
- *
  * @author jonathan
  */
 public class MultiChunkStore {
@@ -56,5 +55,5 @@ public class MultiChunkStore {
         }
         return sizeInBytes;
     }
-    
+
 }

@@ -9,13 +9,11 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- *
  * @author jonathan
  */
 public class SkipListSet_TestDoubles {
 
     /**
-     *
      * @param _args
      * @throws Exception
      */
@@ -29,7 +27,8 @@ public class SkipListSet_TestDoubles {
         Arrays.fill(headKey, Byte.MIN_VALUE);
         SkipListSet sls = new SkipListSet();
         MapStore pset = MapStore.DEFAULT;
-        SkipListSetPage page = sls.slallocate(pset, new byte[16], 0, 16, headKey, keySize,false,  payloadSize,false,  DoubleSkipListComparator.cSingleton, factory);
+        SkipListSetPage page = sls.slallocate(pset, new byte[16], 0, 16, headKey, keySize, false, payloadSize, false, DoubleSkipListComparator.cSingleton,
+            factory);
         for (int i = 0; i < 16; i++) {
             sls.sladd(page, FilerIO.doubleBytes(random.nextInt(32)), new byte[0]);
         }

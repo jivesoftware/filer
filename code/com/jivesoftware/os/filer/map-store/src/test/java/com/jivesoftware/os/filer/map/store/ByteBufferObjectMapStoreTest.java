@@ -3,12 +3,13 @@ package com.jivesoftware.os.filer.map.store;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.KeyMarshaller;
-import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
+
+import static org.testng.Assert.assertTrue;
 
 public class ByteBufferObjectMapStoreTest {
 
-    @Test (enabled = false)
+    @Test(enabled = false)
     public void testMap() throws Exception {
         final int numIterations = 1_000;
         final int numFields = 10;
@@ -23,9 +24,10 @@ public class ByteBufferObjectMapStoreTest {
             System.out.println("---------------------- " + i + " ----------------------");
 
             // bytebuffer mapstore setup
-            BytesObjectMapStore<Long, Object> byteBufferObjectMapStore = new BytesObjectMapStore<>(8, false, 10, null, new HeapByteBufferFactory(), new KeyMarshaller<Long>() {
+            BytesObjectMapStore<Long, Object> byteBufferObjectMapStore = new BytesObjectMapStore<>(8, false, 10, null, new HeapByteBufferFactory(),
+                new KeyMarshaller<Long>() {
 
-               @Override
+                @Override
                 public byte[] keyBytes(Long key) {
                     return FilerIO.longBytes(key);
                 }
@@ -44,7 +46,7 @@ public class ByteBufferObjectMapStoreTest {
                     byteBufferObjectMapStore.add(key, obj[fieldId * numFields + termId]);
                 }
             }
-          
+
 
             // bytebuffer mapstore retrieve
             start = System.currentTimeMillis();
@@ -55,7 +57,7 @@ public class ByteBufferObjectMapStoreTest {
                     assertTrue(retrieved == obj[fieldId * numFields + termId], "Failed at " + fieldId + ", " + termId);
                 }
             }
-            
+
         }
     }
 
