@@ -25,6 +25,8 @@ public interface MapChunkFactory {
 
     MapChunk resize(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception;
 
+    MapChunk copy(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception;
+
     MapChunk get(MapStore mapStore, String pageId) throws Exception;
 
 }

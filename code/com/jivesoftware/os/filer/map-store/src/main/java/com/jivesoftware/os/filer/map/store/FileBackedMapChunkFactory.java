@@ -90,7 +90,20 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
         FileUtils.copyFile(temporaryNewKeyIndexPartition, createIndexSetFile);
         FileUtils.forceDelete(temporaryNewKeyIndexPartition);
 
-        return mmap(mapStore, createIndexSetFile(pageId), newSize);
+        return mmap(mapStore, createIndexSetFile, newSize);
+    }
+
+    @Override
+    public MapChunk copy(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception {
+
+        File temporaryNewKeyIndexPartition = createIndexTempFile(pageId);
+        MapChunk newIndex = mmap(mapStore, temporaryNewKeyIndexPartition, newSize);
+        mapStore.copyTo(chunk, newIndex, null);
+        File createIndexSetFile = createIndexSetFile(pageId);
+        FileUtils.copyFile(temporaryNewKeyIndexPartition, createIndexSetFile);
+        FileUtils.forceDelete(temporaryNewKeyIndexPartition);
+
+        return mmap(mapStore, createIndexSetFile, newSize);
     }
 
     private MapChunk mmap(MapStore mapStore, final File file, int maxCapacity) throws FileNotFoundException, IOException {

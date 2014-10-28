@@ -5,6 +5,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
+import com.jivesoftware.os.filer.map.store.api.Copyable;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
 import java.util.ArrayList;
@@ -12,7 +13,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStore<K, V> {
+public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStore<K, V>, Copyable<VariableKeySizeMapChunkBackedMapStore<K, V>, Exception> {
 
     private final KeyValueMarshaller<K, V> keyValueMarshaller;
     private final PartitionSizedByMapStore[] mapStores;
@@ -75,6 +76,13 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
             sizeInBytes += mapStore.store.estimateSizeInBytes();
         }
         return sizeInBytes;
+    }
+
+    @Override
+    public void copyTo(VariableKeySizeMapChunkBackedMapStore<K, V> to) throws Exception {
+        for (int i = 0; i < mapStores.length; i++) {
+            mapStores[i].store.copyTo(to.mapStores[i].store);
+        }
     }
 
     @Override
@@ -146,7 +154,7 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
         public VariableKeySizeMapChunkBackedMapStore<K, V> build() throws Exception {
             Collections.sort(stores);
             if (stores.isEmpty()) {
-                throw new IllegalStateException("Not stores were added. Must add atleast one store.");
+                throw new IllegalStateException("No stores were added. Must add at least one store.");
             }
             int keySize = stores.get(0).keySize;
             for (int i = 1; i < stores.size(); i++) {

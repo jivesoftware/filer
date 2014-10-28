@@ -63,8 +63,13 @@ public class ByteBufferFactoryBackedMapChunkFactory implements MapChunkFactory {
     }
 
     @Override
+    public MapChunk copy(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception {
+        return resize(mapStore, chunk, pageId, newSize);
+    }
+
+    @Override
     public MapChunk get(MapStore mapStore, String pageId) throws Exception {
-        return null; // Since this impl doesn't perist there is nothing to get.
+        return null; // Since this impl doesn't persist there is nothing to get.
     }
 
 }

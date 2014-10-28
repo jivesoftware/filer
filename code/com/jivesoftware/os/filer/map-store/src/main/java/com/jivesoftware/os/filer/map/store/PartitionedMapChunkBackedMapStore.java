@@ -5,6 +5,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
+import com.jivesoftware.os.filer.map.store.api.Copyable;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
 import java.util.Iterator;
@@ -13,11 +14,11 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 
 /**
- * @author jonathan
  * @param <K>
  * @param <V>
+ * @author jonathan
  */
-public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K, V> {
+public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K, V>, Copyable<PartitionedMapChunkBackedMapStore<K, V>, Exception> {
 
     private static final MapStore mapStore = MapStore.DEFAULT;
 
@@ -29,10 +30,10 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
     private final KeyValueMarshaller<K, V> keyValueMarshaller;
 
     public PartitionedMapChunkBackedMapStore(MapChunkFactory chunkFactory,
-            int concurrency,
-            V returnWhenGetReturnsNull,
-            KeyPartitioner<K> keyPartitioner,
-            KeyValueMarshaller<K, V> keyValueMarshaller) {
+        int concurrency,
+        V returnWhenGetReturnsNull,
+        KeyPartitioner<K> keyPartitioner,
+        KeyValueMarshaller<K, V> keyValueMarshaller) {
 
         this.chunkFactory = chunkFactory;
         this.keyLocksProvider = new StripingLocksProvider<>(concurrency);
@@ -161,6 +162,38 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
             }
         }
         return sizeInBytes;
+    }
+
+    @Override
+    public void copyTo(PartitionedMapChunkBackedMapStore<K, V> to) throws Exception {
+        for (String pageId : keyPartitioner.allPartitions()) {
+            synchronized (keyLocksProvider.lock(pageId)) {
+                MapChunk got;
+                try {
+                    got = get(pageId, false);
+                } catch (Exception x) {
+                    throw new RuntimeException("Failed while loading pageId:" + pageId, x);
+                }
+
+                if (got != null) {
+                    to.copyFrom(pageId, got);
+                }
+            }
+        }
+    }
+
+    private void copyFrom(String pageId, MapChunk got) throws Exception {
+        synchronized (keyLocksProvider.lock(pageId)) {
+            MapChunk give = get(pageId, false);
+            if (give != null) {
+                // "resizes" the old chunk over the top of an existing chunk, using the old chunk's size
+                give = chunkFactory.resize(mapStore, got, pageId, got.maxCount);
+            } else {
+                // "copies" the old chunk into a new nonexistent chunk, using the old chunk's size
+                give = chunkFactory.copy(mapStore, got, pageId, got.maxCount);
+            }
+            indexPages.put(pageId, give);
+        }
     }
 
     @Override
