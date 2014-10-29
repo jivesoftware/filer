@@ -17,19 +17,6 @@ public class VariableKeySizeBytesObjectMapStore<K, V> implements KeyValueStore<K
     private final KeyMarshaller<K> keyMarshaller;
     private final BytesObjectMapStore<byte[], V>[] mapStores;
 
-    private static class PassThroughKeyMarshaller implements KeyMarshaller<byte[]> {
-
-        @Override
-        public byte[] keyBytes(byte[] key) {
-            return key;
-        }
-
-        @Override
-        public byte[] bytesKey(byte[] keyBytes, int offset) {
-            return keyBytes;
-        }
-    }
-
     @SuppressWarnings("unchecked")
     public VariableKeySizeBytesObjectMapStore(int[] keySizeThresholds, int initialPageCapacity, V returnWhenGetReturnsNull,
             ByteBufferFactory byteBufferFactory, final KeyMarshaller<K> keyMarshaller) {
@@ -38,7 +25,7 @@ public class VariableKeySizeBytesObjectMapStore<K, V> implements KeyValueStore<K
         this.keyMarshaller = keyMarshaller;
         this.mapStores = new BytesObjectMapStore[keySizeThresholds.length];
 
-        PassThroughKeyMarshaller passThroughKeyMarshaller = new PassThroughKeyMarshaller();
+        PassThroughKeyMarshaller passThroughKeyMarshaller = PassThroughKeyMarshaller.INSTANCE;
         for (int i = 0; i < keySizeThresholds.length; i++) {
             Preconditions.checkArgument(i == 0 || keySizeThresholds[i] > keySizeThresholds[i - 1], "Thresholds must be monotonically increasing");
 

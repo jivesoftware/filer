@@ -147,7 +147,7 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
                     concurrency,
                     returnWhenGetReturnsNullBytes,
                     delegatingKeyPartitioner,
-                    new PassThroughKeyValueMarshaller())));
+                    PassThroughKeyValueMarshaller.INSTANCE)));
             return this;
         }
 
@@ -169,29 +169,6 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
                 returnWhenGetReturnsNull);
         }
 
-    }
-
-    private static class PassThroughKeyValueMarshaller implements KeyValueMarshaller<byte[], byte[]> {
-
-        @Override
-        public byte[] valueBytes(byte[] value) {
-            return value;
-        }
-
-        @Override
-        public byte[] bytesValue(byte[] key, byte[] value, int valueOffset) {
-            return value;
-        }
-
-        @Override
-        public byte[] keyBytes(byte[] key) {
-            return key;
-        }
-
-        @Override
-        public byte[] bytesKey(byte[] keyBytes, int offset) {
-            return keyBytes;
-        }
     }
 
     private static class PartitionSizedByMapStore implements Comparable<PartitionSizedByMapStore> {
