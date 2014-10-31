@@ -8,16 +8,18 @@ import java.nio.ByteBuffer;
 public interface ByteBufferFactory {
 
     /**
-     * @param _size
+     * @param key
+     * @param size
      * @return
      */
-    ByteBuffer allocate(long _size);
+    ByteBuffer allocate(String key, long size);
 
     /**
+     * @param key
      * @param oldBuffer can be null and if it is you could have just called allocate which is what implementation should do.
      * @param newSize
      * @return
      */
-    ByteBuffer reallocate(ByteBuffer oldBuffer, long newSize);
+    ByteBuffer reallocate(String key, ByteBuffer oldBuffer, long newSize);
 
 }

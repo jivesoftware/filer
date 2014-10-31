@@ -1,6 +1,7 @@
 package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
+import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.MapChunkFactory;
@@ -10,7 +11,7 @@ import java.util.Arrays;
 /**
  * @author jonathan
  */
-public class PartitionedMapChunkBackedKeyedStore implements KeyedFilerStore {
+public class PartitionedMapChunkBackedKeyedStore implements KeyedFilerStore, Copyable<PartitionedMapChunkBackedKeyedStore, Exception> {
 
     private final PartitionedMapChunkBackedMapStore<IBA, IBA> mapStore;
     private final PartitionedMapChunkBackedMapStore<IBA, IBA> swapStore;
@@ -91,6 +92,12 @@ public class PartitionedMapChunkBackedKeyedStore implements KeyedFilerStore {
 
     public long mapStoreSizeInBytes() throws Exception {
         return mapStore.estimateSizeInBytes();
+    }
+
+    @Override
+    public void copyTo(PartitionedMapChunkBackedKeyedStore to) throws Exception {
+        mapStore.copyTo(to.mapStore);
+        swapStore.copyTo(to.swapStore);
     }
 
     @Override

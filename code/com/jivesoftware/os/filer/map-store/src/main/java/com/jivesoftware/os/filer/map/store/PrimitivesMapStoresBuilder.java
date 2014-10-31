@@ -1,33 +1,23 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
-import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 
-/*
- * $Revision$
- * $Date$
- *
- * Copyright (C) 1999-$year$ Jive Software. All rights reserved.
- *
- * This software is the proprietary information of Jive Software. Use is subject to license terms.
- */
 /**
- *
  * @author jonathan.colt
  */
 public class PrimitivesMapStoresBuilder {
 
-    private ByteBufferFactory bufferFactory = new HeapByteBufferFactory();
+    private ByteBufferProvider byteBufferProvider;
     private int initialPageCapacity = 8;
 
     public PrimitivesMapStoresBuilder() {
     }
 
-    public PrimitivesMapStoresBuilder setByteBufferFactory(ByteBufferFactory bufferFactory) {
-        this.bufferFactory = bufferFactory;
+    public PrimitivesMapStoresBuilder setByteBufferProvider(ByteBufferProvider byteBufferProvider) {
+        this.byteBufferProvider = byteBufferProvider;
         return this;
     }
 
@@ -37,7 +27,7 @@ public class PrimitivesMapStoresBuilder {
     }
 
     public KeyValueStore<Long, Long> buildLongLong() {
-        return new BytesBytesMapStore<>(8, false, 8, false, initialPageCapacity, null, bufferFactory, new KeyValueMarshaller<Long, Long>() {
+        return new BytesBytesMapStore<>(8, false, 8, false, initialPageCapacity, null, byteBufferProvider, new KeyValueMarshaller<Long, Long>() {
 
             @Override
             public byte[] keyBytes(Long key) {
@@ -62,7 +52,7 @@ public class PrimitivesMapStoresBuilder {
     }
 
     public KeyValueStore<Long, Integer> buildLongInt() {
-        return new BytesBytesMapStore<>(8, false, 4, false, initialPageCapacity, null, bufferFactory, new KeyValueMarshaller<Long, Integer>() {
+        return new BytesBytesMapStore<>(8, false, 4, false, initialPageCapacity, null, byteBufferProvider, new KeyValueMarshaller<Long, Integer>() {
 
             @Override
             public byte[] keyBytes(Long key) {

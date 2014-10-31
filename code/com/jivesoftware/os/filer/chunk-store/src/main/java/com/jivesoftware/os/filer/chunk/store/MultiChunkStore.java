@@ -24,7 +24,7 @@ import java.util.Arrays;
  */
 public class MultiChunkStore {
 
-    private final ChunkStore[] chunkStores;
+    final ChunkStore[] chunkStores;
 
     public MultiChunkStore(ChunkStore... chunkStores) {
         this.chunkStores = chunkStores;

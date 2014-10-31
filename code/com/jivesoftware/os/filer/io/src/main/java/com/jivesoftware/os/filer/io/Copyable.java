@@ -1,4 +1,4 @@
-package com.jivesoftware.os.filer.map.store.api;
+package com.jivesoftware.os.filer.io;
 
 /**
  *

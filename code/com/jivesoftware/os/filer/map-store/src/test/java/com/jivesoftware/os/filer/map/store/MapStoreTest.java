@@ -1,6 +1,6 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import java.util.HashSet;
@@ -42,17 +42,17 @@ public class MapStoreTest {
         int ksize = 4;
         for (int i = 0; i < 10; i++) {
             System.out.println("----------------- " + i + " -----------------");
-            test(it, ksize, it, new HeapByteBufferFactory());
+            test(it, ksize, it, new ByteBufferProvider("booya", new HeapByteBufferFactory()));
         }
     }
 
-    private static boolean test(int _iterations, int keySize, int _maxSize, ByteBufferFactory factory) {
+    private static boolean test(int _iterations, int keySize, int _maxSize, ByteBufferProvider provider) {
 
         MapStore pset = MapStore.DEFAULT;
         int payloadSize = 4;
 
         System.out.println("Upper Bound Max Count = " + pset.absoluteMaxCount(keySize, payloadSize));
-        MapChunk set = pset.allocate((byte) 0, (byte) 0, new byte[16], 0, _maxSize, keySize, false, payloadSize, false, factory);
+        MapChunk set = pset.allocate((byte) 0, (byte) 0, new byte[16], 0, _maxSize, keySize, false, payloadSize, false, provider);
         long seed = System.currentTimeMillis();
         int maxCapacity = pset.getCapacity(set);
         System.out.println("ByteSet size in mb for (" + _maxSize + ") is " + (set.size() / 1024d / 1024d) + "mb");

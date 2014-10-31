@@ -13,15 +13,16 @@ import java.nio.channels.FileChannel;
  */
 public class FileBackedMemMappedByteBufferFactory implements ByteBufferFactory {
 
-    private final File file;
+    private final File directory;
 
-    public FileBackedMemMappedByteBufferFactory(File file) {
-        this.file = file;
+    public FileBackedMemMappedByteBufferFactory(File directory) {
+        this.directory = directory;
     }
 
-    public MappedByteBuffer open() {
+    public MappedByteBuffer open(String key) {
         try {
-            ensureDirectory(file);
+            ensureDirectory(directory);
+            File file = new File(directory, key);
             MappedByteBuffer buf;
             try (RandomAccessFile raf = new RandomAccessFile(file, "rw")) {
                 raf.seek(0);
@@ -35,37 +36,34 @@ public class FileBackedMemMappedByteBufferFactory implements ByteBufferFactory {
     }
 
     @Override
-    public ByteBuffer allocate(long length) {
-
-        ensureDirectory(file);
-        MappedByteBuffer buf;
+    public ByteBuffer allocate(String key, long length) {
         try {
+            ensureDirectory(directory);
+            File file = new File(directory, key);
+            MappedByteBuffer buf;
             RandomAccessFile raf = new RandomAccessFile(file, "rw");
             raf.seek(length);
             raf.write(0);
             raf.seek(0);
             FileChannel channel = raf.getChannel();
-            buf = channel.map(FileChannel.MapMode.READ_WRITE, 0, (int) channel.size());
+            return channel.map(FileChannel.MapMode.READ_WRITE, 0, (int) channel.size());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        return buf;
     }
 
     @Override
-    public ByteBuffer reallocate(ByteBuffer oldBuffer, long newSize) {
-        return allocate(newSize);
+    public ByteBuffer reallocate(String key, ByteBuffer oldBuffer, long newSize) {
+        return allocate(key, newSize);
     }
 
-    private void ensureDirectory(File _file) {
-        if (!_file.exists()) {
-            File parent = _file.getParentFile();
-            if (parent != null && !parent.mkdirs()) {
-                if (!parent.exists()) {
-                    throw new RuntimeException("Failed to create parent:" + parent);
+    private void ensureDirectory(File directory) {
+        if (!directory.exists()) {
+            if (!directory.mkdirs()) {
+                if (!directory.exists()) {
+                    throw new RuntimeException("Failed to create directory: " + directory);
                 }
             }
         }
     }
-
 }

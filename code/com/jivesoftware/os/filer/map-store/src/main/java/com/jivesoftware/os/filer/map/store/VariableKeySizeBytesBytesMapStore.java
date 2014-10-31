@@ -3,7 +3,7 @@ package com.jivesoftware.os.filer.map.store;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
@@ -20,7 +20,7 @@ public abstract class VariableKeySizeBytesBytesMapStore<K, V> implements KeyValu
         int payloadSize,
         int initialPageCapacity,
         V returnWhenGetReturnsNull,
-        ByteBufferFactory byteBufferFactory,
+        ByteBufferProvider byteBufferProvider,
         KeyValueMarshaller<K, V> keyValueMarshaller) {
 
         this.keySizeThresholds = keySizeThresholds;
@@ -30,7 +30,7 @@ public abstract class VariableKeySizeBytesBytesMapStore<K, V> implements KeyValu
             Preconditions.checkArgument(i == 0 || keySizeThresholds[i] > keySizeThresholds[i - 1], "Thresholds must be monotonically increasing");
 
             final int keySize = keySizeThresholds[i];
-            mapStores[i] = new BytesBytesMapStore<>(keySize, true, payloadSize, false, initialPageCapacity, returnWhenGetReturnsNull, byteBufferFactory,
+            mapStores[i] = new BytesBytesMapStore<>(keySize, true, payloadSize, false, initialPageCapacity, returnWhenGetReturnsNull, byteBufferProvider,
                 keyValueMarshaller);
         }
     }

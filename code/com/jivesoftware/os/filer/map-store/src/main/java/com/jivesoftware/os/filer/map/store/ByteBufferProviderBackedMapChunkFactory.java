@@ -15,13 +15,12 @@
  */
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.io.ByteBufferProvider;
 
 /**
- *
  * @author jonathan.colt
  */
-public class ByteBufferFactoryBackedMapChunkFactory implements MapChunkFactory {
+public class ByteBufferProviderBackedMapChunkFactory implements MapChunkFactory {
 
     private static final byte[] EMPTY_ID = new byte[16];
 
@@ -30,34 +29,32 @@ public class ByteBufferFactoryBackedMapChunkFactory implements MapChunkFactory {
     private final int payloadSize;
     private final boolean variablePayloadSizes;
     private final int initialPageCapacity;
-    private final ByteBufferFactory byteBufferFactory;
+    private final ByteBufferProvider byteBufferProvider;
 
-    public ByteBufferFactoryBackedMapChunkFactory(int keySize,
-            boolean variableKeySizes,
-            int payloadSize,
-            boolean variablePayloadSizes,
-            int initialPageCapacity, ByteBufferFactory byteBufferFactory) {
+    public ByteBufferProviderBackedMapChunkFactory(int keySize,
+        boolean variableKeySizes,
+        int payloadSize,
+        boolean variablePayloadSizes,
+        int initialPageCapacity,
+        ByteBufferProvider byteBufferProvider) {
         this.keySize = keySize;
         this.variableKeySizes = variableKeySizes;
         this.payloadSize = payloadSize;
         this.variablePayloadSizes = variablePayloadSizes;
         this.initialPageCapacity = initialPageCapacity;
-        this.byteBufferFactory = byteBufferFactory;
+        this.byteBufferProvider = byteBufferProvider;
     }
 
     @Override
     public MapChunk getOrCreate(MapStore mapStore, String pageId) throws Exception {
-        MapChunk set = mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, initialPageCapacity, keySize, variableKeySizes,
-                payloadSize, variablePayloadSizes,
-                byteBufferFactory);
-        return set;
+        return mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, initialPageCapacity, keySize, variableKeySizes,
+            payloadSize, variablePayloadSizes, byteBufferProvider);
     }
 
     @Override
     public MapChunk resize(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception {
         MapChunk newChunk = mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, newSize, keySize, variableKeySizes,
-                payloadSize, variablePayloadSizes,
-                byteBufferFactory);
+            payloadSize, variablePayloadSizes, byteBufferProvider);
         mapStore.copyTo(chunk, newChunk, null);
         return newChunk;
     }

@@ -1,6 +1,6 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.map.store.extractors.IndexStream;
 import java.util.Arrays;
@@ -14,8 +14,8 @@ import java.util.Arrays;
  * The key composed of all BYTE.MIN_VALUE is reserved as the head of the list.
  *
  */
+
 /**
- *
  * @author jonathan
  */
 public class SkipListSet {
@@ -38,16 +38,18 @@ public class SkipListSet {
      * @param _keySize
      * @param _payloadSize
      * @param _valueComparator
-     * @param factory
+     * @param provider
      * @return
      */
     public SkipListSetPage slallocate(MapStore mapStore, byte[] id,
-            long version, int _maxCount, byte[] headKey,
-            int _keySize,
-            boolean variableKeySizes,
-            int _payloadSize,
-            boolean variablePayloadSizes,
-            SkipListComparator _valueComparator, ByteBufferFactory factory) {
+        long version, int _maxCount, byte[] headKey,
+        int _keySize,
+        boolean variableKeySizes,
+        int _payloadSize,
+        boolean variablePayloadSizes,
+        SkipListComparator _valueComparator,
+        ByteBufferProvider provider) {
+
         if (headKey.length != _keySize) {
             throw new RuntimeException("Expected that headKey.length == keySize");
         }
@@ -55,7 +57,7 @@ public class SkipListSet {
         byte maxHeight = SkipListSetPage.heightFit(_maxCount);
         int payloadSize = slpayloadSize(maxHeight) + _payloadSize;
 
-        MapChunk setPage = map.allocate((byte) 0, (byte) 0, id, version, _maxCount, _keySize, variableKeySizes, payloadSize, variablePayloadSizes, factory);
+        MapChunk setPage = map.allocate((byte) 0, (byte) 0, id, version, _maxCount, _keySize, variableKeySizes, payloadSize, variablePayloadSizes, provider);
         byte[] headPayload = new byte[payloadSize];
         Arrays.fill(headPayload, Byte.MIN_VALUE);
         map.add(setPage, (byte) 1, headKey, newColumn(headPayload, maxHeight, maxHeight));
@@ -66,7 +68,6 @@ public class SkipListSet {
     }
 
     /**
-     *
      * @param _maxCount
      * @param _keySize
      * @param _payloadSize
@@ -78,7 +79,6 @@ public class SkipListSet {
     }
 
     /**
-     *
      * @param maxHeight
      * @return
      */
@@ -87,7 +87,6 @@ public class SkipListSet {
     }
 
     /**
-     *
      * @param page
      * @return
      */
@@ -96,7 +95,6 @@ public class SkipListSet {
     }
 
     /**
-     *
      * @param page
      * @param _key
      * @param _payload
@@ -195,7 +193,6 @@ public class SkipListSet {
     }
 
     /**
-     *
      * @param page
      * @return
      */
@@ -209,7 +206,6 @@ public class SkipListSet {
     }
 
     /**
-     *
      * @param page
      * @param _key
      */
@@ -253,7 +249,6 @@ public class SkipListSet {
     }
 
     /**
-     *
      * @param page
      * @param _key
      * @return
@@ -280,7 +275,6 @@ public class SkipListSet {
     }
 
     /**
-     *
      * @param page
      * @param _key
      * @return
@@ -303,7 +297,6 @@ public class SkipListSet {
     }
 
     /**
-     *
      * @param page
      * @param _key
      * @return
@@ -321,7 +314,6 @@ public class SkipListSet {
     }
 
     /**
-     *
      * @param page
      * @param key
      * @return
@@ -343,7 +335,7 @@ public class SkipListSet {
      *
      * @param page
      * @param from inclusive
-     * @param to inclusive
+     * @param to   inclusive
      * @param _max
      * @param _get
      * @throws Exception
@@ -479,8 +471,8 @@ public class SkipListSet {
     }
 
     // debugging aids
+
     /**
-     *
      * @param page
      * @param keyToString
      */
@@ -501,7 +493,6 @@ public class SkipListSet {
     static abstract public class BytesToString {
 
         /**
-         *
          * @param bytes
          * @return
          */
@@ -514,7 +505,6 @@ public class SkipListSet {
     static public class BytesToDoubleString extends BytesToString {
 
         /**
-         *
          * @param bytes
          * @return
          */
@@ -530,7 +520,6 @@ public class SkipListSet {
     static public class BytesToBytesString extends BytesToString {
 
         /**
-         *
          * @param bytes
          * @return
          */

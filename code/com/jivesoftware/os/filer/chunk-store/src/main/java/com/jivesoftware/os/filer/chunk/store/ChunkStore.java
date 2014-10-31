@@ -1,13 +1,12 @@
 package com.jivesoftware.os.filer.chunk.store;
 
+import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.SubsetableFiler;
-
 import java.io.IOException;
 
-
-public class ChunkStore {
+public class ChunkStore implements Copyable<ChunkStore, Exception> {
 
     private static final long cMagicNumber = Long.MAX_VALUE;
     private static final int cMinPower = 8;
@@ -74,6 +73,22 @@ public class ChunkStore {
             filer.seek(0);
             lengthOfFile = FilerIO.readLong(filer, "lengthOfFile");
             referenceNumber = FilerIO.readLong(filer, "referenceNumber");
+        }
+    }
+
+    @Override
+    public void copyTo(ChunkStore to) throws Exception {
+        synchronized (filer.lock()) {
+            filer.seek(0);
+            to.copyFrom(filer);
+        }
+    }
+
+    private void copyFrom(Filer from) throws Exception {
+        synchronized (filer.lock()) {
+            filer.seek(0);
+            FilerIO.copy(from, filer, -1); //TODO expose?
+            open();
         }
     }
 

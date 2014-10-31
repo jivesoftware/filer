@@ -1,5 +1,6 @@
 package com.jivesoftware.os.filer.map.store;
 
+import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.KeyMarshaller;
@@ -24,19 +25,20 @@ public class ByteBufferObjectMapStoreTest {
             System.out.println("---------------------- " + i + " ----------------------");
 
             // bytebuffer mapstore setup
-            BytesObjectMapStore<Long, Object> byteBufferObjectMapStore = new BytesObjectMapStore<>(8, false, 10, null, new HeapByteBufferFactory(),
+            BytesObjectMapStore<Long, Object> byteBufferObjectMapStore = new BytesObjectMapStore<>(8, false, 10, null,
+                new ByteBufferProvider("booya", new HeapByteBufferFactory()),
                 new KeyMarshaller<Long>() {
 
-                @Override
-                public byte[] keyBytes(Long key) {
-                    return FilerIO.longBytes(key);
-                }
+                    @Override
+                    public byte[] keyBytes(Long key) {
+                        return FilerIO.longBytes(key);
+                    }
 
-                @Override
-                public Long bytesKey(byte[] bytes, int offset) {
-                    return FilerIO.bytesLong(bytes, offset);
-                }
-            });
+                    @Override
+                    public Long bytesKey(byte[] bytes, int offset) {
+                        return FilerIO.bytesLong(bytes, offset);
+                    }
+                });
 
             // bytebuffer mapstore insert
             long start = System.currentTimeMillis();

@@ -3,7 +3,8 @@ package com.jivesoftware.os.filer.map.store;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.io.ByteBufferProvider;
+import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.KeyMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
@@ -14,7 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Bytes key to index, index to object array.
  */
-public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V> {
+public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<BytesObjectMapStore<K, V>, Exception> {
 
     private static final byte[] EMPTY_ID = new byte[16];
     private static final byte[] EMPTY_PAYLOAD = new byte[0];
@@ -25,20 +26,20 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V> {
     private final boolean variableKeySizes;
     private final int initialPageCapacity;
     private final V returnWhenGetReturnsNull;
-    private final ByteBufferFactory byteBufferFactory;
+    private final ByteBufferProvider byteBufferProvider;
     private final KeyMarshaller<K> keyMarshaller;
 
     public BytesObjectMapStore(int keySize,
-            boolean variableKeySizes,
-            int initialPageCapacity,
-            V returnWhenGetReturnsNull,
-            ByteBufferFactory byteBufferFactory,
-            KeyMarshaller<K> keyMarshaller) {
+        boolean variableKeySizes,
+        int initialPageCapacity,
+        V returnWhenGetReturnsNull,
+        ByteBufferProvider byteBufferProvider,
+        KeyMarshaller<K> keyMarshaller) {
         this.keySize = keySize;
         this.variableKeySizes = variableKeySizes;
         this.initialPageCapacity = initialPageCapacity;
         this.returnWhenGetReturnsNull = returnWhenGetReturnsNull;
-        this.byteBufferFactory = byteBufferFactory;
+        this.byteBufferProvider = byteBufferProvider;
         this.keyMarshaller = keyMarshaller;
     }
 
@@ -148,11 +149,15 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V> {
         return got;
     }
 
-    private Index allocate(int maxCapacity) {
-        MapChunk chunk = mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, maxCapacity, keySize, variableKeySizes, 0, false, byteBufferFactory);
+    private Index allocate(int maxCount) {
+        MapChunk chunk = allocateChunk(maxCount);
         return new Index(
-                chunk,
-                new Object[mapStore.getCapacity(chunk)]);
+            chunk,
+            new Object[mapStore.getCapacity(chunk)]);
+    }
+
+    private MapChunk allocateChunk(int maxCount) {
+        return mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, maxCount, keySize, variableKeySizes, 0, false, byteBufferProvider);
     }
 
     @Override
@@ -162,6 +167,25 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V> {
             return index.chunk.size() + (index.payloads.length * 8);
         }
         return 0;
+    }
+
+    @Override
+    public void copyTo(BytesObjectMapStore<K, V> to) throws Exception {
+        synchronized (indexRef) {
+            Index got = indexRef.get();
+            if (got != null) {
+                to.copyFrom(got);
+            }
+        }
+    }
+
+    private void copyFrom(Index fromIndex) throws Exception {
+        synchronized (indexRef) {
+            MapChunk from = fromIndex.chunk;
+            MapChunk to = allocateChunk(from.maxCount);
+            mapStore.copyTo(from, to, null);
+            indexRef.set(new Index(to, fromIndex.payloads));
+        }
     }
 
     @Override

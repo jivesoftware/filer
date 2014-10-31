@@ -1,6 +1,6 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.map.store.extractors.IndexStream;
@@ -22,12 +22,12 @@ public class SkipListSet_Test {
 
         long maxCountBetweenZeroAndOne = (long) (1d / Double.MIN_VALUE);
         System.out.println(maxCountBetweenZeroAndOne + " " + Double.MAX_VALUE);
-        ByteBufferFactory factory = new HeapByteBufferFactory();
+        ByteBufferProvider provider = new ByteBufferProvider("booya", new HeapByteBufferFactory());
 
         //chart(factory);
         //System.exit(0);
         int it = 30;
-        test(it, 2, it, factory);
+        test(it, 2, it, provider);
         System.exit(0);
 
         long seed = System.currentTimeMillis();
@@ -68,7 +68,7 @@ public class SkipListSet_Test {
             public long range(byte[] a, byte[] b) {
                 throw new UnsupportedOperationException("Not supported yet.");
             }
-        }, factory);
+        }, provider);
 
         Random random = new Random(1_234);
         byte[] a = new byte[] { 65 }; //URandom.randomLowerCaseAlphaBytes(keySize);
@@ -173,7 +173,7 @@ public class SkipListSet_Test {
         return n + 1;
     }
 
-    private static boolean test(int _iterations, int _keySize, int _maxSize, ByteBufferFactory factory) {
+    private static boolean test(int _iterations, int _keySize, int _maxSize, ByteBufferProvider provider) {
         byte[] headKey = new byte[_keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
         int keySize = _keySize;
@@ -207,7 +207,7 @@ public class SkipListSet_Test {
             public long range(byte[] a, byte[] b) {
                 throw new UnsupportedOperationException("Not supported yet.");
             }
-        }, factory);
+        }, provider);
 
         System.out.println("MaxCount = " + sls.map.getMaxCount(slsp.map) + " vs " + _iterations + " vs " + sls.map.getCapacity(slsp.map));
         System.out.println("Upper Bound Max Count = " + sls.map.absoluteMaxCount(sls.map.getKeySize(slsp.map), sls.map.getPayloadSize(slsp.map)));
@@ -335,9 +335,9 @@ public class SkipListSet_Test {
     }
 
     /**
-     * @param factory
+     * @param provider
      */
-    public static void chart(ByteBufferFactory factory) {
+    public static void chart(ByteBufferProvider provider) {
         int ksize = 16;
         int payloadSize = 4;
         int maxSize = 1_000_000;
@@ -347,30 +347,30 @@ public class SkipListSet_Test {
         SkipListSet sls = new SkipListSet();
 
         for (int i = step; i < maxSize; i += step) {
-            SkipListSetPage set = testSet(sls, null, 112_233, i, ksize, payloadSize, i, 0, true, factory);
-            stats(ksize, payloadSize, i, factory);
+            SkipListSetPage set = testSet(sls, null, 112_233, i, ksize, payloadSize, i, 0, true, provider);
+            stats(ksize, payloadSize, i, provider);
             System.out.println();
         }
         for (int i = step; i < maxSize; i += step) {
-            SkipListSetPage set = testSet(sls, null, 112_233, i, ksize, payloadSize, i, 0, false, factory);
-            testSet(sls, set, 112_233, i, ksize, payloadSize, i, 1, true, factory);
-            stats(ksize, payloadSize, i, factory);
+            SkipListSetPage set = testSet(sls, null, 112_233, i, ksize, payloadSize, i, 0, false, provider);
+            testSet(sls, set, 112_233, i, ksize, payloadSize, i, 1, true, provider);
+            stats(ksize, payloadSize, i, provider);
             System.out.println();
         }
         for (int i = step; i < maxSize; i += step) {
-            SkipListSetPage set = testSet(sls, null, 112_233, i, ksize, payloadSize, i, 2, true, factory);
-            stats(ksize, payloadSize, i, factory);
+            SkipListSetPage set = testSet(sls, null, 112_233, i, ksize, payloadSize, i, 2, true, provider);
+            stats(ksize, payloadSize, i, provider);
             System.out.println();
         }
         for (int i = step; i < maxSize; i += step) {
-            SkipListSetPage set = testSet(sls, null, 112_233, i, ksize, payloadSize, i, 2, false, factory);
-            testSet(sls, set, 112_233, i, ksize, payloadSize, i, 3, true, factory);
-            stats(ksize, payloadSize, i, factory);
+            SkipListSetPage set = testSet(sls, null, 112_233, i, ksize, payloadSize, i, 2, false, provider);
+            testSet(sls, set, 112_233, i, ksize, payloadSize, i, 3, true, provider);
+            stats(ksize, payloadSize, i, provider);
             System.out.println();
         }
     }
 
-    private static void stats(int keySize, int payloadSize, int _maxSize, ByteBufferFactory factory) {
+    private static void stats(int keySize, int payloadSize, int _maxSize, ByteBufferProvider provider) {
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
         SkipListSet sls = new SkipListSet();
@@ -403,12 +403,12 @@ public class SkipListSet_Test {
             public long range(byte[] a, byte[] b) {
                 throw new UnsupportedOperationException("Not supported yet.");
             }
-        }, factory);
+        }, provider);
         System.out.print("," + _maxSize + "," + (slsp.map.size() / 1024d / 1024d));
     }
 
     private static SkipListSetPage testSet(SkipListSet sls,
-        SkipListSetPage set, long seed, int _iterations, int keySize, int payloadSize, int _maxSize, int mode, boolean _out, ByteBufferFactory factory) {
+        SkipListSetPage set, long seed, int _iterations, int keySize, int payloadSize, int _maxSize, int mode, boolean _out, ByteBufferProvider provider) {
 
         if (set == null) {
             byte[] headKey = new byte[keySize];
@@ -442,7 +442,7 @@ public class SkipListSet_Test {
                 public long range(byte[] a, byte[] b) {
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
-            }, factory);
+            }, provider);
         }
 
         System.out.println("\ncontains:");

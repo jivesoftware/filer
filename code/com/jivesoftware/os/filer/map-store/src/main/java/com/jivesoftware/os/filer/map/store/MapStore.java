@@ -1,7 +1,7 @@
 package com.jivesoftware.os.filer.map.store;
 
 //!! POORLY TESTING
-import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.map.store.extractors.IndexStream;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
@@ -93,7 +93,7 @@ public class MapStore {
      * @param variableKeySizes
      * @param payloadSize
      * @param variablePayloadSizes
-     * @param factory
+     * @param byteBufferProvider
      * @return
      */
     public MapChunk allocate(byte pageFamily,
@@ -105,7 +105,7 @@ public class MapStore {
             boolean variableKeySizes,
             int payloadSize,
             boolean variablePayloadSizes,
-            ByteBufferFactory factory) {
+            ByteBufferProvider byteBufferProvider) {
         if (id == null || id.length != cIdSize) {
             throw new RuntimeException("Malformed ID");
         }
@@ -115,7 +115,7 @@ public class MapStore {
         byte payloadLengthSize = keyLengthSize(variablePayloadSizes ? payloadSize : 0);
 
         int arraySize = cost(maxCount, keyLengthSize + keySize, payloadLengthSize + payloadSize);
-        MapChunk page = new MapChunk(factory.allocate(arraySize));
+        MapChunk page = new MapChunk(byteBufferProvider.allocate(arraySize));
 
         setPageFamily(page, pageFamily);
         setPageVersion(page, pageVersion);

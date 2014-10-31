@@ -15,6 +15,7 @@
  */
 package com.jivesoftware.os.filer.map.store;
 
+import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.io.FileBackedMemMappedByteBufferFactory;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -107,14 +108,15 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
     }
 
     private MapChunk mmap(MapStore mapStore, final File file, int maxCapacity) throws FileNotFoundException, IOException {
-        final FileBackedMemMappedByteBufferFactory pageFactory = new FileBackedMemMappedByteBufferFactory(file);
+        FileBackedMemMappedByteBufferFactory pageFactory = new FileBackedMemMappedByteBufferFactory(file.getParentFile());
         if (file.exists()) {
-            MappedByteBuffer buffer = pageFactory.open();
+            MappedByteBuffer buffer = pageFactory.open(file.getName());
             MapChunk page = new MapChunk(buffer);
             page.init(mapStore);
             return page;
         } else {
-            MapChunk set = mapStore.allocate((byte) 0,
+            ByteBufferProvider byteBufferProvider = new ByteBufferProvider(file.getName(), pageFactory);
+            return mapStore.allocate((byte) 0,
                 (byte) 0,
                 EMPTY_ID,
                 0,
@@ -123,8 +125,7 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
                 variableKeySizes,
                 payloadSize,
                 variablePayloadSizes,
-                pageFactory);
-            return set;
+                byteBufferProvider);
         }
     }
 

@@ -4,22 +4,26 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.io.ByteBufferProvider;
+import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.KeyMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
 import java.util.Iterator;
 import java.util.List;
 
-public class VariableKeySizeBytesObjectMapStore<K, V> implements KeyValueStore<K, V> {
+public class VariableKeySizeBytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<VariableKeySizeBytesObjectMapStore<K, V>, Exception> {
 
     private final int[] keySizeThresholds;
     private final KeyMarshaller<K> keyMarshaller;
     private final BytesObjectMapStore<byte[], V>[] mapStores;
 
     @SuppressWarnings("unchecked")
-    public VariableKeySizeBytesObjectMapStore(int[] keySizeThresholds, int initialPageCapacity, V returnWhenGetReturnsNull,
-            ByteBufferFactory byteBufferFactory, final KeyMarshaller<K> keyMarshaller) {
+    public VariableKeySizeBytesObjectMapStore(int[] keySizeThresholds,
+        int initialPageCapacity,
+        V returnWhenGetReturnsNull,
+        ByteBufferProvider byteBufferProvider,
+        final KeyMarshaller<K> keyMarshaller) {
 
         this.keySizeThresholds = keySizeThresholds;
         this.keyMarshaller = keyMarshaller;
@@ -30,7 +34,8 @@ public class VariableKeySizeBytesObjectMapStore<K, V> implements KeyValueStore<K
             Preconditions.checkArgument(i == 0 || keySizeThresholds[i] > keySizeThresholds[i - 1], "Thresholds must be monotonically increasing");
 
             final int keySize = keySizeThresholds[i];
-            mapStores[i] = new BytesObjectMapStore<>(keySize, true, initialPageCapacity, returnWhenGetReturnsNull, byteBufferFactory, passThroughKeyMarshaller);
+            mapStores[i] = new BytesObjectMapStore<>(
+                keySize, true, initialPageCapacity, returnWhenGetReturnsNull, byteBufferProvider, passThroughKeyMarshaller);
         }
     }
 
@@ -73,6 +78,13 @@ public class VariableKeySizeBytesObjectMapStore<K, V> implements KeyValueStore<K
             estimate += mapStore.estimateSizeInBytes();
         }
         return estimate;
+    }
+
+    @Override
+    public void copyTo(VariableKeySizeBytesObjectMapStore<K, V> to) throws Exception {
+        for (int i = 0; i < mapStores.length; i++) {
+            mapStores[i].copyTo(to.mapStores[i]);
+        }
     }
 
     @Override

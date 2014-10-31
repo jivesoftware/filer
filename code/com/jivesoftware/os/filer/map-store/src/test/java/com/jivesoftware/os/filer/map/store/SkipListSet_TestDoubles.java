@@ -1,6 +1,6 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.map.store.extractors.IndexStream;
@@ -20,7 +20,6 @@ public class SkipListSet_TestDoubles {
     public static void main(String[] _args) throws Exception {
 
         Random random = new Random(1_234);
-        ByteBufferFactory factory = new HeapByteBufferFactory();
         int keySize = 8;
         int payloadSize = 0;
         byte[] headKey = new byte[keySize];
@@ -28,7 +27,7 @@ public class SkipListSet_TestDoubles {
         SkipListSet sls = new SkipListSet();
         MapStore pset = MapStore.DEFAULT;
         SkipListSetPage page = sls.slallocate(pset, new byte[16], 0, 16, headKey, keySize, false, payloadSize, false, DoubleSkipListComparator.cSingleton,
-            factory);
+            new ByteBufferProvider("booya", new HeapByteBufferFactory()));
         for (int i = 0; i < 16; i++) {
             sls.sladd(page, FilerIO.doubleBytes(random.nextInt(32)), new byte[0]);
         }

@@ -3,10 +3,9 @@ package com.jivesoftware.os.filer.map.store;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
-import com.jivesoftware.os.filer.map.store.api.KeyValueStore.Entry;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
 import java.util.Iterator;
 import java.util.List;
@@ -30,24 +29,25 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
     private final boolean variablePayloadSizes;
     private final int initialPageCapacity;
     private final V returnWhenGetReturnsNull;
-    private final ByteBufferFactory byteBufferFactory;
+    private final ByteBufferProvider byteBufferProvider;
     private final KeyValueMarshaller<K, V> keyValueMarshaller;
 
     public BytesBytesMapStore(int keySize,
-            boolean variableKeySizes,
-            int payloadSize,
-            boolean variablePayloadSizes,
-            int initialPageCapacity,
-            V returnWhenGetReturnsNull,
-            ByteBufferFactory byteBufferFactory,
-            KeyValueMarshaller<K, V> keyValueMarshaller) {
+        boolean variableKeySizes,
+        int payloadSize,
+        boolean variablePayloadSizes,
+        int initialPageCapacity,
+        V returnWhenGetReturnsNull,
+        ByteBufferProvider byteBufferProvider,
+        KeyValueMarshaller<K, V> keyValueMarshaller) {
+
         this.keySize = keySize;
         this.variableKeySizes = variableKeySizes;
         this.payloadSize = payloadSize;
         this.variablePayloadSizes = variablePayloadSizes;
         this.initialPageCapacity = initialPageCapacity;
         this.returnWhenGetReturnsNull = returnWhenGetReturnsNull;
-        this.byteBufferFactory = byteBufferFactory;
+        this.byteBufferProvider = byteBufferProvider;
         this.keyValueMarshaller = keyValueMarshaller;
     }
 
@@ -146,7 +146,7 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
 
     private MapChunk allocate(int maxCapacity) {
         return mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, maxCapacity, keySize, variableKeySizes, payloadSize, variablePayloadSizes,
-                byteBufferFactory);
+            byteBufferProvider);
     }
 
     @Override

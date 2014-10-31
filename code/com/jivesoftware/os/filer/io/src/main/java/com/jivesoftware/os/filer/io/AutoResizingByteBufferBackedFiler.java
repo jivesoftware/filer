@@ -19,13 +19,13 @@ import java.util.concurrent.atomic.AtomicReference;
 public class AutoResizingByteBufferBackedFiler implements Filer {
 
     private final Object lock;
-    private final ByteBufferFactory factory;
+    private final ByteBufferProvider byteBufferProvider;
     private final AtomicReference<ByteBuffer> bufferReference;
 
-    public AutoResizingByteBufferBackedFiler(Object lock, long initialSize, ByteBufferFactory factory) {
+    public AutoResizingByteBufferBackedFiler(Object lock, long initialSize, ByteBufferProvider byteBufferProvider) {
         this.lock = lock;
-        this.factory = factory;
-        this.bufferReference = new AtomicReference<>(factory.allocate(initialSize));
+        this.byteBufferProvider = byteBufferProvider;
+        this.bufferReference = new AtomicReference<>(byteBufferProvider.allocate(initialSize));
     }
 
     @Override
@@ -37,7 +37,7 @@ public class AutoResizingByteBufferBackedFiler implements Filer {
         ByteBuffer buffer = bufferReference.get();
         int currentCapacity = buffer.capacity();
         while (currentCapacity < size) {
-            if (bufferReference.compareAndSet(buffer, factory.reallocate(buffer, FilerIO.chunkLength(FilerIO.chunkPower(size, 0))))) {
+            if (bufferReference.compareAndSet(buffer, byteBufferProvider.reallocate(buffer, FilerIO.chunkLength(FilerIO.chunkPower(size, 0))))) {
                 break;
             }
             buffer = bufferReference.get();
