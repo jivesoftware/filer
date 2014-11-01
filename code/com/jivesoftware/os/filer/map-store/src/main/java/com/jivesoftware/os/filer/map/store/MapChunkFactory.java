@@ -23,10 +23,11 @@ public interface MapChunkFactory {
 
     MapChunk getOrCreate(MapStore mapStore, String pageId) throws Exception;
 
-    MapChunk resize(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception;
+    MapChunk resize(MapStore mapStore, MapChunk chunk, String pageId, int newSize, MapStore.CopyToStream copyToStream) throws Exception;
 
     MapChunk copy(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception;
 
     MapChunk get(MapStore mapStore, String pageId) throws Exception;
 
+    void delete(String pageId) throws Exception;
 }

@@ -1,6 +1,7 @@
 package com.jivesoftware.os.filer.map.store;
 
 //!! POORLY TESTING
+
 import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.map.store.extractors.IndexStream;
 import java.nio.ByteBuffer;
@@ -12,7 +13,6 @@ import java.util.Iterator;
  * this is a key+payload set that is backed buy a byte array. It is a fixed size set. It will not grow or shrink. You need to be aware and expect that your
  * system will cause the set to throw OverCapacityExceptions. The goal is to create a collection which will page to and from disk or net as fast as possible.
  * Nothing is synchronized to make it thread safe you need to synchronize higher up.
- *
  *
  * @author jonathan
  */
@@ -34,7 +34,7 @@ public class MapStore {
     private static final int cPayloadSize = 4;
 
     private static final int cHeaderSize = cPageFamilySize + cPageVersionSize + cIdSize + cVersion + cCountSize
-            + cMaxCountSize + cMaxCapacitySize + cVariableSized + cKeySizeSize + cVariableSized + cPayloadSize;
+        + cMaxCountSize + cMaxCapacitySize + cVariableSized + cKeySizeSize + cVariableSized + cPayloadSize;
 
     private static final int cPageFamilyOffset = 0;
     private static final int cPageVersionOffset = cPageFamilySize;
@@ -56,21 +56,19 @@ public class MapStore {
     }
 
     /**
-     *
      * @param _maxKeys
      * @param _keySize
      * @param _payloadSize
      * @return
      */
     int cost(int _maxKeys, int _keySize, int _payloadSize) {
-        int maxCapacity = (int) (_maxKeys + (_maxKeys - (_maxKeys * cSetDensity)));
+        int maxCapacity = calculateCapacity(_maxKeys);
         // 1+ for head of entry status byte. 0 and -1 reserved
         int entrySize = 1 + _keySize + _payloadSize;
         return cHeaderSize + (entrySize * maxCapacity);
     }
 
     /**
-     *
      * @param _keySize
      * @param _payloadSize
      * @return
@@ -82,8 +80,25 @@ public class MapStore {
         return (long) (maxCount * cSetDensity);
     }
 
+    public int calculateCapacity(int maxCount) {
+        return (int) (maxCount + (maxCount - (maxCount * cSetDensity)));
+    }
+
+    public ByteBuffer allocateBuffer(int maxCount,
+        int keySize,
+        boolean variableKeySizes,
+        int payloadSize,
+        boolean variablePayloadSizes,
+        ByteBufferProvider byteBufferProvider) {
+
+        byte keyLengthSize = keyLengthSize(variableKeySizes ? keySize : 0);
+        byte payloadLengthSize = keyLengthSize(variablePayloadSizes ? payloadSize : 0);
+
+        int arraySize = cost(maxCount, keyLengthSize + keySize, payloadLengthSize + payloadSize);
+        return byteBufferProvider.allocate(arraySize);
+    }
+
     /**
-     *
      * @param pageVersion
      * @param pageFamily
      * @param id
@@ -97,25 +112,25 @@ public class MapStore {
      * @return
      */
     public MapChunk allocate(byte pageFamily,
-            byte pageVersion,
-            byte[] id,
-            long version,
-            int maxCount,
-            int keySize,
-            boolean variableKeySizes,
-            int payloadSize,
-            boolean variablePayloadSizes,
-            ByteBufferProvider byteBufferProvider) {
+        byte pageVersion,
+        byte[] id,
+        long version,
+        int maxCount,
+        int keySize,
+        boolean variableKeySizes,
+        int payloadSize,
+        boolean variablePayloadSizes,
+        ByteBufferProvider byteBufferProvider) {
+
         if (id == null || id.length != cIdSize) {
             throw new RuntimeException("Malformed ID");
         }
-        int maxCapacity = (int) (maxCount + (maxCount - (maxCount * cSetDensity)));
+        int maxCapacity = calculateCapacity(maxCount);
 
         byte keyLengthSize = keyLengthSize(variableKeySizes ? keySize : 0);
         byte payloadLengthSize = keyLengthSize(variablePayloadSizes ? payloadSize : 0);
 
-        int arraySize = cost(maxCount, keyLengthSize + keySize, payloadLengthSize + payloadSize);
-        MapChunk page = new MapChunk(byteBufferProvider.allocate(arraySize));
+        MapChunk page = new MapChunk(allocateBuffer(maxCount, keySize, variableKeySizes, payloadSize, variablePayloadSizes, byteBufferProvider));
 
         setPageFamily(page, pageFamily);
         setPageVersion(page, pageVersion);
@@ -146,7 +161,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @return
      */
@@ -155,7 +169,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @param family
      */
@@ -164,7 +177,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @return
      */
@@ -173,7 +185,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @param family
      */
@@ -182,7 +193,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @return
      */
@@ -193,7 +203,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @param id
      */
@@ -202,7 +211,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @return
      */
@@ -211,7 +219,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @param version
      */
@@ -232,7 +239,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @return
      */
@@ -241,7 +247,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @return
      */
@@ -254,7 +259,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @return
      */
@@ -267,7 +271,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @return
      */
@@ -280,7 +283,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @return
      */
@@ -301,7 +303,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @return
      */
@@ -345,8 +346,8 @@ public class MapStore {
         int keySize = page.keySize;
         int payloadSize = page.payloadSize;
         for (long i = keyHash % (capacity - 1), j = 0, k = capacity; // stack vars for efficiency
-                j < k; // max search for available slot
-                i = (++i) % k, j++) { // wraps around table
+             j < k; // max search for available slot
+             i = (++i) % k, j++) { // wraps around table
 
             long ai = index(i, page.entrySize);
             if (read(page.array, (int) ai) == cNull || read(page.array, (int) ai) == cSkip) {
@@ -386,7 +387,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @param _key
      * @return
@@ -396,7 +396,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param setIndex
      * @param entrySize
      * @return
@@ -406,7 +405,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @param i
      * @return
@@ -426,7 +424,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param setIndex
      * @param keySize
      * @return
@@ -437,7 +434,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @param i
      * @return
@@ -457,7 +453,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @param i
      * @param _destOffset
@@ -485,7 +480,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      * @param key
      * @return
@@ -509,8 +503,8 @@ public class MapStore {
         int entrySize = page.entrySize;
         int capacity = page.capacity;
         for (long i = keyHash % (capacity - 1), j = 0, k = capacity; // stack vars for efficiency
-                j < k; // max search for key
-                i = (++i) % k, j++) { // wraps around table
+             j < k; // max search for key
+             i = (++i) % k, j++) { // wraps around table
 
             long ai = index(i, entrySize);
             byte mode = read(page.array, (int) ai);
@@ -580,8 +574,8 @@ public class MapStore {
         int capacity = page.capacity;
         int entrySize = page.entrySize;
         for (long i = keyHash % (capacity - 1), j = 0, k = capacity; // stack vars for efficiency
-                j < k; // max search for key
-                i = (++i) % k, j++) { // wraps around table
+             j < k; // max search for key
+             i = (++i) % k, j++) { // wraps around table
 
             long ai = index(i, page.entrySize);
             if (read(page.array, (int) ai) == cSkip) {
@@ -611,7 +605,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param <R>
      * @param <E>
      * @param page
@@ -698,7 +691,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @param page
      */
     public void toSysOut(MapChunk page) {
@@ -717,15 +709,14 @@ public class MapStore {
                     continue;
                 }
                 System.out.println("\t" + i + "): "
-                        + Arrays.toString(getKey(page, i)) + "->"
-                        + Arrays.toString(getPayload(page, i)));
+                    + Arrays.toString(getKey(page, i)) + "->"
+                    + Arrays.toString(getPayload(page, i)));
             }
         } catch (Exception x) {
         }
     }
 
     /**
-     *
      * @param _key
      * @param _start
      * @param _length
@@ -950,7 +941,6 @@ public class MapStore {
     }
 
     /**
-     *
      * @return
      */
     boolean isLoaded(ByteBuffer array) {

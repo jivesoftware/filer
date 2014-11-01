@@ -18,8 +18,7 @@ package com.jivesoftware.os.filer.map.store;
 import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.io.FileBackedMemMappedByteBufferFactory;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.util.UUID;
 import org.apache.commons.io.FileUtils;
@@ -78,11 +77,11 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
     }
 
     @Override
-    public MapChunk resize(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception {
+    public MapChunk resize(MapStore mapStore, MapChunk chunk, String pageId, int newSize, MapStore.CopyToStream copyToStream) throws Exception {
 
         File temporaryNewKeyIndexPartition = createIndexTempFile(pageId);
         MapChunk newIndex = mmap(mapStore, temporaryNewKeyIndexPartition, newSize);
-        mapStore.copyTo(chunk, newIndex, null);
+        mapStore.copyTo(chunk, newIndex, copyToStream);
         // TODO: implement to clean up
         //index.close();
         //newIndex.close();
@@ -98,8 +97,11 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
     public MapChunk copy(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception {
 
         File temporaryNewKeyIndexPartition = createIndexTempFile(pageId);
-        MapChunk newIndex = mmap(mapStore, temporaryNewKeyIndexPartition, newSize);
-        mapStore.copyTo(chunk, newIndex, null);
+        ByteBuffer newBuffer = mapStore.allocateBuffer(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes,
+            getPageProvider(temporaryNewKeyIndexPartition));
+        chunk.array.position(0);
+        newBuffer.position(0);
+        newBuffer.put(chunk.array);
         File createIndexSetFile = createIndexSetFile(pageId);
         FileUtils.copyFile(temporaryNewKeyIndexPartition, createIndexSetFile);
         FileUtils.forceDelete(temporaryNewKeyIndexPartition);
@@ -107,15 +109,32 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
         return mmap(mapStore, createIndexSetFile, newSize);
     }
 
-    private MapChunk mmap(MapStore mapStore, final File file, int maxCapacity) throws FileNotFoundException, IOException {
-        FileBackedMemMappedByteBufferFactory pageFactory = new FileBackedMemMappedByteBufferFactory(file.getParentFile());
+    @Override
+    public void delete(String pageId) throws Exception {
+        File file = createIndexSetFile(pageId);
+        if (!file.delete()) {
+            if (file.exists()) {
+                throw new RuntimeException("Failed to delete existing chunk file: " + file.getAbsolutePath());
+            }
+        }
+    }
+
+    private FileBackedMemMappedByteBufferFactory getPageFactory(File file) {
+        return new FileBackedMemMappedByteBufferFactory(file.getParentFile());
+    }
+
+    private ByteBufferProvider getPageProvider(File file) {
+        return new ByteBufferProvider(file.getName(), getPageFactory(file));
+    }
+
+    private MapChunk mmap(MapStore mapStore, final File file, int maxCapacity) throws Exception {
         if (file.exists()) {
-            MappedByteBuffer buffer = pageFactory.open(file.getName());
+            MappedByteBuffer buffer = getPageFactory(file).open(file.getName());
             MapChunk page = new MapChunk(buffer);
             page.init(mapStore);
             return page;
         } else {
-            ByteBufferProvider byteBufferProvider = new ByteBufferProvider(file.getName(), pageFactory);
+            ByteBufferProvider byteBufferProvider = getPageProvider(file);
             return mapStore.allocate((byte) 0,
                 (byte) 0,
                 EMPTY_ID,

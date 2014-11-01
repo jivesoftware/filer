@@ -48,7 +48,7 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
     }
 
     @Override
-    public void add(K key, V value) throws KeyValueStoreException {
+    public void add(K key, V value) throws Exception {
         if (key == null || value == null) {
             return;
         }
@@ -66,7 +66,7 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
                 if (mapStore.getCount(chunk) >= chunk.maxCount) {
                     int newSize = chunk.maxCount * 2;
 
-                    chunk = chunkFactory.resize(mapStore, chunk, pageId, newSize);
+                    chunk = chunkFactory.resize(mapStore, chunk, pageId, newSize, null);
                     indexPages.put(pageId, chunk);
                 }
             } catch (Exception e) {
@@ -78,7 +78,7 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
     }
 
     @Override
-    public void remove(K key) throws KeyValueStoreException {
+    public void remove(K key) throws Exception {
         if (key == null) {
             return;
         }
@@ -92,7 +92,7 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
     }
 
     @Override
-    public V getUnsafe(K key) throws KeyValueStoreException {
+    public V getUnsafe(K key) throws Exception {
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
@@ -107,7 +107,7 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
     }
 
     @Override
-    public V get(K key) throws KeyValueStoreException {
+    public V get(K key) throws Exception {
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
@@ -187,7 +187,7 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
             MapChunk give = get(pageId, false);
             if (give != null) {
                 // "resizes" the old chunk over the top of an existing chunk, using the old chunk's size
-                give = chunkFactory.resize(mapStore, got, pageId, got.maxCount);
+                give = chunkFactory.resize(mapStore, got, pageId, got.maxCount, null);
             } else {
                 // "copies" the old chunk into a new nonexistent chunk, using the old chunk's size
                 give = chunkFactory.copy(mapStore, got, pageId, got.maxCount);

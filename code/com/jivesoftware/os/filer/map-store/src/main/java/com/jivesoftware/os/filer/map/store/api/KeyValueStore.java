@@ -10,13 +10,13 @@ import com.jivesoftware.os.filer.map.store.api.KeyValueStore.Entry;
  */
 public interface KeyValueStore<K, V> extends Iterable<Entry<K, V>> {
 
-    void add(K key, V value) throws KeyValueStoreException;
+    void add(K key, V value) throws Exception;
 
-    void remove(K key) throws KeyValueStoreException;
+    void remove(K key) throws Exception;
 
-    V get(K key) throws KeyValueStoreException;
+    V get(K key) throws Exception;
 
-    V getUnsafe(K key) throws KeyValueStoreException;
+    V getUnsafe(K key) throws Exception;
 
     long estimateSizeInBytes() throws Exception;
 

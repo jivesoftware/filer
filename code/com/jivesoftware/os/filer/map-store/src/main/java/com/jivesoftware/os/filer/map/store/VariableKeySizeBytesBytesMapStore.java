@@ -1,43 +1,32 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.jivesoftware.os.filer.io.ByteBufferProvider;
-import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
-import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
 import java.util.Iterator;
 import java.util.List;
 
 public abstract class VariableKeySizeBytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
 
-    private final int[] keySizeThresholds;
     private final BytesBytesMapStore<K, V>[] mapStores;
 
     @SuppressWarnings("unchecked")
-    public VariableKeySizeBytesBytesMapStore(int[] keySizeThresholds,
-        int payloadSize,
-        int initialPageCapacity,
-        V returnWhenGetReturnsNull,
-        ByteBufferProvider byteBufferProvider,
-        KeyValueMarshaller<K, V> keyValueMarshaller) {
+    public VariableKeySizeBytesBytesMapStore(BytesBytesMapStore<K, V>[] mapStores) {
+        this.mapStores = mapStores;
 
-        this.keySizeThresholds = keySizeThresholds;
-        this.mapStores = new BytesBytesMapStore[keySizeThresholds.length];
-
+        /*
         for (int i = 0; i < keySizeThresholds.length; i++) {
             Preconditions.checkArgument(i == 0 || keySizeThresholds[i] > keySizeThresholds[i - 1], "Thresholds must be monotonically increasing");
 
             final int keySize = keySizeThresholds[i];
-            mapStores[i] = new BytesBytesMapStore<>(keySize, true, payloadSize, false, initialPageCapacity, returnWhenGetReturnsNull, byteBufferProvider,
-                keyValueMarshaller);
+            mapStores[i] = new BytesBytesMapStore<>(String.valueOf(keySize), returnWhenGetReturnsNull, mapChunkFactory, keyValueMarshaller);
         }
+        */
     }
 
     private BytesBytesMapStore<K, V> getMapStore(int keyLength) {
-        for (int i = 0; i < keySizeThresholds.length; i++) {
-            if (keySizeThresholds[i] >= keyLength) {
+        for (int i = 0; i < mapStores.length; i++) {
+            if (mapStores[i].keySize >= keyLength) {
                 return mapStores[i];
             }
         }
@@ -47,22 +36,22 @@ public abstract class VariableKeySizeBytesBytesMapStore<K, V> implements KeyValu
     protected abstract int keyLength(K key);
 
     @Override
-    public void add(K key, V value) throws KeyValueStoreException {
+    public void add(K key, V value) throws Exception {
         getMapStore(keyLength(key)).add(key, value);
     }
 
     @Override
-    public void remove(K key) throws KeyValueStoreException {
+    public void remove(K key) throws Exception {
         getMapStore(keyLength(key)).remove(key);
     }
 
     @Override
-    public V get(K key) throws KeyValueStoreException {
+    public V get(K key) throws Exception {
         return getMapStore(keyLength(key)).get(key);
     }
 
     @Override
-    public V getUnsafe(K key) throws KeyValueStoreException {
+    public V getUnsafe(K key) throws Exception {
         return getMapStore(keyLength(key)).getUnsafe(key);
     }
 

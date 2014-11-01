@@ -25,8 +25,11 @@ public class ByteBufferObjectMapStoreTest {
             System.out.println("---------------------- " + i + " ----------------------");
 
             // bytebuffer mapstore setup
-            BytesObjectMapStore<Long, Object> byteBufferObjectMapStore = new BytesObjectMapStore<>(8, false, 10, null,
-                new ByteBufferProvider("booya", new HeapByteBufferFactory()),
+            BytesObjectMapStore<Long, Object> byteBufferObjectMapStore = new BytesObjectMapStore<>("8",
+                8,
+                null,
+                new ByteBufferProviderBackedMapChunkFactory(8, false, 0, false, 10,
+                    new ByteBufferProvider("booya", new HeapByteBufferFactory())),
                 new KeyMarshaller<Long>() {
 
                     @Override

@@ -3,11 +3,9 @@ package com.jivesoftware.os.filer.map.store;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.KeyMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
-import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -17,34 +15,32 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<BytesObjectMapStore<K, V>, Exception> {
 
-    private static final byte[] EMPTY_ID = new byte[16];
     private static final byte[] EMPTY_PAYLOAD = new byte[0];
+
+    private final String pageId;
+    private final V returnWhenGetReturnsNull;
+    private final MapChunkFactory mapChunkFactory;
+    private final KeyMarshaller<K> keyMarshaller;
+
+    public final int keySize;
 
     private final MapStore mapStore = MapStore.DEFAULT;
     private final AtomicReference<Index> indexRef = new AtomicReference<>();
-    private final int keySize;
-    private final boolean variableKeySizes;
-    private final int initialPageCapacity;
-    private final V returnWhenGetReturnsNull;
-    private final ByteBufferProvider byteBufferProvider;
-    private final KeyMarshaller<K> keyMarshaller;
 
-    public BytesObjectMapStore(int keySize,
-        boolean variableKeySizes,
-        int initialPageCapacity,
+    public BytesObjectMapStore(String pageId,
+        int keySize,
         V returnWhenGetReturnsNull,
-        ByteBufferProvider byteBufferProvider,
+        MapChunkFactory mapChunkFactory,
         KeyMarshaller<K> keyMarshaller) {
+        this.pageId = pageId;
         this.keySize = keySize;
-        this.variableKeySizes = variableKeySizes;
-        this.initialPageCapacity = initialPageCapacity;
         this.returnWhenGetReturnsNull = returnWhenGetReturnsNull;
-        this.byteBufferProvider = byteBufferProvider;
+        this.mapChunkFactory = mapChunkFactory;
         this.keyMarshaller = keyMarshaller;
     }
 
     @Override
-    public void add(K key, V value) throws KeyValueStoreException {
+    public void add(K key, V value) throws Exception {
         if (key == null || value == null) {
             return;
         }
@@ -57,6 +53,11 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
             index = ensureCapacity(index);
 
             int payloadIndex = mapStore.add(index.chunk, (byte) 1, keyBytes, payload);
+            /*
+            System.out.println(String.format("Add key=%s value=%s index=%s capacity=%s maxCount=%s count=%s buffer=%s thread=%s",
+                new String(keyBytes), System.identityHashCode(value), payloadIndex, index.chunk.capacity, index.chunk.maxCount, mapStore.getCount(index.chunk),
+                System.identityHashCode(index.chunk.array), Thread.currentThread().getName()));
+            */
             index.payloads[payloadIndex] = value;
         }
     }
@@ -64,28 +65,28 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
     /*
      Must be called while holding synchronized (indexRef) lock.
      */
-    private Index ensureCapacity(Index index) {
+    private Index ensureCapacity(Index index) throws Exception {
         // grow the set if needed;
         if (mapStore.getCount(index.chunk) >= index.chunk.maxCount) {
             int newSize = index.chunk.maxCount * 2;
 
             final Index oldIndex = index;
-            final Index newIndex = allocate(newSize);
-            mapStore.copyTo(index.chunk, newIndex.chunk, new MapStore.CopyToStream() {
+            final Object[] payloads = new Object[mapStore.calculateCapacity(newSize)];
+            MapChunk newChunk = mapChunkFactory.resize(mapStore, index.chunk, pageId, newSize, new MapStore.CopyToStream() {
                 @Override
                 public void copied(int fromIndex, int toIndex) {
-                    newIndex.payloads[toIndex] = oldIndex.payloads[fromIndex];
+                    payloads[toIndex] = oldIndex.payloads[fromIndex];
                 }
             });
 
-            index = newIndex;
+            index = new Index(newChunk, payloads);
             indexRef.set(index);
         }
         return index;
     }
 
     @Override
-    public void remove(K key) throws KeyValueStoreException {
+    public void remove(K key) throws Exception {
         if (key == null) {
             return;
         }
@@ -100,7 +101,7 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
 
     @Override
     @SuppressWarnings("unchecked")
-    public V get(K key) throws KeyValueStoreException {
+    public V get(K key) throws Exception {
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
@@ -118,7 +119,7 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
 
     @SuppressWarnings("unchecked")
     @Override
-    public V getUnsafe(K key) throws KeyValueStoreException {
+    public V getUnsafe(K key) throws Exception {
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
@@ -131,7 +132,7 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
         return (V) index.payloads[(int) payloadIndex];
     }
 
-    private Index index() {
+    private Index index() throws Exception {
         Index got = indexRef.get();
         if (got != null) {
             return got;
@@ -143,21 +144,12 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
                 return got;
             }
 
-            got = allocate(initialPageCapacity);
+            mapChunkFactory.delete(pageId);
+            MapChunk mapChunk = mapChunkFactory.getOrCreate(mapStore, pageId);
+            got = new Index(mapChunk, new Object[mapStore.getCapacity(mapChunk)]);
             indexRef.set(got);
         }
         return got;
-    }
-
-    private Index allocate(int maxCount) {
-        MapChunk chunk = allocateChunk(maxCount);
-        return new Index(
-            chunk,
-            new Object[mapStore.getCapacity(chunk)]);
-    }
-
-    private MapChunk allocateChunk(int maxCount) {
-        return mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, maxCount, keySize, variableKeySizes, 0, false, byteBufferProvider);
     }
 
     @Override
@@ -182,8 +174,8 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
     private void copyFrom(Index fromIndex) throws Exception {
         synchronized (indexRef) {
             MapChunk from = fromIndex.chunk;
-            MapChunk to = allocateChunk(from.maxCount);
-            mapStore.copyTo(from, to, null);
+            // safe just to borrow the existing payloads because indexes should be in alignment
+            MapChunk to = mapChunkFactory.copy(mapStore, from, pageId, from.maxCount);
             indexRef.set(new Index(to, fromIndex.payloads));
         }
     }
@@ -191,7 +183,12 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
     @Override
     public Iterator<Entry<K, V>> iterator() {
         List<Iterator<Entry<K, V>>> iterators = Lists.newArrayList();
-        final Index index = index();
+        final Index index;
+        try {
+            index = index();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
         if (index != null) {
             MapChunk got = index.chunk;
             iterators.add(Iterators.transform(mapStore.iterator(got), new Function<MapStore.Entry, Entry<K, V>>() {

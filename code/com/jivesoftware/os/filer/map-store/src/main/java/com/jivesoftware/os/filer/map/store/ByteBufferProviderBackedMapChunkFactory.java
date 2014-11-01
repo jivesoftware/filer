@@ -52,16 +52,16 @@ public class ByteBufferProviderBackedMapChunkFactory implements MapChunkFactory 
     }
 
     @Override
-    public MapChunk resize(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception {
+    public MapChunk resize(MapStore mapStore, MapChunk chunk, String pageId, int newSize, MapStore.CopyToStream copyToStream) throws Exception {
         MapChunk newChunk = mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, newSize, keySize, variableKeySizes,
             payloadSize, variablePayloadSizes, byteBufferProvider);
-        mapStore.copyTo(chunk, newChunk, null);
+        mapStore.copyTo(chunk, newChunk, copyToStream);
         return newChunk;
     }
 
     @Override
     public MapChunk copy(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception {
-        return resize(mapStore, chunk, pageId, newSize);
+        return resize(mapStore, chunk, pageId, newSize, null);
     }
 
     @Override
@@ -69,4 +69,7 @@ public class ByteBufferProviderBackedMapChunkFactory implements MapChunkFactory 
         return null; // Since this impl doesn't persist there is nothing to get.
     }
 
+    @Override
+    public void delete(String pageId) throws Exception {
+    }
 }

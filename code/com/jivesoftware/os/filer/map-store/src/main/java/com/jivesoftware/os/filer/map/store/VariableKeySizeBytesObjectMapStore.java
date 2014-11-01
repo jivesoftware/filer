@@ -1,72 +1,63 @@
 package com.jivesoftware.os.filer.map.store;
 
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.KeyMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
-import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
 import java.util.Iterator;
 import java.util.List;
 
 public class VariableKeySizeBytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<VariableKeySizeBytesObjectMapStore<K, V>, Exception> {
 
-    private final int[] keySizeThresholds;
-    private final KeyMarshaller<K> keyMarshaller;
     private final BytesObjectMapStore<byte[], V>[] mapStores;
+    private final KeyMarshaller<K> keyMarshaller;
 
     @SuppressWarnings("unchecked")
-    public VariableKeySizeBytesObjectMapStore(int[] keySizeThresholds,
-        int initialPageCapacity,
-        V returnWhenGetReturnsNull,
-        ByteBufferProvider byteBufferProvider,
-        final KeyMarshaller<K> keyMarshaller) {
+    public VariableKeySizeBytesObjectMapStore(BytesObjectMapStore<byte[], V>[] mapStores, KeyMarshaller<K> keyMarshaller) {
+        this.mapStores = mapStores;
 
-        this.keySizeThresholds = keySizeThresholds;
-        this.keyMarshaller = keyMarshaller;
-        this.mapStores = new BytesObjectMapStore[keySizeThresholds.length];
-
+        /*
         PassThroughKeyMarshaller passThroughKeyMarshaller = PassThroughKeyMarshaller.INSTANCE;
         for (int i = 0; i < keySizeThresholds.length; i++) {
             Preconditions.checkArgument(i == 0 || keySizeThresholds[i] > keySizeThresholds[i - 1], "Thresholds must be monotonically increasing");
 
             final int keySize = keySizeThresholds[i];
-            mapStores[i] = new BytesObjectMapStore<>(
-                keySize, true, initialPageCapacity, returnWhenGetReturnsNull, byteBufferProvider, passThroughKeyMarshaller);
+            mapStores[i] = new BytesObjectMapStore<>(String.valueOf(keySize), returnWhenGetReturnsNull, mapChunkFactory, passThroughKeyMarshaller);
         }
+        */
+        this.keyMarshaller = keyMarshaller;
     }
 
     private BytesObjectMapStore<byte[], V> getMapStore(int keyLength) {
-        for (int i = 0; i < keySizeThresholds.length; i++) {
-            if (keySizeThresholds[i] >= keyLength) {
+        for (int i = 0; i < mapStores.length; i++) {
+            if (mapStores[i].keySize >= keyLength) {
                 return mapStores[i];
             }
         }
         throw new IndexOutOfBoundsException("Key is too long");
     }
 
-    public void add(K key, V value) throws KeyValueStoreException {
+    public void add(K key, V value) throws Exception {
         byte[] keyBytes = keyMarshaller.keyBytes(key);
         getMapStore(keyBytes.length).add(keyBytes, value);
     }
 
     @Override
-    public void remove(K key) throws KeyValueStoreException {
+    public void remove(K key) throws Exception {
         byte[] keyBytes = keyMarshaller.keyBytes(key);
         getMapStore(keyBytes.length).remove(keyBytes);
     }
 
     @Override
-    public V get(K key) throws KeyValueStoreException {
+    public V get(K key) throws Exception {
         byte[] keyBytes = keyMarshaller.keyBytes(key);
         return getMapStore(keyBytes.length).get(keyBytes);
     }
 
     @Override
-    public V getUnsafe(K key) throws KeyValueStoreException {
+    public V getUnsafe(K key) throws Exception {
         byte[] keyBytes = keyMarshaller.keyBytes(key);
         return getMapStore(keyBytes.length).getUnsafe(keyBytes);
     }

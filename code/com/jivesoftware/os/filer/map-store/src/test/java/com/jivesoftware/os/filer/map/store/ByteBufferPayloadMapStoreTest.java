@@ -25,7 +25,10 @@ public class ByteBufferPayloadMapStoreTest {
 
             // bytebuffer mapstore setup
             BytesBytesMapStore<Long, Integer> mapStore =
-                new BytesBytesMapStore<>(8, false, 4, false, 10, null, new ByteBufferProvider("booya", new HeapByteBufferFactory()),
+                new BytesBytesMapStore<>("8",
+                    8,
+                    null,
+                    new ByteBufferProviderBackedMapChunkFactory(8, false, 4, false, 10, new ByteBufferProvider("booya", new HeapByteBufferFactory())),
                     new KeyValueMarshaller<Long, Integer>() {
 
                         @Override

@@ -1,6 +1,5 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
@@ -10,24 +9,18 @@ import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
  */
 public class PrimitivesMapStoresBuilder {
 
-    private ByteBufferProvider byteBufferProvider;
-    private int initialPageCapacity = 8;
+    private MapChunkFactory mapChunkFactory;
 
     public PrimitivesMapStoresBuilder() {
     }
 
-    public PrimitivesMapStoresBuilder setByteBufferProvider(ByteBufferProvider byteBufferProvider) {
-        this.byteBufferProvider = byteBufferProvider;
-        return this;
-    }
-
-    public PrimitivesMapStoresBuilder setInitialPageCapacity(int initialPageCapacity) {
-        this.initialPageCapacity = initialPageCapacity;
+    public PrimitivesMapStoresBuilder setMapChunkFactory(MapChunkFactory mapChunkFactory) {
+        this.mapChunkFactory = mapChunkFactory;
         return this;
     }
 
     public KeyValueStore<Long, Long> buildLongLong() {
-        return new BytesBytesMapStore<>(8, false, 8, false, initialPageCapacity, null, byteBufferProvider, new KeyValueMarshaller<Long, Long>() {
+        return new BytesBytesMapStore<>("8", 8, null, mapChunkFactory, new KeyValueMarshaller<Long, Long>() {
 
             @Override
             public byte[] keyBytes(Long key) {
@@ -52,7 +45,7 @@ public class PrimitivesMapStoresBuilder {
     }
 
     public KeyValueStore<Long, Integer> buildLongInt() {
-        return new BytesBytesMapStore<>(8, false, 4, false, initialPageCapacity, null, byteBufferProvider, new KeyValueMarshaller<Long, Integer>() {
+        return new BytesBytesMapStore<>("8", 8, null, mapChunkFactory, new KeyValueMarshaller<Long, Integer>() {
 
             @Override
             public byte[] keyBytes(Long key) {

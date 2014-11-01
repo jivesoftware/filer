@@ -97,8 +97,14 @@ public class AutoResizingByteBufferBackedFiler implements Filer {
 
     @Override
     public int read(byte[] b, int _offset, int _len) throws IOException {
-        bufferReference.get().get(b, _offset, _len);
-        return _len;
+        ByteBuffer byteBuffer = bufferReference.get();
+        int remaining = byteBuffer.remaining();
+        if (remaining == 0) {
+            return -1;
+        }
+        int count = Math.min(_len, remaining);
+        byteBuffer.get(b, _offset, count);
+        return count;
     }
 
     @Override

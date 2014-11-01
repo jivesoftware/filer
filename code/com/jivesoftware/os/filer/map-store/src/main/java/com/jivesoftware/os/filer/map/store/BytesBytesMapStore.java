@@ -3,10 +3,8 @@ package com.jivesoftware.os.filer.map.store;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
-import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -19,40 +17,31 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
 
-    private static final byte[] EMPTY_ID = new byte[16];
+    private final String pageId;
+    private final V returnWhenGetReturnsNull;
+    private final MapChunkFactory mapChunkFactory;
+    private final KeyValueMarshaller<K, V> keyValueMarshaller;
+
+    public final int keySize;
 
     private final MapStore mapStore = MapStore.DEFAULT;
     private final AtomicReference<MapChunk> indexRef = new AtomicReference<>();
-    private final int keySize;
-    private final boolean variableKeySizes;
-    private final int payloadSize;
-    private final boolean variablePayloadSizes;
-    private final int initialPageCapacity;
-    private final V returnWhenGetReturnsNull;
-    private final ByteBufferProvider byteBufferProvider;
-    private final KeyValueMarshaller<K, V> keyValueMarshaller;
 
-    public BytesBytesMapStore(int keySize,
-        boolean variableKeySizes,
-        int payloadSize,
-        boolean variablePayloadSizes,
-        int initialPageCapacity,
+    public BytesBytesMapStore(String pageId,
+        int keySize,
         V returnWhenGetReturnsNull,
-        ByteBufferProvider byteBufferProvider,
+        MapChunkFactory mapChunkFactory,
         KeyValueMarshaller<K, V> keyValueMarshaller) {
 
+        this.pageId = pageId;
         this.keySize = keySize;
-        this.variableKeySizes = variableKeySizes;
-        this.payloadSize = payloadSize;
-        this.variablePayloadSizes = variablePayloadSizes;
-        this.initialPageCapacity = initialPageCapacity;
         this.returnWhenGetReturnsNull = returnWhenGetReturnsNull;
-        this.byteBufferProvider = byteBufferProvider;
+        this.mapChunkFactory = mapChunkFactory;
         this.keyValueMarshaller = keyValueMarshaller;
     }
 
     @Override
-    public void add(K key, V value) throws KeyValueStoreException {
+    public void add(K key, V value) throws Exception {
         if (key == null || value == null) {
             return;
         }
@@ -69,11 +58,7 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
             if (mapStore.getCount(index) >= index.maxCount) {
                 int newSize = index.maxCount * 2;
 
-                final MapChunk oldIndex = index;
-                final MapChunk newIndex = allocate(newSize);
-                mapStore.copyTo(oldIndex, newIndex, null);
-
-                index = newIndex;
+                index = mapChunkFactory.resize(mapStore, index, pageId, newSize, null);
                 indexRef.set(index);
             }
 
@@ -82,7 +67,7 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public void remove(K key) throws KeyValueStoreException {
+    public void remove(K key) throws Exception {
         if (key == null) {
             return;
         }
@@ -96,7 +81,7 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
 
     @Override
     @SuppressWarnings("unchecked")
-    public V get(K key) throws KeyValueStoreException {
+    public V get(K key) throws Exception {
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
@@ -113,7 +98,7 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
 
     @SuppressWarnings("unchecked")
     @Override
-    public V getUnsafe(K key) throws KeyValueStoreException {
+    public V getUnsafe(K key) throws Exception {
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
@@ -126,7 +111,7 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
         return keyValueMarshaller.bytesValue(key, valueBytes, 0);
     }
 
-    private MapChunk index() {
+    private MapChunk index() throws Exception {
         MapChunk got = indexRef.get();
         if (got != null) {
             return got;
@@ -138,15 +123,10 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
                 return got;
             }
 
-            got = allocate(initialPageCapacity);
+            got = mapChunkFactory.getOrCreate(mapStore, pageId);
             indexRef.set(got);
         }
         return got;
-    }
-
-    private MapChunk allocate(int maxCapacity) {
-        return mapStore.allocate((byte) 0, (byte) 0, EMPTY_ID, 0, maxCapacity, keySize, variableKeySizes, payloadSize, variablePayloadSizes,
-            byteBufferProvider);
     }
 
     @Override
@@ -161,7 +141,12 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
     @Override
     public Iterator<Entry<K, V>> iterator() {
         List<Iterator<Entry<K, V>>> iterators = Lists.newArrayList();
-        final MapChunk got = index();
+        final MapChunk got;
+        try {
+            got = index();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
         if (got != null) {
             iterators.add(Iterators.transform(mapStore.iterator(got), new Function<MapStore.Entry, Entry<K, V>>() {
                 @Override

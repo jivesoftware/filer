@@ -13,14 +13,20 @@ import java.nio.channels.FileChannel;
  */
 public class FileBackedMemMappedByteBufferFactory implements ByteBufferFactory {
 
-    private final File directory;
+    private final File[] directories;
 
-    public FileBackedMemMappedByteBufferFactory(File directory) {
-        this.directory = directory;
+    public FileBackedMemMappedByteBufferFactory(File... directories) {
+        this.directories = directories;
+    }
+
+    private File getDirectory(String key) {
+        return directories[Math.abs(key.hashCode()) % directories.length];
     }
 
     public MappedByteBuffer open(String key) {
         try {
+            //System.out.println(String.format("Open key=%s for directories=%s", key, Arrays.toString(directories)));
+            File directory = getDirectory(key);
             ensureDirectory(directory);
             File file = new File(directory, key);
             MappedByteBuffer buf;
@@ -38,9 +44,10 @@ public class FileBackedMemMappedByteBufferFactory implements ByteBufferFactory {
     @Override
     public ByteBuffer allocate(String key, long length) {
         try {
+            //System.out.println(String.format("Allocate key=%s length=%s for directories=%s", key, length, Arrays.toString(directories)));
+            File directory = getDirectory(key);
             ensureDirectory(directory);
             File file = new File(directory, key);
-            MappedByteBuffer buf;
             RandomAccessFile raf = new RandomAccessFile(file, "rw");
             raf.seek(length);
             raf.write(0);
@@ -54,6 +61,7 @@ public class FileBackedMemMappedByteBufferFactory implements ByteBufferFactory {
 
     @Override
     public ByteBuffer reallocate(String key, ByteBuffer oldBuffer, long newSize) {
+        //System.out.println(String.format("Reallocate key=%s newSize=%s for directories=%s", key, newSize, Arrays.toString(directories)));
         return allocate(key, newSize);
     }
 

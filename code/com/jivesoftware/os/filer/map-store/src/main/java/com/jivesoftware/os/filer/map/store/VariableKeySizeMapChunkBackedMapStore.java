@@ -7,7 +7,6 @@ import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
-import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -37,20 +36,20 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
     }
 
     @Override
-    public void add(K key, V value) throws KeyValueStoreException {
+    public void add(K key, V value) throws Exception {
         byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         byte[] valueBytes = keyValueMarshaller.valueBytes(value);
         getMapStore(keyBytes.length).store.add(keyBytes, valueBytes);
     }
 
     @Override
-    public void remove(K key) throws KeyValueStoreException {
+    public void remove(K key) throws Exception {
         byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         getMapStore(keyBytes.length).store.remove(keyBytes);
     }
 
     @Override
-    public V get(K key) throws KeyValueStoreException {
+    public V get(K key) throws Exception {
         byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         byte[] valueBytes = getMapStore(keyBytes.length).store.get(keyBytes);
         if (valueBytes != null) {
@@ -60,7 +59,7 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
     }
 
     @Override
-    public V getUnsafe(K key) throws KeyValueStoreException {
+    public V getUnsafe(K key) throws Exception {
         byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         byte[] valueBytes = getMapStore(keyBytes.length).store.getUnsafe(keyBytes);
         if (valueBytes != null) {
