@@ -6,12 +6,15 @@ import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.MapChunkFactory;
 import com.jivesoftware.os.filer.map.store.PartitionedMapChunkBackedMapStore;
+import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import java.util.Arrays;
+import java.util.Iterator;
 
 /**
  * @author jonathan
  */
-public class PartitionedMapChunkBackedKeyedStore implements KeyedFilerStore, Copyable<PartitionedMapChunkBackedKeyedStore, Exception> {
+public class PartitionedMapChunkBackedKeyedStore implements KeyedFilerStore, Copyable<PartitionedMapChunkBackedKeyedStore, Exception>,
+    Iterable<KeyValueStore.Entry<IBA, SwappableFiler>> {
 
     private final PartitionedMapChunkBackedMapStore<IBA, IBA> mapStore;
     private final PartitionedMapChunkBackedMapStore<IBA, IBA> swapStore;
@@ -101,7 +104,45 @@ public class PartitionedMapChunkBackedKeyedStore implements KeyedFilerStore, Cop
     }
 
     @Override
+    public Iterator<KeyValueStore.Entry<IBA, SwappableFiler>> iterator() {
+        final Iterator<KeyValueStore.Entry<IBA, IBA>> iterator = mapStore.iterator();
+        return new Iterator<KeyValueStore.Entry<IBA, SwappableFiler>>() {
+
+            @Override
+            public boolean hasNext() {
+                return iterator.hasNext();
+            }
+
+            @Override
+            public KeyValueStore.Entry<IBA, SwappableFiler> next() {
+                final KeyValueStore.Entry<IBA, IBA> entry = iterator.next();
+                return new KeyValueStore.Entry<IBA, SwappableFiler>() {
+                    @Override
+                    public IBA getKey() {
+                        return entry.getKey();
+                    }
+
+                    @Override
+                    public SwappableFiler getValue() {
+                        try {
+                            return get(entry.getKey().getBytes(), 10L);
+                        } catch (Exception x) {
+                            throw new RuntimeException("Faield to get SwappableFiler for key:" + entry.getKey(), x);
+                        }
+                    }
+                };
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException("Not supported.");
+            }
+        };
+    }
+
+    @Override
     public void close() {
         // TODO
     }
+
 }

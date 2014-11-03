@@ -1,10 +1,13 @@
 package com.jivesoftware.os.filer.keyed.store;
 
+import com.google.common.collect.Iterators;
+import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
-public class VariableKeySizeMapChunkBackedKeyedStore implements KeyedFilerStore {
+public class VariableKeySizeMapChunkBackedKeyedStore implements KeyedFilerStore, Iterable<KeyValueStore.Entry<IBA, SwappableFiler>> {
 
     private final PartitionSizedByKeyStore[] keyedStores;
 
@@ -49,6 +52,16 @@ public class VariableKeySizeMapChunkBackedKeyedStore implements KeyedFilerStore 
         for (PartitionSizedByKeyStore keyedStore : keyedStores) {
             keyedStore.store.close();
         }
+    }
+
+
+    @Override
+    public Iterator<KeyValueStore.Entry<IBA, SwappableFiler>> iterator() {
+        List<Iterator<KeyValueStore.Entry<IBA, SwappableFiler>>> iterators = new ArrayList<>();
+        for (PartitionSizedByKeyStore keyStore : keyedStores) {
+            iterators.add(keyStore.store.iterator());
+        }
+        return Iterators.concat(iterators.iterator());
     }
 
     public static class Builder {
