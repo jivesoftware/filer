@@ -8,6 +8,9 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 
 /**
+ * TODO this implementation of ByteBufferFactory is inherently unsafe because its allocate() method is only capable of
+ *      growing an existing buffer rather than handing out a new one. Eventually we need to extend ByteBufferFactory
+ *      to formalize notions of create(), open(), copy(), resize().
  *
  * @author jonathan.colt
  */
