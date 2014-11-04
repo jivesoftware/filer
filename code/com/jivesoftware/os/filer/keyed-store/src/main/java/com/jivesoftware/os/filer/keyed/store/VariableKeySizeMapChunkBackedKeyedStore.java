@@ -12,7 +12,7 @@ public class VariableKeySizeMapChunkBackedKeyedStore implements KeyedFilerStore,
     private final PartitionSizedByKeyStore[] keyedStores;
 
     private VariableKeySizeMapChunkBackedKeyedStore(PartitionSizedByKeyStore[] keyedStores)
-            throws Exception {
+        throws Exception {
         this.keyedStores = keyedStores;
     }
 
@@ -54,6 +54,11 @@ public class VariableKeySizeMapChunkBackedKeyedStore implements KeyedFilerStore,
         }
     }
 
+    public void copyTo(VariableKeySizeMapChunkBackedKeyedStore to) throws Exception {
+        for (int i = 0; i < keyedStores.length; i++) {
+            keyedStores[i].store.copyTo(to.keyedStores[i].store);
+        }
+    }
 
     @Override
     public Iterator<KeyValueStore.Entry<IBA, SwappableFiler>> iterator() {
