@@ -48,7 +48,7 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
         byte[] keyBytes = keyMarshaller.keyBytes(key);
         byte[] payload = EMPTY_PAYLOAD;
         synchronized (indexRef) {
-            Index index = index();
+            Index index = index(true);
 
             index = ensureCapacity(index);
 
@@ -93,9 +93,11 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
 
         byte[] keyBytes = keyMarshaller.keyBytes(key);
         synchronized (indexRef) {
-            Index index = index();
-            int payloadIndex = mapStore.remove(index.chunk, keyBytes);
-            index.payloads[payloadIndex] = null;
+            Index index = index(false);
+            if (index != null) {
+                int payloadIndex = mapStore.remove(index.chunk, keyBytes);
+                index.payloads[payloadIndex] = null;
+            }
         }
     }
 
@@ -106,11 +108,13 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
             return returnWhenGetReturnsNull;
         }
         byte[] keyBytes = keyMarshaller.keyBytes(key);
-        long payloadIndex;
+        long payloadIndex = -1;
         synchronized (indexRef) {
-            Index index = index();
-            payloadIndex = mapStore.get(index.chunk, keyBytes);
-            if (payloadIndex < 0) {
+            Index index = index(false);
+            if (index != null) {
+                payloadIndex = mapStore.get(index.chunk, keyBytes);
+            }
+            if (index == null || payloadIndex < 0) {
                 return returnWhenGetReturnsNull;
             }
             return (V) index.payloads[(int) payloadIndex];
@@ -124,15 +128,18 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
             return returnWhenGetReturnsNull;
         }
         byte[] keyBytes = keyMarshaller.keyBytes(key);
-        Index index = index();
-        long payloadIndex = mapStore.get(index.chunk.duplicate(), keyBytes);
-        if (payloadIndex < 0) {
+        Index index = index(false);
+        long payloadIndex = -1;
+        if (index != null) {
+            payloadIndex = mapStore.get(index.chunk.duplicate(), keyBytes);
+        }
+        if (index == null || payloadIndex < 0) {
             return returnWhenGetReturnsNull;
         }
         return (V) index.payloads[(int) payloadIndex];
     }
 
-    private Index index() throws Exception {
+    private Index index(boolean createIfAbsent) throws Exception {
         Index got = indexRef.get();
         if (got != null) {
             return got;
@@ -145,9 +152,16 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
             }
 
             mapChunkFactory.delete(pageId);
-            MapChunk mapChunk = mapChunkFactory.getOrCreate(mapStore, pageId);
-            got = new Index(mapChunk, new Object[mapStore.getCapacity(mapChunk)]);
-            indexRef.set(got);
+            MapChunk mapChunk;
+            if (createIfAbsent) {
+                mapChunk = mapChunkFactory.getOrCreate(mapStore, pageId);
+            } else {
+                mapChunk = mapChunkFactory.get(mapStore, pageId);
+            }
+            if (mapChunk != null) {
+                got = new Index(mapChunk, new Object[mapStore.getCapacity(mapChunk)]);
+                indexRef.set(got);
+            }
         }
         return got;
     }
@@ -185,7 +199,7 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
         List<Iterator<Entry<K, V>>> iterators = Lists.newArrayList();
         final Index index;
         try {
-            index = index();
+            index = index(false);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

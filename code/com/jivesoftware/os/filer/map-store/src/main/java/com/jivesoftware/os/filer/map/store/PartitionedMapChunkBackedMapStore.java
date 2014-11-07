@@ -86,8 +86,10 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
         byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         String pageId = keyPartitioner.keyPartition(key);
         synchronized (keyLocksProvider.lock(pageId)) {
-            MapChunk index = index(pageId);
-            mapStore.remove(index, keyBytes);
+            MapChunk index = get(pageId, false);
+            if (index != null) {
+                mapStore.remove(index, keyBytes);
+            }
         }
     }
 
@@ -98,8 +100,11 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
         }
         byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         String pageId = keyPartitioner.keyPartition(key);
-        MapChunk index = index(pageId);
-        byte[] payload = mapStore.getPayload(index.duplicate(), keyBytes);
+        MapChunk index = get(pageId, false);
+        byte[] payload = null;
+        if (index != null) {
+            payload = mapStore.getPayload(index.duplicate(), keyBytes);
+        }
         if (payload == null) {
             return returnWhenGetReturnsNull;
         }
@@ -112,11 +117,13 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
             return returnWhenGetReturnsNull;
         }
         byte[] keyBytes = keyValueMarshaller.keyBytes(key);
-        byte[] payload;
+        byte[] payload = null;
         String pageId = keyPartitioner.keyPartition(key);
         synchronized (keyLocksProvider.lock(pageId)) {
-            MapChunk index = index(pageId);
-            payload = mapStore.getPayload(index, keyBytes);
+            MapChunk index = get(pageId, false);
+            if (index != null) {
+                payload = mapStore.getPayload(index, keyBytes);
+            }
         }
         if (payload == null) {
             return returnWhenGetReturnsNull;

@@ -37,7 +37,9 @@ public class AutoResizingChunkSwappableFiler implements SwappableFiler {
     @Override
     public void sync() throws IOException {
         try {
-            filer.reinit();
+            if (!filer.open()) {
+                throw new IOException("Failed to reopen on sync");
+            }
         } catch (Exception e) {
             throw new IOException(e);
         }

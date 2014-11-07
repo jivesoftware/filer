@@ -52,7 +52,7 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
             return;
         }
         synchronized (indexRef) {
-            MapChunk index = index();
+            MapChunk index = index(true);
 
             // grow the set if needed;
             if (mapStore.getCount(index) >= index.maxCount) {
@@ -74,8 +74,10 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
 
         byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         synchronized (indexRef) {
-            MapChunk index = index();
-            mapStore.remove(index, keyBytes);
+            MapChunk index = index(false);
+            if (index != null) {
+                mapStore.remove(index, keyBytes);
+            }
         }
     }
 
@@ -87,8 +89,11 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
         }
         byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         synchronized (indexRef) {
-            MapChunk index = index();
-            byte[] valueBytes = mapStore.getPayload(index, keyBytes);
+            MapChunk index = index(false);
+            byte[] valueBytes = null;
+            if (index != null) {
+                valueBytes = mapStore.getPayload(index, keyBytes);
+            }
             if (valueBytes == null) {
                 return returnWhenGetReturnsNull;
             }
@@ -103,15 +108,18 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
             return returnWhenGetReturnsNull;
         }
         byte[] keyBytes = keyValueMarshaller.keyBytes(key);
-        MapChunk index = index();
-        byte[] valueBytes = mapStore.getPayload(index.duplicate(), keyBytes);
+        MapChunk index = index(false);
+        byte[] valueBytes = null;
+        if (index != null) {
+            valueBytes = mapStore.getPayload(index.duplicate(), keyBytes);
+        }
         if (valueBytes == null) {
             return returnWhenGetReturnsNull;
         }
         return keyValueMarshaller.bytesValue(key, valueBytes, 0);
     }
 
-    private MapChunk index() throws Exception {
+    private MapChunk index(boolean createIfAbsent) throws Exception {
         MapChunk got = indexRef.get();
         if (got != null) {
             return got;
@@ -123,8 +131,14 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
                 return got;
             }
 
-            got = mapChunkFactory.getOrCreate(mapStore, pageId);
-            indexRef.set(got);
+            if (createIfAbsent) {
+                got = mapChunkFactory.getOrCreate(mapStore, pageId);
+            } else {
+                got = mapChunkFactory.get(mapStore, pageId);
+            }
+            if (got != null) {
+                indexRef.set(got);
+            }
         }
         return got;
     }
@@ -143,7 +157,7 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
         List<Iterator<Entry<K, V>>> iterators = Lists.newArrayList();
         final MapChunk got;
         try {
-            got = index();
+            got = index(false);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

@@ -81,10 +81,13 @@ public class PartitionedMapChunkBackedKeyedStore implements KeyedFilerStore, Cop
     public SwappableFiler get(byte[] keyBytes, long newFilerInitialCapacity) throws Exception {
         IBA key = new IBA(keyBytes);
         AutoResizingChunkFiler filer = new AutoResizingChunkFiler(mapStore, key, chunkStore);
-        if (newFilerInitialCapacity <= 0 && !filer.exists()) {
-            return null;
+        if (!filer.open()) {
+            if (newFilerInitialCapacity > 0) {
+                filer.init(newFilerInitialCapacity);
+            } else {
+                return null;
+            }
         }
-        filer.init(newFilerInitialCapacity);
         return new AutoResizingChunkSwappableFiler(filer, chunkStore, key, mapStore, swapStore);
     }
 
