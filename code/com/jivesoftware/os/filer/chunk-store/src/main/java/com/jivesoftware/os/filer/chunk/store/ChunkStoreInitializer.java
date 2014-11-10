@@ -4,9 +4,8 @@ import com.jivesoftware.os.filer.io.AutoResizingByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.ByteBufferProvider;
+import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.FileBackedMemMappedByteBufferFactory;
-import com.jivesoftware.os.filer.io.Filer;
-import com.jivesoftware.os.filer.io.SubsetableFiler;
 import java.io.File;
 import java.util.ArrayList;
 
@@ -105,11 +104,11 @@ public class ChunkStoreInitializer {
 
         ChunkStore chunkStore;
         if (autoResize) {
-            Filer filer = new AutoResizingByteBufferBackedFiler(lock, chunkStoreCapacityInBytes, byteBufferProvider);
-            chunkStore = new ChunkStore(new SubsetableFiler(filer, 0, Long.MAX_VALUE, 0));
+            ConcurrentFiler filer = new AutoResizingByteBufferBackedFiler(lock, chunkStoreCapacityInBytes, byteBufferProvider);
+            chunkStore = new ChunkStore(filer);
         } else {
-            Filer filer = new ByteBufferBackedFiler(lock, byteBufferProvider.allocate(chunkStoreCapacityInBytes));
-            chunkStore = new ChunkStore(new SubsetableFiler(filer, 0, chunkStoreCapacityInBytes, 0));
+            ConcurrentFiler filer = new ByteBufferBackedFiler(lock, byteBufferProvider.allocate(chunkStoreCapacityInBytes));
+            chunkStore = new ChunkStore(filer);
         }
         chunkStore.open();
         return chunkStore;
@@ -122,11 +121,11 @@ public class ChunkStoreInitializer {
         chunkStore = new ChunkStore();
         chunkStore.setup(referenceNumber);
         if (autoResize) {
-            Filer filer = new AutoResizingByteBufferBackedFiler(lock, chunkStoreCapacityInBytes, byteBufferProvider);
-            chunkStore.createAndOpen(new SubsetableFiler(filer, 0, Long.MAX_VALUE, 0));
+            ConcurrentFiler filer = new AutoResizingByteBufferBackedFiler(lock, chunkStoreCapacityInBytes, byteBufferProvider);
+            chunkStore.createAndOpen(filer);
         } else {
-            Filer filer = new ByteBufferBackedFiler(lock, byteBufferProvider.allocate(chunkStoreCapacityInBytes));
-            chunkStore.createAndOpen(new SubsetableFiler(filer, 0, chunkStoreCapacityInBytes, 0));
+            ConcurrentFiler filer = new ByteBufferBackedFiler(lock, byteBufferProvider.allocate(chunkStoreCapacityInBytes));
+            chunkStore.createAndOpen(filer);
         }
         return chunkStore;
     }

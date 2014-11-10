@@ -19,8 +19,7 @@ public class AutoResizingChunkSwappableFiler implements SwappableFiler {
     private final PartitionedMapChunkBackedMapStore<IBA, IBA> swapStore;
 
     public AutoResizingChunkSwappableFiler(AutoResizingChunkFiler filer, MultiChunkStore chunkStore, IBA key,
-            PartitionedMapChunkBackedMapStore<IBA, IBA> mapStore, PartitionedMapChunkBackedMapStore<IBA, IBA> swapStore)
-    {
+        PartitionedMapChunkBackedMapStore<IBA, IBA> mapStore, PartitionedMapChunkBackedMapStore<IBA, IBA> swapStore) {
         this.filer = filer;
         this.chunkStore = chunkStore;
         this.key = key;

@@ -5,10 +5,10 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 
 /**
-
-@author jonathan.colt
-*/
-public class RandomAccessFiler extends RandomAccessFile implements Filer {
+ *
+ * @author jonathan.colt
+ */
+public class RandomAccessFiler extends RandomAccessFile implements ConcurrentFiler {
 
     public static long totalFilesOpenCount;
     public static long totalReadByteCount;
@@ -141,4 +141,13 @@ public class RandomAccessFiler extends RandomAccessFile implements Filer {
     public void flush() throws IOException {
     }
 
+    @Override
+    public Filer asConcurrentReadWrite(Object suggestedLock) throws IOException {
+        return this;
+    }
+
+    @Override
+    public long capacity() {
+        return Long.MAX_VALUE;
+    }
 }

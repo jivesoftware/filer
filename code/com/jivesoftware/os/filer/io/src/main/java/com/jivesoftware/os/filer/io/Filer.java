@@ -1,4 +1,3 @@
-
 package com.jivesoftware.os.filer.io;
 
 import java.io.IOException;
@@ -33,7 +32,7 @@ public interface Filer extends Readable, Writeable {
      * @param position
      * @throws IOException
      */
-    public void seek(long position) throws IOException;
+    void seek(long position) throws IOException;
 
     /**
      *
@@ -41,38 +40,37 @@ public interface Filer extends Readable, Writeable {
      * @return
      * @throws IOException
      */
-    public long skip(long position) throws IOException;
+    long skip(long position) throws IOException;
 
     /**
      *
-     * @return
-     * @throws IOException
+     * @return @throws IOException
      */
-    public long length() throws IOException;
+    long length() throws IOException;
 
     /**
      *
      * @param len
      * @throws IOException
      */
-    public void setLength(long len) throws IOException;
+    void setLength(long len) throws IOException;
 
     /**
      *
-     * @return
-     * @throws IOException
+     * @return @throws IOException
      */
-    public long getFilePointer() throws IOException;
-
-    /**
-     *
-     * @throws IOException
-     */
-    public void eof() throws IOException;
+    long getFilePointer() throws IOException;
 
     /**
      *
      * @throws IOException
      */
-    public void flush() throws IOException;
+    void eof() throws IOException;
+
+    /**
+     *
+     * @throws IOException
+     */
+    void flush() throws IOException;
+
 }

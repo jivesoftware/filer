@@ -21,7 +21,7 @@ import java.io.IOException;
  *
  * @author jonathan
  */
-public class ByteArrayFiler implements Filer {
+public class ByteArrayFiler implements ConcurrentFiler {
 
     private byte[] bytes = new byte[0];
     private long fp = 0;
@@ -46,10 +46,24 @@ public class ByteArrayFiler implements Filer {
         bytes = new byte[0];
     }
 
+    @Override
+    public Filer asConcurrentReadWrite(final Object suggestedLock) throws IOException {
+        return new ByteArrayFiler(bytes) {
+
+            @Override
+            public Object lock() {
+                return suggestedLock;
+            }
+
+        };
+    }
+
+    @Override
     public Object lock() {
         return this;
     }
 
+    @Override
     public int read() throws IOException {
         if (fp >= bytes.length) {
             return -1;
@@ -102,6 +116,7 @@ public class ByteArrayFiler implements Filer {
         fp++;
     }
 
+    @Override
     public void write(byte _b[]) throws IOException {
         if (_b == null) {
             return;
@@ -176,5 +191,10 @@ public class ByteArrayFiler implements Filer {
         byte[] newSrc = new byte[src.length + amount];
         System.arraycopy(src, 0, newSrc, 0, src.length);
         return newSrc;
+    }
+
+    @Override
+    public long capacity() {
+        return Integer.MAX_VALUE;
     }
 }

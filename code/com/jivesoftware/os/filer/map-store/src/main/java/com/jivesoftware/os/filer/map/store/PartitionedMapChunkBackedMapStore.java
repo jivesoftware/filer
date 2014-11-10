@@ -1,5 +1,6 @@
 package com.jivesoftware.os.filer.map.store;
 
+import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;

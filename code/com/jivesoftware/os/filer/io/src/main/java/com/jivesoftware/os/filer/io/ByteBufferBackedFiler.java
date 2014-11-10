@@ -15,7 +15,7 @@ import java.nio.ByteBuffer;
  *
  * @author jonathan.colt
  */
-public class ByteBufferBackedFiler implements Filer {
+public class ByteBufferBackedFiler implements ConcurrentFiler {
 
     private final Object lock;
     private final ByteBuffer buffer;
@@ -101,6 +101,16 @@ public class ByteBufferBackedFiler implements Filer {
     @Override
     public void write(byte[] b, int _offset, int _len) throws IOException {
         buffer.put(b, _offset, _len);
+    }
+
+    @Override
+    public Filer asConcurrentReadWrite(Object suggestedLock) throws IOException {
+        return new ByteBufferBackedFiler(suggestedLock, buffer.duplicate());
+    }
+
+    @Override
+    public long capacity() {
+        return buffer.capacity();
     }
 
 }

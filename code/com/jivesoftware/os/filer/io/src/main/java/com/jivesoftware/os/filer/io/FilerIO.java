@@ -1683,8 +1683,8 @@ public class FilerIO {
      * @param _minPower
      * @return
      */
-    public static long chunkPower(long _length, int _minPower) {
-        for (long i = _minPower; i < 65; i++) { // 2^64 == long so why go anyfuther
+    public static int chunkPower(long _length, int _minPower) {
+        for (int i = _minPower; i < 65; i++) { // 2^64 == long so why go anyfuther
             if (_length < Math.pow(2, i)) {
                 return i;
             }
@@ -1697,7 +1697,7 @@ public class FilerIO {
      * @param _chunkPower
      * @return
      */
-    public static long chunkLength(long _chunkPower) {
+    public static long chunkLength(int _chunkPower) {
         return (long) Math.pow(2, _chunkPower);
     }
 

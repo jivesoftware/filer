@@ -11,7 +11,6 @@ package com.jivesoftware.os.filer.chunk.store;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.RandomAccessFiler;
-import com.jivesoftware.os.filer.io.SubsetableFiler;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -48,7 +47,7 @@ public class ChunkStoreTest {
                 new ByteBufferBackedFiler(new Object(), ByteBuffer.allocate((int) filerSize)),
                 0, filerSize, filerSize));
             */
-            final ChunkStore chunkStore = new ChunkStore(new SubsetableFiler(new RandomAccessFiler(chunkFile, "rw"), 0, Long.MAX_VALUE, 0));
+            final ChunkStore chunkStore = new ChunkStore(new RandomAccessFiler(chunkFile, "rw"));
 
             long start = System.currentTimeMillis();
             List<Future<?>> futures = new ArrayList<>(numThreads);
