@@ -97,13 +97,17 @@ public class AutoResizingByteBufferBackedFiler implements ConcurrentFiler {
 
     @Override
     public int read() throws IOException {
-        return bufferReference.get().get();
+        ByteBuffer buffer = bufferReference.get();
+        int remaining = buffer.remaining();
+        if (remaining == 0) {
+            return -1;
+        }
+        return buffer.get();
     }
 
     @Override
     public int read(byte[] b) throws IOException {
-        bufferReference.get().get(b);
-        return b.length;
+        return read(b, 0, b.length);
     }
 
     @Override

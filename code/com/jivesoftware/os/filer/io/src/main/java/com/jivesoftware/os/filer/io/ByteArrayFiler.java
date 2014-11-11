@@ -73,6 +73,7 @@ public class ByteArrayFiler implements ConcurrentFiler {
         return b;
     }
 
+    @Override
     public int read(byte[] b) throws IOException {
         if (b == null) {
             return 0;
@@ -92,6 +93,7 @@ public class ByteArrayFiler implements ConcurrentFiler {
         return len;
     }
 
+    @Override
     public int read(byte b[], int _offset, int _len) throws IOException {
         if (b == null) {
             return 0;
@@ -108,6 +110,7 @@ public class ByteArrayFiler implements ConcurrentFiler {
         return len;
     }
 
+    @Override
     public void write(int b) throws IOException {
         if (fp + 1 > bytes.length) {
             bytes = grow(bytes, 1 + (bytes.length * 2));
@@ -129,6 +132,7 @@ public class ByteArrayFiler implements ConcurrentFiler {
         fp += len;
     }
 
+    @Override
     public void write(byte _b[], int _offset, int _len) throws IOException {
         if (_b == null) {
             return;
@@ -141,19 +145,23 @@ public class ByteArrayFiler implements ConcurrentFiler {
         fp += len;
     }
 
+    @Override
     public long getFilePointer() throws IOException {
         return fp;
     }
 
+    @Override
     public void seek(long _position) throws IOException {
         fp = _position;
     }
 
+    @Override
     public long skip(long _position) throws IOException {
         fp += _position;
         return fp;
     }
 
+    @Override
     public void setLength(long len) throws IOException {
         if (len < 0) {
             throw new IOException();
@@ -164,21 +172,25 @@ public class ByteArrayFiler implements ConcurrentFiler {
         bytes = newBytes;
     }
 
+    @Override
     public long length() throws IOException {
         return bytes.length;
     }
 
+    @Override
     public void eof() throws IOException {
         bytes = trim(bytes, (int) fp);
     }
 
+    @Override
     public void close() throws IOException {
     }
 
+    @Override
     public void flush() throws IOException {
     }
 
-    static final private byte[] trim(byte[] src, int count) {
+    private static byte[] trim(byte[] src, int count) {
         byte[] newSrc = new byte[count];
         System.arraycopy(src, 0, newSrc, 0, count);
         return newSrc;

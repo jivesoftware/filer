@@ -69,20 +69,29 @@ public class ByteBufferBackedFiler implements ConcurrentFiler {
 
     @Override
     public int read() throws IOException {
+        int remaining = buffer.remaining();
+        if (remaining == 0) {
+            return -1;
+        }
         return buffer.get();
     }
 
     @Override
     public int read(byte[] b) throws IOException {
-        buffer.get(b);
-        return b.length;
+        return read(b, 0, b.length);
     }
 
     @Override
     public int read(byte[] b, int _offset, int _len) throws IOException {
-        buffer.get(b, _offset, _len);
-        return _len;
+        int remaining = buffer.remaining();
+        if (remaining == 0) {
+            return -1;
+        }
+        int count = Math.min(_len, remaining);
+        buffer.get(b, _offset, count);
+        return count;
     }
+
 
     @Override
     public void close() throws IOException {

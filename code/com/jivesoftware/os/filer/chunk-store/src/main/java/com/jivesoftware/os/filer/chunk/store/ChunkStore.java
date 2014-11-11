@@ -42,7 +42,6 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
      chunks.setup(100);
      open(_filer);
      */
-
     public ChunkStore() {
     }
 
@@ -85,8 +84,8 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
      ChunkStore chunks = ChunkStore(_filer);
      open();
      */
-    public ChunkStore(ConcurrentFiler _filer) throws Exception {
-        filer = _filer;
+    public ChunkStore(ConcurrentFiler filer) throws Exception {
+        this.filer = filer;
     }
 
     public void open() throws Exception {
@@ -120,7 +119,7 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
     public void allChunks(ChunkIdStream _chunks) throws Exception {
         synchronized (filer.lock()) {
             filer.seek(8 + 8 + (8 * (64 - cMinPower)));
-            long size = filer.capacity();
+            long size = filer.length();
             while (filer.getFilePointer() < size) {
                 long chunkFP = filer.getFilePointer();
                 long magicNumber = FilerIO.readLong(filer, "magicNumber");
@@ -171,7 +170,6 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
                 filer.seek(0);
                 FilerIO.writeLong(filer, lengthOfFile, "lengthOfFile");
                 filer.flush();
-
                 chunkFP = newChunkFP;
             } else {
                 chunkFP = resultFP;
