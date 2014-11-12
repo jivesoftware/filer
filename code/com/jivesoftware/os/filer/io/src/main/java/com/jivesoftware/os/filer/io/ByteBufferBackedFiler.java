@@ -118,6 +118,11 @@ public class ByteBufferBackedFiler implements ConcurrentFiler {
     }
 
     @Override
+    public void delete() {
+        DirectBufferCleaner.clean(buffer);
+    }
+
+    @Override
     public long capacity() {
         return buffer.capacity();
     }

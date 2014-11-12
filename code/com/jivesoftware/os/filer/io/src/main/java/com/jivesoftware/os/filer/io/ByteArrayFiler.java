@@ -59,6 +59,11 @@ public class ByteArrayFiler implements ConcurrentFiler {
     }
 
     @Override
+    public void delete() {
+        bytes = null;
+    }
+
+    @Override
     public Object lock() {
         return this;
     }

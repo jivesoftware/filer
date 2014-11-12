@@ -1,6 +1,7 @@
 package com.jivesoftware.os.filer.keyed.store;
 
 import com.google.common.collect.Iterators;
+import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import java.util.ArrayList;
 import java.util.Collections;

@@ -5,7 +5,6 @@ import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
-import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.io.SubsetableFiler;
 import java.io.IOException;
 
@@ -35,7 +34,6 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
 
     private ConcurrentFiler filer;
 
-    private final StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(1024);
     /*
      New Call Sequence
      ChunkStore chunks = ChunkStore();
@@ -94,6 +92,10 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
             lengthOfFile = FilerIO.readLong(filer, "lengthOfFile");
             referenceNumber = FilerIO.readLong(filer, "referenceNumber");
         }
+    }
+
+    public void delete() throws Exception {
+        filer.delete();
     }
 
     @Override
@@ -199,7 +201,7 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
         return reuseFP;
     }
 
-    public Filer getFiler(long _chunkFP) throws Exception {
+    public Filer getFiler(long _chunkFP, Object lock) throws Exception {
         int chunkPower = 0;
         long nextFreeChunkFP = 0;
         long length = 0;
@@ -219,7 +221,6 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
         gets[chunkPower].inc(1);
 
         try {
-            Object lock = locksProvider.lock(fp);
             Filer asConcurrentReadWrite = filer.asConcurrentReadWrite(lock);
             return new SubsetableFiler(asConcurrentReadWrite, fp, fp + FilerIO.chunkLength((int) chunkPower), length);
         } catch (Exception x) {

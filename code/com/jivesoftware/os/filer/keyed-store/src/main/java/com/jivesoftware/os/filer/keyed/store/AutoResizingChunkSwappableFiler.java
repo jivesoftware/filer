@@ -3,6 +3,7 @@ package com.jivesoftware.os.filer.keyed.store;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.map.store.PartitionedMapChunkBackedMapStore;
 import java.io.IOException;
 

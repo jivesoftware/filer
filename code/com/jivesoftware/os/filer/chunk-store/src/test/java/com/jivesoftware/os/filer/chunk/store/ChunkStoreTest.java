@@ -77,16 +77,16 @@ public class ChunkStoreTest {
     public void testNewChunkStore() throws Exception {
         int size = 1024 * 10;
         String chunkPath = Files.createTempDirectory("testNewChunkStore").toFile().getAbsolutePath();
-        ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", size, false);
+        ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", size, false, 8);
 
         long chunk10 = chunkStore.newChunk(10);
         System.out.println("chunkId:" + chunk10);
-        Filer filer = chunkStore.getFiler(chunk10);
+        Filer filer = chunkStore.getFiler(chunk10, chunkStore);
         synchronized (filer.lock()) {
             FilerIO.writeInt(filer, 10, "");
         }
 
-        filer = chunkStore.getFiler(chunk10);
+        filer = chunkStore.getFiler(chunk10, chunkStore);
         synchronized (filer.lock()) {
             filer.seek(0);
             int ten = FilerIO.readInt(filer, "");
@@ -99,11 +99,11 @@ public class ChunkStoreTest {
     public void testExistingChunkStore() throws Exception {
         int size = 1024 * 10;
         String chunkPath = Files.createTempDirectory("testExistingChunkStore").toFile().getAbsolutePath();
-        ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", size, false);
+        ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", size, false, 8);
 
         long chunk10 = chunkStore.newChunk(10);
         System.out.println("chunkId:" + chunk10);
-        Filer filer = chunkStore.getFiler(chunk10);
+        Filer filer = chunkStore.getFiler(chunk10, chunkStore);
         synchronized (filer.lock()) {
             FilerIO.writeInt(filer, 10, "");
         }
@@ -111,10 +111,10 @@ public class ChunkStoreTest {
 
         long expectedReferenceNumber = chunkStore.getReferenceNumber();
 
-        chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", size, false);
+        chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", size, false, 8);
         assertEquals(chunkStore.getReferenceNumber(), expectedReferenceNumber);
 
-        filer = chunkStore.getFiler(chunk10);
+        filer = chunkStore.getFiler(chunk10, chunkStore);
         synchronized (filer.lock()) {
             filer.seek(0);
             int ten = FilerIO.readInt(filer, "");
@@ -127,11 +127,11 @@ public class ChunkStoreTest {
     public void testResizingChunkStore() throws Exception {
         int size = 512;
         String chunkPath = Files.createTempDirectory("testResizingChunkStore").toFile().getAbsolutePath();
-        ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", size, true);
+        ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", size, true, 8);
 
         long chunk10 = chunkStore.newChunk(size * 4);
         System.out.println("chunkId:" + chunk10);
-        Filer filer = chunkStore.getFiler(chunk10);
+        Filer filer = chunkStore.getFiler(chunk10, chunkStore);
         synchronized (filer.lock()) {
             byte[] bytes = new byte[size * 4];
             bytes[0] = 1;
@@ -139,7 +139,7 @@ public class ChunkStoreTest {
             FilerIO.write(filer, bytes);
         }
 
-        filer = chunkStore.getFiler(chunk10);
+        filer = chunkStore.getFiler(chunk10, chunkStore);
         synchronized (filer.lock()) {
             filer.seek(0);
             byte[] bytes = new byte[size * 4];

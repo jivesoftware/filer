@@ -34,4 +34,6 @@ public interface ConcurrentFiler extends Filer {
     Filer asConcurrentReadWrite(Object suggestedLock) throws IOException;
 
     long capacity();
+
+    void delete() throws Exception;
 }

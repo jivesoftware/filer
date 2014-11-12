@@ -3,6 +3,7 @@ package com.jivesoftware.os.filer.io;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import org.apache.commons.io.FileUtils;
 
 /**
  *
@@ -144,6 +145,11 @@ public class RandomAccessFiler extends RandomAccessFile implements ConcurrentFil
     @Override
     public Filer asConcurrentReadWrite(Object suggestedLock) throws IOException {
         return this;
+    }
+
+    @Override
+    public void delete() throws IOException {
+        FileUtils.forceDelete(new File(fileName));
     }
 
     @Override

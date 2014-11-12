@@ -1,6 +1,5 @@
-package com.jivesoftware.os.filer.keyed.store;
+package com.jivesoftware.os.filer.io;
 
-import com.jivesoftware.os.filer.io.FilerIO;
 import java.util.Arrays;
 
 /**

@@ -39,7 +39,7 @@ public class PartitionedMapChunkBackedKeyedStoreTest {
         };
 
         ChunkStoreInitializer chunkStoreInitializer = new ChunkStoreInitializer();
-        MultiChunkStore multChunkStore = chunkStoreInitializer.initializeMultiFileBacked(chunkDirs, "data", 4, 4096, false);
+        MultiChunkStore multChunkStore = chunkStoreInitializer.initializeMultiFileBacked(chunkDirs, "data", 4, 4096, false, 8);
         int newFilerInitialCapacity = 512;
 
         MapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
@@ -81,7 +81,7 @@ public class PartitionedMapChunkBackedKeyedStoreTest {
         };
 
         ChunkStoreInitializer chunkStoreInitializer = new ChunkStoreInitializer();
-        MultiChunkStore multChunkStore = chunkStoreInitializer.initializeMultiFileBacked(chunkDirs, "data", 4, 4096, false);
+        MultiChunkStore multChunkStore = chunkStoreInitializer.initializeMultiFileBacked(chunkDirs, "data", 4, 4096, false, 8);
         int newFilerInitialCapacity = 512;
         MapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
         MapChunkFactory swapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, swapDirs);

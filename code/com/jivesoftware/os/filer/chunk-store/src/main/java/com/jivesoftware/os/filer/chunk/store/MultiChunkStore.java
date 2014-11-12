@@ -15,6 +15,7 @@
  */
 package com.jivesoftware.os.filer.chunk.store;
 
+import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.Filer;
 import java.io.IOException;
 import java.util.Arrays;
@@ -26,8 +27,15 @@ public class MultiChunkStore {
 
     final ChunkStore[] chunkStores;
 
+    private final ByteArrayStripingLocksProvider[] locksProviders;
+
     public MultiChunkStore(ChunkStore... chunkStores) {
         this.chunkStores = chunkStores;
+        this.locksProviders = new ByteArrayStripingLocksProvider[chunkStores.length];
+        for (int i = 0; i < locksProviders.length; i++) {
+            //TODO expose concurrency level
+            locksProviders[i] = new ByteArrayStripingLocksProvider(1024);
+        }
     }
 
     public void allChunks(ChunkIdStream _chunks) throws Exception {
@@ -41,11 +49,19 @@ public class MultiChunkStore {
     }
 
     public Filer getFiler(byte[] key, long _chunkFP) throws Exception {
-        return chunkStores[Math.abs(Arrays.hashCode(key)) % chunkStores.length].getFiler(_chunkFP);
+        int chunkIndex = Math.abs(Arrays.hashCode(key)) % chunkStores.length;
+        Object lock = locksProviders[chunkIndex].lock(key);
+        return chunkStores[chunkIndex].getFiler(_chunkFP, lock);
     }
 
     public void remove(byte[] key, long _chunkFP) throws Exception {
         chunkStores[Math.abs(Arrays.hashCode(key)) % chunkStores.length].remove(_chunkFP);
+    }
+
+    public void delete() throws Exception {
+        for (ChunkStore chunkStore : chunkStores) {
+            chunkStore.delete();
+        }
     }
 
     public long sizeInBytes() throws IOException {
