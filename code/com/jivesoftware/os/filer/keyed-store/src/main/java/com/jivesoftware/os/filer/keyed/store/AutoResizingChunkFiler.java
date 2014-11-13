@@ -28,29 +28,25 @@ public class AutoResizingChunkFiler implements Filer {
 
     public void init(long initialChunkSize) throws Exception {
         Preconditions.checkArgument(initialChunkSize > 0);
-        synchronized (filerReference) {
-            IBA value = mapStore.get(key);
-            Filer filer = null;
-            if (value != null) {
-                filer = chunkStore.getFiler(key.getBytes(), FilerIO.bytesLong(value.getBytes()));
-            }
-            if (filer == null) {
-                filer = createNewFiler(initialChunkSize);
-            }
-            filerReference.set(filer);
+        IBA value = mapStore.get(key);
+        Filer filer = null;
+        if (value != null) {
+            filer = chunkStore.getFiler(key.getBytes(), FilerIO.bytesLong(value.getBytes()));
         }
+        if (filer == null) {
+            filer = createNewFiler(initialChunkSize);
+        }
+        filerReference.set(filer);
     }
 
     public boolean open() throws Exception {
-        synchronized (filerReference) {
-            IBA value = mapStore.get(key);
-            Filer filer = null;
-            if (value != null) {
-                filer = chunkStore.getFiler(key.getBytes(), FilerIO.bytesLong(value.getBytes()));
-            }
-            filerReference.set(filer);
-            return filer != null;
+        IBA value = mapStore.get(key);
+        Filer filer = null;
+        if (value != null) {
+            filer = chunkStore.getFiler(key.getBytes(), FilerIO.bytesLong(value.getBytes()));
         }
+        filerReference.set(filer);
+        return filer != null;
     }
 
     private Filer createNewFiler(long initialChunkSize) throws Exception {
@@ -141,6 +137,7 @@ public class AutoResizingChunkFiler implements Filer {
     private Filer growChunkIfNeeded(Filer currentFiler, long capacity) throws IOException {
         Filer newFiler = currentFiler;
         if (capacity >= currentFiler.length()) {
+            System.out.println("GROW!!!!!!!!");
             try {
                 long currentOffset = currentFiler.getFilePointer();
                 long newChunkId = chunkStore.newChunk(key.getBytes(), capacity);

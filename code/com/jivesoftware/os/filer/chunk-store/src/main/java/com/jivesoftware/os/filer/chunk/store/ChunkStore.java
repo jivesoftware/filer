@@ -174,6 +174,7 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
                 filer.flush();
                 chunkFP = newChunkFP;
             } else {
+                reused = true;
                 chunkFP = resultFP;
             }
         }
@@ -201,11 +202,32 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
         return reuseFP;
     }
 
+    /**
+     * Synchronize externally on filer.lock()
+     */
+    private long readNextFree(long _chunkFP) throws Exception {
+        filer.seek(_chunkFP);
+        FilerIO.readLong(filer, "magicNumber");
+        FilerIO.readLong(filer, "chunkPower");
+        return FilerIO.readLong(filer, "chunkNexFreeChunkFP");
+    }
+
+    /**
+     * Synchronize externally on filer.lock()
+     */
+    private void writeNextFree(long _chunkFP, long _nextFreeFP) throws Exception {
+        filer.seek(_chunkFP);
+        FilerIO.readLong(filer, "magicNumber");
+        FilerIO.readLong(filer, "chunkPower");
+        FilerIO.writeLong(filer, _nextFreeFP, "chunkNexFreeChunkFP");
+    }
+
     public Filer getFiler(long _chunkFP, Object lock) throws Exception {
         int chunkPower = 0;
         long nextFreeChunkFP = 0;
         long length = 0;
         long fp = 0;
+        Filer asConcurrentReadWrite;
         synchronized (filer.lock()) {
             filer.seek(_chunkFP);
             long magicNumber = FilerIO.readLong(filer, "magicNumber");
@@ -216,12 +238,12 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
             nextFreeChunkFP = FilerIO.readLong(filer, "chunkNexFreeChunkFP");
             length = FilerIO.readLong(filer, "chunkLength");
             fp = filer.getFilePointer();
+            asConcurrentReadWrite = filer.asConcurrentReadWrite(lock);
         }
 
         gets[chunkPower].inc(1);
 
         try {
-            Filer asConcurrentReadWrite = filer.asConcurrentReadWrite(lock);
             return new SubsetableFiler(asConcurrentReadWrite, fp, fp + FilerIO.chunkLength((int) chunkPower), length);
         } catch (Exception x) {
             x.printStackTrace();
@@ -265,10 +287,10 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
                 FilerIO.writeLong(filer, _chunkFP, "free");
                 filer.flush();
             } else {
-                long nextFree = readNextFree(freeFP);
+                //long nextFree = readNextFree(freeFP);
                 filer.seek(position);
                 FilerIO.writeLong(filer, _chunkFP, "free");
-                writeNextFree(_chunkFP, nextFree);
+                writeNextFree(_chunkFP, freeFP);
                 filer.flush();
             }
         }
@@ -281,25 +303,5 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
 
     private static final byte[] zerosMin = new byte[(int) Math.pow(2, cMinPower)]; // never too big
     private static final byte[] zerosMax = new byte[(int) Math.pow(2, 16)]; // 65536 max used until min needed
-
-    /**
-     * Synchronize externally on filer.lock()
-     */
-    private long readNextFree(long _chunkFP) throws Exception {
-        filer.seek(_chunkFP);
-        FilerIO.readLong(filer, "magicNumber");
-        FilerIO.readLong(filer, "chunkPower");
-        return FilerIO.readLong(filer, "chunkNexFreeChunkFP");
-    }
-
-    /**
-     * Synchronize externally on filer.lock()
-     */
-    private void writeNextFree(long _chunkFP, long _nextFreeFP) throws Exception {
-        filer.seek(_chunkFP);
-        FilerIO.readLong(filer, "magicNumber");
-        FilerIO.readLong(filer, "chunkPower");
-        FilerIO.writeLong(filer, _nextFreeFP, "chunkNexFreeChunkFP");
-    }
 
 }

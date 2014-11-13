@@ -14,6 +14,7 @@ import com.jivesoftware.os.filer.io.RandomAccessFiler;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -147,5 +148,32 @@ public class ChunkStoreTest {
             assertEquals(bytes[0], 1);
             assertEquals(bytes[bytes.length - 1], 1);
         }
+    }
+
+    @Test
+    public void testAddRemove() throws Exception {
+        String chunkPath = Files.createTempDirectory("testAddRemove").toFile().getAbsolutePath();
+        ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "test", 512, true, 8);
+
+        List<Long> fps1 = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            fps1.add(chunkStore.newChunk(1024));
+        }
+
+        for (long fp : fps1) {
+            chunkStore.remove(fp);
+        }
+
+        List<Long> fps2 = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            fps2.add(chunkStore.newChunk(1024));
+        }
+
+        System.out.println(fps1);
+        System.out.println(fps2);
+        Collections.sort(fps1);
+        Collections.sort(fps2);
+
+        assertEquals(fps1, fps2);
     }
 }
