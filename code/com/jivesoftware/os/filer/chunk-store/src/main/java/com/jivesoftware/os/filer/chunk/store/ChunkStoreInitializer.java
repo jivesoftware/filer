@@ -34,10 +34,12 @@ public class ChunkStoreInitializer {
         int numberOfChunkStores,
         long chunkStoreCapacityInBytes,
         boolean autoResize,
-        int concurrencyLevel)
+        int concurrencyLevel,
+        int stripingLevel)
         throws Exception {
 
         MultiChunkStoreBuilder builder = new MultiChunkStoreBuilder();
+        builder.setStripingLevel(stripingLevel);
 
         for (int index = 0; index < numberOfChunkStores; index++) {
             File chunkStoreFile = getChunkStoreFile(chunkPaths, chunkPrefix, index);
@@ -52,10 +54,12 @@ public class ChunkStoreInitializer {
         String[] chunkPaths,
         String chunkPrefix,
         boolean autoResize,
-        int concurrencyLevel)
+        int concurrencyLevel,
+        int stripingLevel)
         throws Exception {
 
         MultiChunkStoreBuilder builder = new MultiChunkStoreBuilder();
+        builder.setStripingLevel(stripingLevel);
 
         for (int index = 0; index < from.chunkStores.length; index++) {
             File chunkStoreFile = getChunkStoreFile(chunkPaths, chunkPrefix, index);
@@ -74,10 +78,12 @@ public class ChunkStoreInitializer {
         int numberOfChunkStores,
         long chunkStoreCapacityInBytes,
         boolean autoResize,
-        int concurrencyLevel)
+        int concurrencyLevel,
+        int stripingLevel)
         throws Exception {
 
         MultiChunkStoreBuilder builder = new MultiChunkStoreBuilder();
+        builder.setStripingLevel(stripingLevel);
 
         for (int index = 0; index < numberOfChunkStores; index++) {
             builder.addChunkStore(create(new Object(), new ByteBufferProvider(keyPrefix + "-" + index, byteBufferFactory),
@@ -159,13 +165,20 @@ public class ChunkStoreInitializer {
 
         private final ArrayList<ChunkStore> stores = new ArrayList<>();
 
+        private int stripingLevel = 1024;
+
+        public MultiChunkStoreBuilder setStripingLevel(int stripingLevel) {
+            this.stripingLevel = stripingLevel;
+            return this;
+        }
+
         public MultiChunkStoreBuilder addChunkStore(ChunkStore chunkStore) {
             stores.add(chunkStore);
             return this;
         }
 
         public MultiChunkStore build() {
-            return new MultiChunkStore(stores.toArray(new ChunkStore[stores.size()]));
+            return new MultiChunkStore(stripingLevel, stores.toArray(new ChunkStore[stores.size()]));
         }
     }
 

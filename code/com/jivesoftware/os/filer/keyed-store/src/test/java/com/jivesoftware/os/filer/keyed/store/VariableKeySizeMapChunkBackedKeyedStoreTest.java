@@ -51,7 +51,7 @@ public class VariableKeySizeMapChunkBackedKeyedStoreTest {
         final int[] keySizeThresholds = new int[] { 4, 16, 64, 256, 1024 };
         int chunkStoreCapacityInBytes = 30 * 1024 * 1024;
         MultiChunkStore multChunkStore = new ChunkStoreInitializer().initializeMultiFileBacked(
-            chunkDirectories, "data", 4, chunkStoreCapacityInBytes, false, 8);
+            chunkDirectories, "data", 4, chunkStoreCapacityInBytes, false, 8, 64);
         long newFilerInitialCapacity = 512;
         VariableKeySizeMapChunkBackedKeyedStore.Builder builder = new VariableKeySizeMapChunkBackedKeyedStore.Builder();
 
@@ -89,7 +89,7 @@ public class VariableKeySizeMapChunkBackedKeyedStoreTest {
         int chunkStoreCapacityInBytes = 30 * 1024 * 1024;
         int newFilerInitialCapacity = 512;
         MultiChunkStore multChunkStore = new ChunkStoreInitializer().initializeMultiFileBacked(
-            chunkDirectories, "data", 4, chunkStoreCapacityInBytes, false, 8);
+            chunkDirectories, "data", 4, chunkStoreCapacityInBytes, false, 8, 64);
         VariableKeySizeMapChunkBackedKeyedStore.Builder builder = new VariableKeySizeMapChunkBackedKeyedStore.Builder();
 
         for (int keySize : keySizeThresholds) {

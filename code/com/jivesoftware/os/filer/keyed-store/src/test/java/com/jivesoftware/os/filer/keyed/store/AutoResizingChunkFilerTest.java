@@ -30,7 +30,7 @@ public class AutoResizingChunkFilerTest {
     @Test(enabled = false)
     public void testConcurrentResizingChunkStore() throws Exception {
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        final MultiChunkStore multiChunkStore = new ChunkStoreInitializer().initializeMultiByteBufferBacked("test", byteBufferFactory, 1, 512, true, 8);
+        final MultiChunkStore multiChunkStore = new ChunkStoreInitializer().initializeMultiByteBufferBacked("test", byteBufferFactory, 1, 512, true, 8, 64);
         ByteBufferProviderBackedMapChunkFactory mapChunkFactory = new ByteBufferProviderBackedMapChunkFactory(4, false, 8, false, 512,
             new ByteBufferProvider("test-bbp", byteBufferFactory));
         final PartitionedMapChunkBackedMapStore<IBA, IBA> mapStore = new PartitionedMapChunkBackedMapStore<>(
@@ -141,7 +141,8 @@ public class AutoResizingChunkFilerTest {
     @Test(enabled = false)
     public void testConcurrentSwappingChunkStore() throws Exception {
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        final MultiChunkStore multiChunkStore = new ChunkStoreInitializer().initializeMultiByteBufferBacked("test-chunk", byteBufferFactory, 1, 512, true, 8);
+        final MultiChunkStore multiChunkStore = new ChunkStoreInitializer().initializeMultiByteBufferBacked(
+            "test-chunk", byteBufferFactory, 1, 512, true, 8, 64);
         ByteBufferProviderBackedMapChunkFactory mapChunkFactory = new ByteBufferProviderBackedMapChunkFactory(4, false, 8, false, 512,
             new ByteBufferProvider("test-bbp", byteBufferFactory));
         KeyPartitioner<IBA> keyPartitioner = new KeyPartitioner<IBA>() {
@@ -197,7 +198,7 @@ public class AutoResizingChunkFilerTest {
             filerOffsets[i] = new AtomicInteger();
         }
 
-        final int numIterations = 10_000;
+        final int numWriteIterations = 10_000;
         int poolSize = 24;
         final ExecutorService executor = Executors.newFixedThreadPool(poolSize);
         int numRunnables = 24;
@@ -208,8 +209,8 @@ public class AutoResizingChunkFilerTest {
             runnables.add(new Runnable() {
                 @Override
                 public void run() {
-                    int start = _i * numIterations;
-                    for (int j = start; j < start + numIterations; j++) {
+                    int start = _i * numWriteIterations;
+                    for (int j = start; j < start + numWriteIterations; j++) {
                         int filerIndex = j % filers.length;
                         AutoResizingChunkSwappableFiler filer = filers[filerIndex];
                         try {
@@ -232,7 +233,7 @@ public class AutoResizingChunkFilerTest {
                         } catch (Exception e) {
                             throw new RuntimeException(e);
                         }
-                        if ((j + 1) % 100_000 == 0) {
+                        if ((j + 1) % 5_000 == 0) {
                             System.out.println("Write iteration " + _i + " -> " + (j + 1));
                         }
                     }
@@ -250,20 +251,47 @@ public class AutoResizingChunkFilerTest {
         }
         System.out.println("Finished writing in " + (System.currentTimeMillis() - t));
 
-        for (int i = 0; i < numFilers; i++) {
-            AutoResizingChunkSwappableFiler filer = filers[i];
-            synchronized (filer.lock()) {
-                filer.sync();
-                filer.seek(0);
-                int expectedNumValues = expectedCounts[i].get();
-                Set<Integer> values = new HashSet<>(expectedNumValues);
-                for (int j = 0; j < expectedNumValues; j++) {
-                    values.add(FilerIO.readInt(filer, "value"));
+        final int numReadIterations = 1_000;
+        runnables.clear();
+        for (int i = 0; i < numRunnables; i++) {
+            final int _i = i;
+            runnables.add(new Runnable() {
+                @Override
+                public void run() {
+                    int start = _i * numReadIterations;
+                    for (int j = start; j < start + numReadIterations; j++) {
+                        int filerIndex = j % filers.length;
+                        AutoResizingChunkSwappableFiler filer = filers[filerIndex];
+                        try {
+                            synchronized (filer.lock()) {
+                                filer.sync();
+                                filer.seek(0);
+                                int expectedNumValues = expectedCounts[filerIndex].get();
+                                Set<Integer> values = new HashSet<>(expectedNumValues);
+                                for (int k = 0; k < expectedNumValues; k++) {
+                                    values.add(FilerIO.readInt(filer, "value"));
+                                }
+                                assertEquals(values.size(), expectedNumValues);
+                            }
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                        if ((j + 1) % 10 == 0) {
+                            System.out.println("Read iteration " + _i + " -> " + (j + 1));
+                        }
+                    }
                 }
-                assertEquals(values.size(), expectedNumValues);
-                System.out.println("Read filer " + i);
-            }
+            });
         }
 
+        t = System.currentTimeMillis();
+        futures.clear();
+        for (Runnable runnable : runnables) {
+            futures.add(executor.submit(runnable));
+        }
+        for (Future<?> future : futures) {
+            future.get();
+        }
+        System.out.println("Finished reading in " + (System.currentTimeMillis() - t));
     }
 }

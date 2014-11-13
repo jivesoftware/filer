@@ -29,12 +29,12 @@ public class MultiChunkStore {
 
     private final ByteArrayStripingLocksProvider[] locksProviders;
 
-    public MultiChunkStore(ChunkStore... chunkStores) {
+    public MultiChunkStore(int stripingLevel, ChunkStore... chunkStores) {
         this.chunkStores = chunkStores;
         this.locksProviders = new ByteArrayStripingLocksProvider[chunkStores.length];
         for (int i = 0; i < locksProviders.length; i++) {
             //TODO expose concurrency level
-            locksProviders[i] = new ByteArrayStripingLocksProvider(1024);
+            locksProviders[i] = new ByteArrayStripingLocksProvider(stripingLevel);
         }
     }
 
