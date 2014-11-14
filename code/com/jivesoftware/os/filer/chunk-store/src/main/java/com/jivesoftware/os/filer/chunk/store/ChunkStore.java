@@ -285,14 +285,17 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
             if (freeFP == -1) {
                 filer.seek(position);
                 FilerIO.writeLong(filer, _chunkFP, "free");
-                filer.flush();
             } else {
-                //long nextFree = readNextFree(freeFP);
-                filer.seek(position);
-                FilerIO.writeLong(filer, _chunkFP, "free");
-                writeNextFree(_chunkFP, freeFP);
-                filer.flush();
+                if (_chunkFP != freeFP) {
+                    filer.seek(position);
+                    FilerIO.writeLong(filer, _chunkFP, "free");
+                } else {
+                    System.err.println("WARNING: Some one is removing the same chunk more than once. chunkFP:" + _chunkFP);
+                    new RuntimeException().printStackTrace();
+                }
             }
+            writeNextFree(_chunkFP, freeFP);
+            filer.flush();
         }
         removes[chunkPower].inc(1);
     }
