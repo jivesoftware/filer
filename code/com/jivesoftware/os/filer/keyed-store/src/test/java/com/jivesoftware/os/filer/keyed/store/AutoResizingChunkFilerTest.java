@@ -19,6 +19,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.testng.annotations.Test;
 
@@ -198,9 +199,42 @@ public class AutoResizingChunkFilerTest {
             filerOffsets[i] = new AtomicInteger();
         }
 
-        final int numWriteIterations = 10_000;
         int poolSize = 24;
-        final ExecutorService executor = Executors.newFixedThreadPool(poolSize);
+        final ExecutorService noiseExecutor = Executors.newFixedThreadPool(poolSize);
+        List<Future<?>> noiseFutures = new ArrayList<>(poolSize);
+        final AtomicBoolean noisy = new AtomicBoolean(true);
+        for (int i = 0; i < poolSize; i++) {
+            noiseFutures.add(noiseExecutor.submit(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        while (noisy.get()) {
+                            for (int i = 0; i < filers.length; i++) {
+                                AutoResizingChunkSwappableFiler filer = filers[i];
+                                synchronized (filer.lock()) {
+                                    filer.sync();
+                                    filer.seek(0);
+                                    int expectedNumberOfValues = expectedCounts[i].get();
+                                    Set<Integer> values = new HashSet<>(expectedNumberOfValues);
+                                    for (int j = 0; j < expectedNumberOfValues; j++) {
+                                        values.add(FilerIO.readInt(filer, "value"));
+                                    }
+                                    assertEquals(values.size(), expectedNumberOfValues);
+                                }
+                                Thread.sleep(10);
+                            }
+                        }
+                    } catch (Exception e) {
+                        System.out.println("Noisy exception");
+                        e.printStackTrace();
+                        throw new RuntimeException(e);
+                    }
+                }
+            }));
+        }
+
+        final int numWriteIterations = 10_000;
+        final ExecutorService mainExecutor = Executors.newFixedThreadPool(poolSize);
         int numRunnables = 24;
         List<Runnable> runnables = new ArrayList<>(numRunnables);
 
@@ -231,9 +265,11 @@ public class AutoResizingChunkFilerTest {
                                 filerOffsets[filerIndex].addAndGet(4);
                             }
                         } catch (Exception e) {
+                            System.out.println("Write exception");
+                            e.printStackTrace();
                             throw new RuntimeException(e);
                         }
-                        if ((j + 1) % 5_000 == 0) {
+                        if ((j + 1) % 100 == 0) {
                             System.out.println("Write iteration " + _i + " -> " + (j + 1));
                         }
                     }
@@ -244,7 +280,7 @@ public class AutoResizingChunkFilerTest {
         long t = System.currentTimeMillis();
         List<Future<?>> futures = new ArrayList<>(numRunnables);
         for (Runnable runnable : runnables) {
-            futures.add(executor.submit(runnable));
+            futures.add(mainExecutor.submit(runnable));
         }
         for (Future<?> future : futures) {
             future.get();
@@ -274,6 +310,8 @@ public class AutoResizingChunkFilerTest {
                                 assertEquals(values.size(), expectedNumValues);
                             }
                         } catch (Exception e) {
+                            System.out.println("Read exception");
+                            e.printStackTrace();
                             throw new RuntimeException(e);
                         }
                         if ((j + 1) % 10 == 0) {
@@ -287,11 +325,17 @@ public class AutoResizingChunkFilerTest {
         t = System.currentTimeMillis();
         futures.clear();
         for (Runnable runnable : runnables) {
-            futures.add(executor.submit(runnable));
+            futures.add(mainExecutor.submit(runnable));
         }
         for (Future<?> future : futures) {
             future.get();
         }
+
+        noisy.set(false);
+        for (Future<?> noiseFuture : noiseFutures) {
+            noiseFuture.get();
+        }
+
         System.out.println("Finished reading in " + (System.currentTimeMillis() - t));
     }
 }

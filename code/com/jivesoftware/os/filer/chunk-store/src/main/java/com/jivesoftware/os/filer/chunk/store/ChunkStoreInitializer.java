@@ -152,7 +152,7 @@ public class ChunkStoreInitializer {
         chunkStore.setup(referenceNumber);
         if (autoResize) {
             ConcurrentFiler filer = new AutoResizingByteBufferBackedFiler(lock, chunkStoreCapacityInBytes, byteBufferProvider,
-                new Semaphore(concurrencyLevel), concurrencyLevel);
+                new Semaphore(concurrencyLevel, true), concurrencyLevel);
             chunkStore.createAndOpen(filer);
         } else {
             ConcurrentFiler filer = new ByteBufferBackedFiler(lock, byteBufferProvider.allocate(chunkStoreCapacityInBytes));

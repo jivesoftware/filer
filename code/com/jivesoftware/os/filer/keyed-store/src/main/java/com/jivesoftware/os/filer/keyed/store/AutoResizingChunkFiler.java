@@ -137,7 +137,6 @@ public class AutoResizingChunkFiler implements Filer {
     private Filer growChunkIfNeeded(Filer currentFiler, long capacity) throws IOException {
         Filer newFiler = currentFiler;
         if (capacity >= currentFiler.length()) {
-            System.out.println("GROW!!!!!!!!");
             try {
                 long currentOffset = currentFiler.getFilePointer();
                 long newChunkId = chunkStore.newChunk(key.getBytes(), capacity);

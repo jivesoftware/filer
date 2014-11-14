@@ -49,6 +49,19 @@ public class AutoResizingByteBufferBackedFiler implements ConcurrentFiler {
         this.sharedByteBuffer = sharedByteBuffer;
     }
 
+    private void acquire(int permits, String message) throws IOException {
+        try {
+            semaphore.acquire(permits);
+        } catch (InterruptedException e) {
+            Thread.interrupted();
+            throw new IOException(message, e);
+        }
+    }
+
+    private void release(int permits) {
+        semaphore.release(permits);
+    }
+
     @Override
     public Object lock() {
         return lock;
@@ -67,26 +80,13 @@ public class AutoResizingByteBufferBackedFiler implements ConcurrentFiler {
 
     @Override
     public void delete() throws Exception {
-        semaphore.acquire(semaphorePermits);
+        acquire(semaphorePermits, "Delete");
         try {
             ByteBuffer bb = sharedByteBuffer.delete();
             DirectBufferCleaner.clean(bb);
         } finally {
-            semaphore.release(semaphorePermits);
+            release(semaphorePermits);
         }
-    }
-
-    private void acquire(int permits, String message) throws IOException {
-        try {
-            semaphore.acquire(permits);
-        } catch (InterruptedException e) {
-            Thread.interrupted();
-            throw new IOException(message, e);
-        }
-    }
-
-    private void release(int permits) {
-        semaphore.release(permits);
     }
 
     private void checkAllocation(int size) throws IOException {
@@ -94,6 +94,9 @@ public class AutoResizingByteBufferBackedFiler implements ConcurrentFiler {
         acquire(1, "Checking allocation");
         try {
             ByteBuffer buffer = sharedByteBuffer.get();
+            if (buffer == null) {
+                throw new IOException("Filer has been closed");
+            }
             int currentCapacity = buffer.capacity();
             needsResize = (currentCapacity < size);
         } finally {
@@ -186,12 +189,7 @@ public class AutoResizingByteBufferBackedFiler implements ConcurrentFiler {
 
     @Override
     public int read(byte[] b) throws IOException {
-        acquire(1, "Reading byte array");
-        try {
-            return read(b, 0, b.length);
-        } finally {
-            release(1);
-        }
+        return read(b, 0, b.length);
     }
 
     @Override
@@ -288,15 +286,17 @@ public class AutoResizingByteBufferBackedFiler implements ConcurrentFiler {
         }
 
         ByteBuffer get() {
-            ByteBuffer currentBuffer = bufferReference.get();
-            if (rootBuffer != currentBuffer) {
-                rootBuffer = currentBuffer;
-                if (rootBuffer != null) {
-                    int position = clonedBuffer.position();
-                    clonedBuffer = rootBuffer.duplicate();
-                    clonedBuffer.position(position);
-                } else {
-                    clonedBuffer = null;
+            if (clonedBuffer != null) {
+                ByteBuffer currentBuffer = bufferReference.get();
+                if (rootBuffer != currentBuffer) {
+                    rootBuffer = currentBuffer;
+                    if (rootBuffer != null) {
+                        int position = clonedBuffer.position();
+                        clonedBuffer = rootBuffer.duplicate();
+                        clonedBuffer.position(position);
+                    } else {
+                        clonedBuffer = null;
+                    }
                 }
             }
             return clonedBuffer;

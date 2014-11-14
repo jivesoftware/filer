@@ -697,6 +697,16 @@ public class FilerIO {
     /**
      *
      * @param _filer
+     * @param array
+     * @throws IOException
+     */
+    public static void read(Readable _filer, byte[] array, int offset, int length) throws IOException {
+        _filer.read(array, offset, length);
+    }
+
+    /**
+     *
+     * @param _filer
      * @param fieldName
      * @return
      * @throws IOException
