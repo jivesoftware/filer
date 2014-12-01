@@ -27,16 +27,9 @@ public class VariableKeySizeMapChunkBackedKeyedStore implements KeyedFilerStore,
         throw new IndexOutOfBoundsException("Key is too long");
     }
 
-    private byte[] pad(byte[] key) {
-        int keySize = get(key).keySize;
-        byte[] padded = new byte[keySize];
-        System.arraycopy(key, 0, padded, 0, key.length);
-        return padded;
-    }
-
     @Override
     public SwappableFiler get(byte[] keyBytes, long newFilerInitialCapacity) throws Exception {
-        return get(keyBytes).store.get(pad(keyBytes), newFilerInitialCapacity);
+        return get(keyBytes).store.get(keyBytes, newFilerInitialCapacity);
     }
 
     @Override
@@ -66,6 +59,15 @@ public class VariableKeySizeMapChunkBackedKeyedStore implements KeyedFilerStore,
         List<Iterator<KeyValueStore.Entry<IBA, SwappableFiler>>> iterators = new ArrayList<>();
         for (PartitionSizedByKeyStore keyStore : keyedStores) {
             iterators.add(keyStore.store.iterator());
+        }
+        return Iterators.concat(iterators.iterator());
+    }
+
+    @Override
+    public Iterator<IBA> keysIterator() {
+        List<Iterator<IBA>> iterators = new ArrayList<>();
+        for (PartitionSizedByKeyStore keyStore : keyedStores) {
+            iterators.add(keyStore.store.keysIterator());
         }
         return Iterators.concat(iterators.iterator());
     }

@@ -104,4 +104,18 @@ public class VariableKeySizeBytesObjectMapStore<K, V> implements KeyValueStore<K
         }
         return Iterators.concat(iterators.iterator());
     }
+
+    @Override
+    public Iterator<K> keysIterator() {
+        List<Iterator<K>> iterators = Lists.newArrayListWithCapacity(mapStores.length);
+        for (BytesObjectMapStore<byte[], V> mapStore : mapStores) {
+            iterators.add(Iterators.transform(mapStore.keysIterator(), new Function<byte[], K>() {
+                @Override
+                public K apply(byte[] input) {
+                    return keyMarshaller.bytesKey(input, 0);
+                }
+            }));
+        }
+        return Iterators.concat(iterators.iterator());
+    }
 }

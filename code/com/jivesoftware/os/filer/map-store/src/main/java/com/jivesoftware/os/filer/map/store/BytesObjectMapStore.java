@@ -229,6 +229,27 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
         return Iterators.concat(iterators.iterator());
     }
 
+    @Override
+    public Iterator<K> keysIterator() {
+        List<Iterator<K>> iterators = Lists.newArrayList();
+        final Index index;
+        try {
+            index = index(false);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        if (index != null) {
+            MapChunk got = index.chunk;
+            iterators.add(Iterators.transform(mapStore.keysIterator(got), new Function<byte[], K>() {
+                @Override
+                public K apply(byte[] input) {
+                    return keyMarshaller.bytesKey(input, 0);
+                }
+            }));
+        }
+        return Iterators.concat(iterators.iterator());
+    }
+
     private static class Index {
 
         public final MapChunk chunk;

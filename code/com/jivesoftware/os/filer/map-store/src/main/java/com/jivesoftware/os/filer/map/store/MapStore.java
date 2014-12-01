@@ -779,6 +779,41 @@ public class MapStore {
         };
     }
 
+    public Iterator<byte[]> keysIterator(final MapChunk page) {
+        return new Iterator<byte[]>() {
+
+            private int index = 0;
+
+            private byte[] key;
+
+            @Override
+            public boolean hasNext() {
+                seekNext();
+                return key != null;
+            }
+
+            @Override
+            public byte[] next() {
+                seekNext();
+                byte[] nextKey = key;
+                key = null;
+                return nextKey;
+            }
+
+            private void seekNext() {
+                while (index < page.capacity && key == null) {
+                    key = getKeyAtIndex(page, index);
+                    index++;
+                }
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
+        };
+    }
+
     public static class Entry {
 
         public final byte[] key;

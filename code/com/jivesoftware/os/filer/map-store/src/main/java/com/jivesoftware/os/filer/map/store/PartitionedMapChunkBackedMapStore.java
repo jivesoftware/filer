@@ -220,9 +220,10 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
                     @Override
                     public Entry<K, V> apply(final MapStore.Entry input) {
                         final K key = keyValueMarshaller.bytesKey(input.key, 0);
-                        final V value = keyValueMarshaller.bytesValue(key, input.payload, 0);
 
                         return new Entry<K, V>() {
+                            V value;
+
                             @Override
                             public K getKey() {
                                 return key;
@@ -230,9 +231,35 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
 
                             @Override
                             public V getValue() {
+                                if (value == null) {
+                                    value = keyValueMarshaller.bytesValue(key, input.payload, 0);
+                                }
                                 return value;
                             }
                         };
+                    }
+                }));
+            }
+        }
+        return Iterators.concat(iterators.iterator());
+    }
+
+    @Override
+    public Iterator<K> keysIterator() {
+        List<Iterator<K>> iterators = Lists.newArrayList();
+        for (String pageId : keyPartitioner.allPartitions()) {
+            MapChunk got;
+            try {
+                got = get(pageId, false);
+            } catch (Exception x) {
+                throw new RuntimeException("Failed while loading pageId:" + pageId, x);
+            }
+
+            if (got != null) {
+                iterators.add(Iterators.transform(mapStore.keysIterator(got), new Function<byte[], K>() {
+                    @Override
+                    public K apply(byte[] input) {
+                        return keyValueMarshaller.bytesKey(input, 0);
                     }
                 }));
             }

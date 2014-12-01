@@ -145,8 +145,12 @@ public class PartitionedMapChunkBackedKeyedStore implements KeyedFilerStore, Cop
     }
 
     @Override
+    public Iterator<IBA> keysIterator() {
+        return mapStore.keysIterator();
+    }
+
+    @Override
     public void close() {
         // TODO
     }
-
 }

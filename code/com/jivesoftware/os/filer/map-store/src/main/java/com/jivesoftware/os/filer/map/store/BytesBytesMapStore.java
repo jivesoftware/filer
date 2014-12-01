@@ -185,4 +185,24 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
         }
         return Iterators.concat(iterators.iterator());
     }
+
+    @Override
+    public Iterator<K> keysIterator() {
+        List<Iterator<K>> iterators = Lists.newArrayList();
+        final MapChunk got;
+        try {
+            got = index(false);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        if (got != null) {
+            iterators.add(Iterators.transform(mapStore.keysIterator(got), new Function<byte[], K>() {
+                @Override
+                public K apply(byte[] input) {
+                    return keyValueMarshaller.bytesKey(input, 0);
+                }
+            }));
+        }
+        return Iterators.concat(iterators.iterator());
+    }
 }

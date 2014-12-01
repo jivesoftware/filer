@@ -72,4 +72,13 @@ public abstract class VariableKeySizeBytesBytesMapStore<K, V> implements KeyValu
         }
         return Iterators.concat(iterators.iterator());
     }
+
+    @Override
+    public Iterator<K> keysIterator() {
+        List<Iterator<K>> iterators = Lists.newArrayListWithCapacity(mapStores.length);
+        for (BytesBytesMapStore<K, V> mapStore : mapStores) {
+            iterators.add(mapStore.keysIterator());
+        }
+        return Iterators.concat(iterators.iterator());
+    }
 }

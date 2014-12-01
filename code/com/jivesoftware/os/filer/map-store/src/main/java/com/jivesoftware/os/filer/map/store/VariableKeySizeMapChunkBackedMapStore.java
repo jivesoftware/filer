@@ -111,6 +111,20 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
         return Iterators.concat(iterators.iterator());
     }
 
+    @Override
+    public Iterator<K> keysIterator() {
+        List<Iterator<K>> iterators = Lists.newArrayListWithCapacity(mapStores.length);
+        for (PartitionSizedByMapStore mapStore : mapStores) {
+            iterators.add(Iterators.transform(mapStore.store.keysIterator(), new Function<byte[], K>() {
+                @Override
+                public K apply(byte[] input) {
+                    return keyValueMarshaller.bytesKey(input, 0);
+                }
+            }));
+        }
+        return Iterators.concat(iterators.iterator());
+    }
+
     public static class Builder<K, V> {
 
         private final int concurrency;
@@ -158,7 +172,7 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
             int keySize = stores.get(0).keySize;
             for (int i = 1; i < stores.size(); i++) {
                 if (stores.get(i).keySize <= keySize) {
-                    throw new IllegalStateException("Added stores are not monotomically orderable.");
+                    throw new IllegalStateException("Added stores are not monotonically orderable.");
                 }
                 keySize = stores.get(i).keySize;
             }

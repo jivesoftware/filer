@@ -1,6 +1,7 @@
 package com.jivesoftware.os.filer.map.store.api;
 
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore.Entry;
+import java.util.Iterator;
 
 /**
  *
@@ -19,6 +20,8 @@ public interface KeyValueStore<K, V> extends Iterable<Entry<K, V>> {
     V getUnsafe(K key) throws Exception;
 
     long estimateSizeInBytes() throws Exception;
+
+    Iterator<K> keysIterator();
 
     interface Entry<K, V> {
 
