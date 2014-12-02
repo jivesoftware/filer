@@ -6,6 +6,7 @@ import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
+import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -127,14 +128,14 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
 
     public static class Builder<K, V> {
 
-        private final int concurrency;
+        private final StripingLocksProvider<String> keyLocksProvider;
         private final V returnWhenGetReturnsNull;
         private final byte[] returnWhenGetReturnsNullBytes;
         private final KeyValueMarshaller<K, V> keyValueMarshaller;
         private final List<PartitionSizedByMapStore> stores = new ArrayList<>();
 
-        public Builder(int concurrency, V returnWhenGetReturnsNull, final KeyValueMarshaller<K, V> keyValueMarshaller) {
-            this.concurrency = concurrency;
+        public Builder(StripingLocksProvider<String> keyLocksProvider, V returnWhenGetReturnsNull, final KeyValueMarshaller<K, V> keyValueMarshaller) {
+            this.keyLocksProvider = keyLocksProvider;
             this.returnWhenGetReturnsNull = returnWhenGetReturnsNull;
             this.keyValueMarshaller = keyValueMarshaller;
             this.returnWhenGetReturnsNullBytes = (returnWhenGetReturnsNull == null) ? null : keyValueMarshaller.valueBytes(returnWhenGetReturnsNull);
@@ -157,7 +158,7 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
 
             stores.add(new PartitionSizedByMapStore(keySize,
                 new PartitionedMapChunkBackedMapStore<>(mapChunkFactory,
-                    concurrency,
+                    keyLocksProvider,
                     returnWhenGetReturnsNullBytes,
                     delegatingKeyPartitioner,
                     PassThroughKeyValueMarshaller.INSTANCE)));

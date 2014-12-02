@@ -3,8 +3,10 @@ package com.jivesoftware.os.filer.keyed.store;
 import com.google.common.base.Charsets;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
+import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.map.store.FileBackedMapChunkFactory;
 import java.io.File;
 import java.nio.file.Files;
@@ -51,7 +53,7 @@ public class VariableKeySizeMapChunkBackedKeyedStoreTest {
         final int[] keySizeThresholds = new int[] { 4, 16, 64, 256, 1024 };
         int chunkStoreCapacityInBytes = 30 * 1024 * 1024;
         MultiChunkStore multChunkStore = new ChunkStoreInitializer().initializeMultiFileBacked(
-            chunkDirectories, "data", 4, chunkStoreCapacityInBytes, false, 8, 64);
+            chunkDirectories, "data", 4, chunkStoreCapacityInBytes, false, 8, new ByteArrayStripingLocksProvider(64));
         long newFilerInitialCapacity = 512;
         VariableKeySizeMapChunkBackedKeyedStore.Builder builder = new VariableKeySizeMapChunkBackedKeyedStore.Builder();
 
@@ -60,7 +62,8 @@ public class VariableKeySizeMapChunkBackedKeyedStoreTest {
                 buildMapDirectories(mapDirectories, keySize));
             FileBackedMapChunkFactory swapChunkFactory = new FileBackedMapChunkFactory(keySize, true, 8, false, 512,
                 buildMapDirectories(swapDirectories, keySize));
-            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4));
+            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore,
+                new StripingLocksProvider<String>(16), 4));
         }
 
         VariableKeySizeMapChunkBackedKeyedStore keyedStore = builder.build();
@@ -89,7 +92,7 @@ public class VariableKeySizeMapChunkBackedKeyedStoreTest {
         int chunkStoreCapacityInBytes = 30 * 1024 * 1024;
         int newFilerInitialCapacity = 512;
         MultiChunkStore multChunkStore = new ChunkStoreInitializer().initializeMultiFileBacked(
-            chunkDirectories, "data", 4, chunkStoreCapacityInBytes, false, 8, 64);
+            chunkDirectories, "data", 4, chunkStoreCapacityInBytes, false, 8, new ByteArrayStripingLocksProvider(64));
         VariableKeySizeMapChunkBackedKeyedStore.Builder builder = new VariableKeySizeMapChunkBackedKeyedStore.Builder();
 
         for (int keySize : keySizeThresholds) {
@@ -97,7 +100,8 @@ public class VariableKeySizeMapChunkBackedKeyedStoreTest {
                 buildMapDirectories(mapDirectories, keySize));
             FileBackedMapChunkFactory swapChunkFactory = new FileBackedMapChunkFactory(keySize, true, 8, false, 512,
                 buildMapDirectories(swapDirectories, keySize));
-            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4));
+            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore,
+                new StripingLocksProvider<String>(16), 4));
         }
 
         VariableKeySizeMapChunkBackedKeyedStore keyedStore = builder.build();

@@ -5,6 +5,7 @@ import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
+import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.map.store.MapChunkFactory;
 import com.jivesoftware.os.filer.map.store.PartitionedMapChunkBackedMapStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
@@ -25,11 +26,12 @@ public class PartitionedMapChunkBackedKeyedStore implements KeyedFilerStore, Cop
     public PartitionedMapChunkBackedKeyedStore(MapChunkFactory mapChunkFactory,
         MapChunkFactory swapChunkFactory,
         MultiChunkStore chunkStore,
+        StripingLocksProvider<String> keyLocksProvider,
         int numPartitions)
         throws Exception {
 
-        this.mapStore = initializeMapStore(mapChunkFactory);
-        this.swapStore = initializeMapStore(swapChunkFactory);
+        this.mapStore = initializeMapStore(mapChunkFactory, keyLocksProvider);
+        this.swapStore = initializeMapStore(swapChunkFactory, keyLocksProvider);
         this.chunkStore = chunkStore;
         this.partitions = new String[numPartitions];
         for (int i = 0; i < numPartitions; i++) {
@@ -37,11 +39,12 @@ public class PartitionedMapChunkBackedKeyedStore implements KeyedFilerStore, Cop
         }
     }
 
-    private PartitionedMapChunkBackedMapStore<IBA, IBA> initializeMapStore(MapChunkFactory chunkFactory) throws Exception {
+    private PartitionedMapChunkBackedMapStore<IBA, IBA> initializeMapStore(MapChunkFactory chunkFactory, final StripingLocksProvider<String> keyLocksProvider)
+        throws Exception {
 
         // TODO push up factory!
         return new PartitionedMapChunkBackedMapStore<>(chunkFactory,
-            100,
+            keyLocksProvider,
             null,
             new KeyPartitioner<IBA>() {
                 @Override

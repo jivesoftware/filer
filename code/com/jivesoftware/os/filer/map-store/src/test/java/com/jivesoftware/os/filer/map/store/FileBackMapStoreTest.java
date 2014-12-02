@@ -9,6 +9,7 @@ import com.google.common.collect.Sets;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
+import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import java.nio.file.Files;
 import java.util.Set;
@@ -30,7 +31,7 @@ public class FileBackMapStoreTest {
         };
         FileBackedMapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 512, paths);
         PartitionedMapChunkBackedMapStore<Integer, Long> fileBackMapStore = new PartitionedMapChunkBackedMapStore<>(mapChunkFactory,
-            4,
+            new StripingLocksProvider<String>(4),
             null,
             new KeyPartitioner<Integer>() {
                 @Override

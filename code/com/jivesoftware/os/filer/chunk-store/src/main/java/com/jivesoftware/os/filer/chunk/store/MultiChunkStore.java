@@ -27,15 +27,11 @@ public class MultiChunkStore {
 
     final ChunkStore[] chunkStores;
 
-    private final ByteArrayStripingLocksProvider[] locksProviders;
+    private final ByteArrayStripingLocksProvider locksProvider;
 
-    public MultiChunkStore(int stripingLevel, ChunkStore... chunkStores) {
+    public MultiChunkStore(ByteArrayStripingLocksProvider locksProvider, ChunkStore... chunkStores) {
         this.chunkStores = chunkStores;
-        this.locksProviders = new ByteArrayStripingLocksProvider[chunkStores.length];
-        for (int i = 0; i < locksProviders.length; i++) {
-            //TODO expose concurrency level
-            locksProviders[i] = new ByteArrayStripingLocksProvider(stripingLevel);
-        }
+        this.locksProvider = locksProvider;
     }
 
     public void allChunks(ChunkIdStream _chunks) throws Exception {
@@ -50,7 +46,7 @@ public class MultiChunkStore {
 
     public Filer getFiler(byte[] key, long _chunkFP) throws Exception {
         int chunkIndex = Math.abs(Arrays.hashCode(key)) % chunkStores.length;
-        Object lock = locksProviders[chunkIndex].lock(key);
+        Object lock = locksProvider.lock(key);
         return chunkStores[chunkIndex].getFiler(_chunkFP, lock);
     }
 

@@ -31,13 +31,13 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
     private final KeyValueMarshaller<K, V> keyValueMarshaller;
 
     public PartitionedMapChunkBackedMapStore(MapChunkFactory chunkFactory,
-        int concurrency,
+        StripingLocksProvider<String> keyLocksProvider,
         V returnWhenGetReturnsNull,
         KeyPartitioner<K> keyPartitioner,
         KeyValueMarshaller<K, V> keyValueMarshaller) {
 
         this.chunkFactory = chunkFactory;
-        this.keyLocksProvider = new StripingLocksProvider<>(concurrency);
+        this.keyLocksProvider = keyLocksProvider;
         this.returnWhenGetReturnsNull = returnWhenGetReturnsNull;
         this.indexPages = new ConcurrentSkipListMap<>();
         this.keyPartitioner = keyPartitioner;

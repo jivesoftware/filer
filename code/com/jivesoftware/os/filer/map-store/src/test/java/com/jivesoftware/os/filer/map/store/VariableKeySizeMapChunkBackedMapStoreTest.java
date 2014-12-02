@@ -5,6 +5,7 @@ import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
+import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
 import java.io.File;
@@ -34,7 +35,8 @@ public class VariableKeySizeMapChunkBackedMapStoreTest {
 
     private VariableKeySizeMapChunkBackedMapStore<String, Long> createMapStore(String[] pathsToPartitions, int[] keySizeThresholds) throws Exception {
 
-        VariableKeySizeMapChunkBackedMapStore.Builder<String, Long> builder = new VariableKeySizeMapChunkBackedMapStore.Builder<>(1,
+        VariableKeySizeMapChunkBackedMapStore.Builder<String, Long> builder = new VariableKeySizeMapChunkBackedMapStore.Builder<>(
+            new StripingLocksProvider<String>(1),
             null,
             new KeyValueMarshaller<String, Long>() {
 

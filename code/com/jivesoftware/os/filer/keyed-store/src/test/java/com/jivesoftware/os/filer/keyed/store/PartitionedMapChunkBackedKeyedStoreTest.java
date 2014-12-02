@@ -10,8 +10,10 @@ package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
+import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.map.store.FileBackedMapChunkFactory;
 import com.jivesoftware.os.filer.map.store.MapChunkFactory;
 import java.nio.file.Files;
@@ -39,13 +41,14 @@ public class PartitionedMapChunkBackedKeyedStoreTest {
         };
 
         ChunkStoreInitializer chunkStoreInitializer = new ChunkStoreInitializer();
-        MultiChunkStore multChunkStore = chunkStoreInitializer.initializeMultiFileBacked(chunkDirs, "data", 4, 4096, false, 8, 64);
+        MultiChunkStore multChunkStore = chunkStoreInitializer.initializeMultiFileBacked(chunkDirs, "data", 4, 4096, false, 8,
+            new ByteArrayStripingLocksProvider(64));
         int newFilerInitialCapacity = 512;
 
         MapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
         MapChunkFactory swapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, swapDirs);
         PartitionedMapChunkBackedKeyedStore partitionedMapChunkBackedKeyedStore = new PartitionedMapChunkBackedKeyedStore(
-            mapChunkFactory, swapChunkFactory, multChunkStore, 4);
+            mapChunkFactory, swapChunkFactory, multChunkStore, new StripingLocksProvider<String>(16), 4);
 
         byte[] key = FilerIO.intBytes(1010);
         Filer filer = partitionedMapChunkBackedKeyedStore.get(key, newFilerInitialCapacity);
@@ -55,7 +58,8 @@ public class PartitionedMapChunkBackedKeyedStoreTest {
 
         mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
         swapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, swapDirs);
-        partitionedMapChunkBackedKeyedStore = new PartitionedMapChunkBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4);
+        partitionedMapChunkBackedKeyedStore = new PartitionedMapChunkBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore,
+            new StripingLocksProvider<String>(16), 4);
         filer = partitionedMapChunkBackedKeyedStore.get(key, newFilerInitialCapacity);
         synchronized (filer.lock()) {
             filer.seek(0);
@@ -81,12 +85,13 @@ public class PartitionedMapChunkBackedKeyedStoreTest {
         };
 
         ChunkStoreInitializer chunkStoreInitializer = new ChunkStoreInitializer();
-        MultiChunkStore multChunkStore = chunkStoreInitializer.initializeMultiFileBacked(chunkDirs, "data", 4, 4096, false, 8, 64);
+        MultiChunkStore multChunkStore = chunkStoreInitializer.initializeMultiFileBacked(chunkDirs, "data", 4, 4096, false, 8,
+            new ByteArrayStripingLocksProvider(64));
         int newFilerInitialCapacity = 512;
         MapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
         MapChunkFactory swapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, swapDirs);
         PartitionedMapChunkBackedKeyedStore partitionedMapChunkBackedKeyedStore = new PartitionedMapChunkBackedKeyedStore(
-            mapChunkFactory, swapChunkFactory, multChunkStore, 4);
+            mapChunkFactory, swapChunkFactory, multChunkStore, new StripingLocksProvider<String>(16), 4);
 
         byte[] key = FilerIO.intBytes(1020);
         SwappableFiler filer = partitionedMapChunkBackedKeyedStore.get(key, newFilerInitialCapacity);
@@ -101,7 +106,8 @@ public class PartitionedMapChunkBackedKeyedStoreTest {
 
         mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
         swapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, swapDirs);
-        partitionedMapChunkBackedKeyedStore = new PartitionedMapChunkBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore, 4);
+        partitionedMapChunkBackedKeyedStore = new PartitionedMapChunkBackedKeyedStore(mapChunkFactory, swapChunkFactory, multChunkStore,
+            new StripingLocksProvider<String>(16), 4);
         filer = partitionedMapChunkBackedKeyedStore.get(key, newFilerInitialCapacity);
         synchronized (filer.lock()) {
             filer.sync();

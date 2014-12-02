@@ -1,6 +1,7 @@
 package com.jivesoftware.os.filer.chunk.store;
 
 import com.jivesoftware.os.filer.io.AutoResizingByteBufferBackedFiler;
+import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.ByteBufferProvider;
@@ -35,11 +36,10 @@ public class ChunkStoreInitializer {
         long chunkStoreCapacityInBytes,
         boolean autoResize,
         int concurrencyLevel,
-        int stripingLevel)
+        ByteArrayStripingLocksProvider locksProvider)
         throws Exception {
 
-        MultiChunkStoreBuilder builder = new MultiChunkStoreBuilder();
-        builder.setStripingLevel(stripingLevel);
+        MultiChunkStoreBuilder builder = new MultiChunkStoreBuilder(locksProvider);
 
         for (int index = 0; index < numberOfChunkStores; index++) {
             File chunkStoreFile = getChunkStoreFile(chunkPaths, chunkPrefix, index);
@@ -55,11 +55,10 @@ public class ChunkStoreInitializer {
         String chunkPrefix,
         boolean autoResize,
         int concurrencyLevel,
-        int stripingLevel)
+        ByteArrayStripingLocksProvider locksProvider)
         throws Exception {
 
-        MultiChunkStoreBuilder builder = new MultiChunkStoreBuilder();
-        builder.setStripingLevel(stripingLevel);
+        MultiChunkStoreBuilder builder = new MultiChunkStoreBuilder(locksProvider);
 
         for (int index = 0; index < from.chunkStores.length; index++) {
             File chunkStoreFile = getChunkStoreFile(chunkPaths, chunkPrefix, index);
@@ -79,11 +78,10 @@ public class ChunkStoreInitializer {
         long chunkStoreCapacityInBytes,
         boolean autoResize,
         int concurrencyLevel,
-        int stripingLevel)
+        ByteArrayStripingLocksProvider locksProvider)
         throws Exception {
 
-        MultiChunkStoreBuilder builder = new MultiChunkStoreBuilder();
-        builder.setStripingLevel(stripingLevel);
+        MultiChunkStoreBuilder builder = new MultiChunkStoreBuilder(locksProvider);
 
         for (int index = 0; index < numberOfChunkStores; index++) {
             builder.addChunkStore(create(new Object(), new ByteBufferProvider(keyPrefix + "-" + index, byteBufferFactory),
@@ -165,11 +163,10 @@ public class ChunkStoreInitializer {
 
         private final ArrayList<ChunkStore> stores = new ArrayList<>();
 
-        private int stripingLevel = 1024;
+        private final ByteArrayStripingLocksProvider locksProvider;
 
-        public MultiChunkStoreBuilder setStripingLevel(int stripingLevel) {
-            this.stripingLevel = stripingLevel;
-            return this;
+        public MultiChunkStoreBuilder(ByteArrayStripingLocksProvider locksProvider) {
+            this.locksProvider = locksProvider;
         }
 
         public MultiChunkStoreBuilder addChunkStore(ChunkStore chunkStore) {
@@ -178,7 +175,7 @@ public class ChunkStoreInitializer {
         }
 
         public MultiChunkStore build() {
-            return new MultiChunkStore(stripingLevel, stores.toArray(new ChunkStore[stores.size()]));
+            return new MultiChunkStore(locksProvider, stores.toArray(new ChunkStore[stores.size()]));
         }
     }
 
