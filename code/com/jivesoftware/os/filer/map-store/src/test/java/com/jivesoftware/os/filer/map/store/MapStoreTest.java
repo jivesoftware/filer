@@ -50,7 +50,7 @@ public class MapStoreTest {
         int ksize = 4;
         for (int i = 0; i < 10; i++) {
             System.out.println("----------------- " + i + " -----------------");
-            test(it, ksize, it, new ConcurrentFilerProvider("booya".getBytes(Charsets.UTF_8),
+            test(it, ksize, it, new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8),
                 new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory())));
         }
     }
@@ -62,7 +62,7 @@ public class MapStoreTest {
 
         System.out.println("Upper Bound Max Count = " + pset.absoluteMaxCount(keySize, payloadSize));
         ConcurrentFiler filer = pset.allocateFiler(_maxSize, keySize, false, payloadSize, false, provider);
-        MapChunk set = pset.bootstrapAllocatedFiler((byte) 0, (byte) 0, new byte[16], 0, _maxSize, keySize, false, payloadSize, false, filer);
+        MapChunk set = pset.bootstrapAllocatedFiler(_maxSize, keySize, false, payloadSize, false, filer);
         long seed = System.currentTimeMillis();
         int maxCapacity = pset.getCapacity(set);
 

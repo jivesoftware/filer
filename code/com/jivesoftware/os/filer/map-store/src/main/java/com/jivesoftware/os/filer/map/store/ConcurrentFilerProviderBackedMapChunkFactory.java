@@ -51,15 +51,14 @@ public class ConcurrentFilerProviderBackedMapChunkFactory<F extends ConcurrentFi
     public MapChunk getOrCreate(MapStore mapStore, String pageId) throws Exception {
         F filer = mapStore.allocateFiler(initialPageCapacity, keySize, variableKeySizes,
             payloadSize, variablePayloadSizes, concurrentFilerProvider);
-        return mapStore.bootstrapAllocatedFiler((byte) 0, (byte) 0, EMPTY_ID, 0, initialPageCapacity, keySize, variableKeySizes,
+        return mapStore.bootstrapAllocatedFiler(initialPageCapacity, keySize, variableKeySizes,
             payloadSize, variablePayloadSizes, filer);
     }
 
     @Override
     public MapChunk resize(MapStore mapStore, MapChunk chunk, String pageId, int newSize, MapStore.CopyToStream copyToStream) throws Exception {
         F filer = mapStore.allocateFiler(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes, concurrentFilerProvider);
-        MapChunk newChunk = mapStore.bootstrapAllocatedFiler((byte) 0, (byte) 0, EMPTY_ID, 0, newSize, keySize, variableKeySizes,
-            payloadSize, variablePayloadSizes, filer);
+        MapChunk newChunk = mapStore.bootstrapAllocatedFiler(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes, filer);
         mapStore.copyTo(chunk, newChunk, copyToStream);
         return newChunk;
     }

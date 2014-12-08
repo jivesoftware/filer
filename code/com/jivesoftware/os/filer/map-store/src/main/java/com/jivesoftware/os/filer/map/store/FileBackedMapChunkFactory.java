@@ -128,15 +128,15 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
         return new FileBackedMemMappedByteBufferFactory(file.getParentFile());
     }
 
-    private ConcurrentFilerProvider getPageProvider(File file) {
-        return new ConcurrentFilerProvider(file.getName().getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(getPageFactory(file)));
+    private ConcurrentFilerProvider<ByteBufferBackedFiler> getPageProvider(File file) {
+        return new ConcurrentFilerProvider<>(file.getName().getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(getPageFactory(file)));
     }
 
     private MapChunk mmap(MapStore mapStore, final File file, int maxCapacity) throws Exception {
         if (file.exists()) {
             MappedByteBuffer buffer = getPageFactory(file).open(file.getName());
             ByteBufferBackedFiler filer = new ByteBufferBackedFiler(file, buffer);
-            MapChunk page = new MapChunk(filer);
+            MapChunk<ByteBufferBackedFiler> page = new MapChunk<>(filer);
             page.init(mapStore);
             return page;
         } else {
@@ -147,11 +147,7 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
                 payloadSize,
                 variablePayloadSizes,
                 concurrentFilerProvider);
-            return mapStore.bootstrapAllocatedFiler((byte) 0,
-                (byte) 0,
-                EMPTY_ID,
-                0,
-                maxCapacity,
+            return mapStore.bootstrapAllocatedFiler(maxCapacity,
                 keySize,
                 variableKeySizes,
                 payloadSize,

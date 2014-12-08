@@ -28,7 +28,7 @@ public class SkipListSet_TestDoubles {
         Arrays.fill(headKey, Byte.MIN_VALUE);
         SkipListSet sls = new SkipListSet();
         MapStore pset = MapStore.DEFAULT;
-        SkipListSetPage page = sls.slallocate(pset, new byte[16], 0, 16, headKey, keySize, false, payloadSize, false, DoubleSkipListComparator.cSingleton,
+        SkipListSetPage page = sls.slallocate(pset, 16, headKey, keySize, false, payloadSize, false, DoubleSkipListComparator.cSingleton,
             new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory())));
         for (int i = 0; i < 16; i++) {
             sls.sladd(page, FilerIO.doubleBytes(random.nextInt(32)), new byte[0]);

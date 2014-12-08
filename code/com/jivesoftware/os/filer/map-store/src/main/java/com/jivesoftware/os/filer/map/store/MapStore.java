@@ -98,10 +98,6 @@ public class MapStore {
 
     /**
      * @param <F>
-     * @param pageVersion
-     * @param pageFamily
-     * @param id
-     * @param version
      * @param maxCount
      * @param keySize
      * @param variableKeySizes
@@ -111,10 +107,6 @@ public class MapStore {
      * @throws java.io.IOException
      */
     public <F extends ConcurrentFiler> MapChunk<F> bootstrapAllocatedFiler(
-        byte pageFamily,
-        byte pageVersion,
-        byte[] id,
-        long version,
         int maxCount,
         int keySize,
         boolean variableKeySizes,
@@ -122,9 +114,7 @@ public class MapStore {
         boolean variablePayloadSizes,
         F filer) throws IOException {
 
-        if (id == null || id.length != cIdSize) {
-            throw new RuntimeException("Malformed ID");
-        }
+        byte[] id = new byte[cIdSize];
         int maxCapacity = calculateCapacity(maxCount);
 
         byte keyLengthSize = keyLengthSize(variableKeySizes ? keySize : 0);
@@ -132,10 +122,10 @@ public class MapStore {
 
         MapChunk<F> page = new MapChunk<>(filer);
 
-        setPageFamily(page, pageFamily);
-        setPageVersion(page, pageVersion);
+        setPageFamily(page, cPageFamily);
+        setPageVersion(page, cPageVersion);
         setId(page, id);
-        setVersion(page, version);
+        setVersion(page, 0);
         setCount(page, 0);
         setMaxCount(page, maxCount);
         setCapacity(page, maxCapacity); // good to use prime

@@ -1,7 +1,6 @@
 package com.jivesoftware.os.filer.chunk.store;
 
 import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
-import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.ConcurrentFilerFactory;
 import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.Filer;
@@ -45,7 +44,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
 
     final ChunkStore[] chunkStores;
     private final int maxKeySizePower = 16;
-    private final AtomicReference<MapChunk>[][] chunkIndexes;
+    private final AtomicReference<MapChunk<ChunkFiler>>[][] chunkIndexes;
     private final ByteArrayStripingLocksProvider[] locksProviders;
 
     private MultiChunkStoreConcurrentFilerFactory(int stripingLevel, ChunkStore... chunkStores) throws IOException {
@@ -58,12 +57,12 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                 chunkIndexes[i][keyPower] = new AtomicReference<>();
             }
         }
-        for (int i = 0; i < chunkStores.length; i++) {
-            initializeIfNeeded(FilerIO.intBytes(i), chunkStores[i]);
+        for (ChunkStore chunkStore : chunkStores) {
+            initializeIfNeeded(chunkStore);
         }
     }
 
-    private void initializeIfNeeded(byte[] key, final ChunkStore chunkStore) throws IOException {
+    private void initializeIfNeeded(final ChunkStore chunkStore) throws IOException {
         long magic;
         try {
             ChunkFiler filer = chunkStore.getFiler(skyHookFP, new Object());
@@ -82,7 +81,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                     for (int i = 1, keySize = 1; i < maxKeySizePower; i++, keySize *= 2) {
                         ConcurrentFilerProvider<ChunkFiler> concurrentFilerProvider = new ConcurrentFilerProvider<>(null, new Magic(chunkStore));
                         ChunkFiler mapStoresFiler = MapStore.DEFAULT.allocateFiler(2, keySize, true, 8, false, concurrentFilerProvider);
-                        MapStore.DEFAULT.bootstrapAllocatedFiler((byte) 0, (byte) 0, EMPTY_ID, 0, 2, keySize, true, 8, false, mapStoresFiler);
+                        MapStore.DEFAULT.bootstrapAllocatedFiler(2, keySize, true, 8, false, mapStoresFiler);
                         MapChunk<ChunkFiler> mapChunk = new MapChunk<>(mapStoresFiler);
                         mapChunk.init(MapStore.DEFAULT);
                         FilerIO.writeLong(skyHookFiler, mapStoresFiler.getChunkFP(), "");
@@ -117,13 +116,11 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
 
     }
 
-    private static final byte[] EMPTY_ID = new byte[16]; // WTF
-
-    private MapChunk growMapChunkIfNeeded(AtomicReference<MapChunk> atomicMapChunk,
+    private MapChunk growMapChunkIfNeeded(AtomicReference<MapChunk<ChunkFiler>> atomicMapChunk,
         int keyLength,
         ChunkStore chunkStore) throws IOException {
 
-        MapChunk mapChunk = atomicMapChunk.get();
+        MapChunk<ChunkFiler> mapChunk = atomicMapChunk.get();
         try {
             if (MapStore.DEFAULT.isFull(mapChunk)) {
                 int newSize = MapStore.DEFAULT.nextGrowSize(mapChunk);
@@ -131,8 +128,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
 
                 ConcurrentFilerProvider<ChunkFiler> concurrentFilerProvider = new ConcurrentFilerProvider<>(null, new Magic(chunkStore));
                 ChunkFiler mapStoresFiler = MapStore.DEFAULT.allocateFiler(newSize, chunkPower, true, 8, false, concurrentFilerProvider);
-                MapChunk<ChunkFiler> newMapChunk = MapStore.DEFAULT.bootstrapAllocatedFiler((byte) 0, (byte) 0, EMPTY_ID, 0, newSize,
-                    chunkPower, true, 8, false, mapStoresFiler);
+                MapChunk<ChunkFiler> newMapChunk = MapStore.DEFAULT.bootstrapAllocatedFiler(newSize, chunkPower, true, 8, false, mapStoresFiler);
                 MapStore.DEFAULT.copyTo(mapChunk, newMapChunk, null);
 
                 long oldFP;
@@ -154,9 +150,9 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
         }
     }
 
-    private MapChunk getMapChunkIndex(AtomicReference<MapChunk> chunkIndex, ChunkStore chunkStore, int keyLength) throws IOException {
+    private MapChunk getMapChunkIndex(AtomicReference<MapChunk<ChunkFiler>> chunkIndex, ChunkStore chunkStore, int keyLength) throws IOException {
 
-        MapChunk mapChunk = chunkIndex.get();
+        MapChunk<ChunkFiler> mapChunk = chunkIndex.get();
         if (mapChunk == null) {
             Object lock = new Object();
             long fpIndexFP;
@@ -166,8 +162,8 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                     fpIndexFP = FilerIO.readLong(chunkFiler, "mapIndexFP");
                 }
             }
-            ConcurrentFiler chunkIndexFiler = chunkStore.getFiler(fpIndexFP, lock);
-            mapChunk = new MapChunk(chunkIndexFiler);
+            ChunkFiler chunkIndexFiler = chunkStore.getFiler(fpIndexFP, lock);
+            mapChunk = new MapChunk<>(chunkIndexFiler);
             mapChunk.init(MapStore.DEFAULT);
             if (!chunkIndex.compareAndSet(null, mapChunk)) {
                 mapChunk = chunkIndex.get();
@@ -179,7 +175,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
     @Override
     public ChunkFiler allocate(byte[] key, long size) throws IOException {
         int i = getChunkIndexForKey(key);
-        AtomicReference<MapChunk> chunkIndex = chunkIndexes[i][FilerIO.chunkPower(key.length, 0)];
+        AtomicReference<MapChunk<ChunkFiler>> chunkIndex = chunkIndexes[i][FilerIO.chunkPower(key.length, 0)];
         MapChunk mapChunkIndex = getMapChunkIndex(chunkIndex, chunkStores[i], key.length);
         long chunkFP = MapStore.DEFAULT.get(mapChunkIndex, key);
         if (chunkFP == -1) {

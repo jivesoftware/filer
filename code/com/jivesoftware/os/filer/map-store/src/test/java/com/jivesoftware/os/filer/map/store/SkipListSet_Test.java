@@ -44,7 +44,7 @@ public class SkipListSet_Test {
 
         MapStore pset = MapStore.DEFAULT;
 
-        SkipListSetPage slsp = sls.slallocate(pset, new byte[16], 0, it, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
+        SkipListSetPage slsp = sls.slallocate(pset, it, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
 
             @Override
             public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) throws IOException {
@@ -184,7 +184,7 @@ public class SkipListSet_Test {
         int payloadSize = 4;
         SkipListSet sls = new SkipListSet();
         MapStore pset = MapStore.DEFAULT;
-        SkipListSetPage slsp = sls.slallocate(pset, new byte[16], 0, _maxSize, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
+        SkipListSetPage slsp = sls.slallocate(pset, _maxSize, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
 
             @Override
             public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) throws IOException {
@@ -377,7 +377,7 @@ public class SkipListSet_Test {
         Arrays.fill(headKey, Byte.MIN_VALUE);
         SkipListSet sls = new SkipListSet();
         MapStore pset = MapStore.DEFAULT;
-        SkipListSetPage slsp = sls.slallocate(pset, new byte[16], 0, _maxSize, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
+        SkipListSetPage slsp = sls.slallocate(pset, _maxSize, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
 
             @Override
             public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) throws IOException {
@@ -416,7 +416,7 @@ public class SkipListSet_Test {
             byte[] headKey = new byte[keySize];
             Arrays.fill(headKey, Byte.MIN_VALUE);
             MapStore pset = MapStore.DEFAULT;
-            set = sls.slallocate(pset, new byte[16], 0, _maxSize, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
+            set = sls.slallocate(pset, _maxSize, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
 
                 @Override
                 public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) throws IOException {

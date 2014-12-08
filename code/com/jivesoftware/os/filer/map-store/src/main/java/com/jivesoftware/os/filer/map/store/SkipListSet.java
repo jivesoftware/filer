@@ -33,8 +33,6 @@ public class SkipListSet {
      * new
      *
      * @param mapStore
-     * @param id
-     * @param version
      * @param _maxCount
      * @param headKey
      * @param _keySize
@@ -43,8 +41,9 @@ public class SkipListSet {
      * @param provider
      * @return
      */
-    public <F extends ConcurrentFiler> SkipListSetPage<F> slallocate(MapStore mapStore, byte[] id,
-        long version, int _maxCount, byte[] headKey,
+    public <F extends ConcurrentFiler> SkipListSetPage<F> slallocate(MapStore mapStore,
+        int _maxCount,
+        byte[] headKey,
         int _keySize,
         boolean variableKeySizes,
         int _payloadSize,
@@ -60,13 +59,13 @@ public class SkipListSet {
         int payloadSize = slpayloadSize(maxHeight) + _payloadSize;
 
         F filer = map.allocateFiler(_maxCount, _keySize, variableKeySizes, payloadSize, variablePayloadSizes, provider);
-        MapChunk<F> setPage = map.bootstrapAllocatedFiler((byte) 0, (byte) 0, id, version, _maxCount, _keySize, variableKeySizes, payloadSize,
+        MapChunk<F> setPage = map.bootstrapAllocatedFiler(_maxCount, _keySize, variableKeySizes, payloadSize,
             variablePayloadSizes, filer);
         byte[] headPayload = new byte[payloadSize];
         Arrays.fill(headPayload, Byte.MIN_VALUE);
         map.add(setPage, (byte) 1, headKey, newColumn(headPayload, maxHeight, maxHeight));
         //stoSysOut(setPage);
-        SkipListSetPage slsPage = new SkipListSetPage(setPage, headKey, _valueComparator);
+        SkipListSetPage<F> slsPage = new SkipListSetPage<>(setPage, headKey, _valueComparator);
         slsPage.init(mapStore);
         return slsPage;
     }
