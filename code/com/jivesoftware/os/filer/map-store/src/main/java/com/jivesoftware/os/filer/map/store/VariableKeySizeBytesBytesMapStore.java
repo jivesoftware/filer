@@ -56,15 +56,6 @@ public abstract class VariableKeySizeBytesBytesMapStore<K, V> implements KeyValu
     }
 
     @Override
-    public long estimateSizeInBytes() throws Exception {
-        long estimate = 0;
-        for (BytesBytesMapStore<K, V> mapStore : mapStores) {
-            estimate += mapStore.estimateSizeInBytes();
-        }
-        return estimate;
-    }
-
-    @Override
     public Iterator<Entry<K, V>> iterator() {
         List<Iterator<Entry<K, V>>> iterators = Lists.newArrayListWithCapacity(mapStores.length);
         for (BytesBytesMapStore<K, V> mapStore : mapStores) {

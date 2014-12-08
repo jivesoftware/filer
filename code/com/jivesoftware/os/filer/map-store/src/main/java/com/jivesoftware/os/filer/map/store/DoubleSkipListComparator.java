@@ -27,10 +27,13 @@ public class DoubleSkipListComparator implements SkipListComparator {
 
     @Override
     public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) {
-        double ad = MapStore.DEFAULT.readDouble(a.array, astart);
-        double bd = MapStore.DEFAULT.readDouble(b.array, bstart);
+        try {
+        double ad = a.readDouble(astart);
+        double bd = b.readDouble(bstart);
         return Double.compare(ad, bd);
-
+        } catch (Exception x) {
+            throw new RuntimeException("failed reading double while trying to compare.", x);
+        }
     }
 
     @Override

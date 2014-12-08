@@ -6,6 +6,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import org.apache.commons.io.Charsets;
 
 /**
  * TODO this implementation of ByteBufferFactory is inherently unsafe because its allocate() method is only capable of
@@ -45,12 +46,13 @@ public class FileBackedMemMappedByteBufferFactory implements ByteBufferFactory {
     }
 
     @Override
-    public ByteBuffer allocate(String key, long length) {
+    public ByteBuffer allocate(byte[] key, long length) {
         try {
             //System.out.println(String.format("Allocate key=%s length=%s for directories=%s", key, length, Arrays.toString(directories)));
-            File directory = getDirectory(key);
+            String name = new String(key, Charsets.UTF_8);
+            File directory = getDirectory(name);
             ensureDirectory(directory);
-            File file = new File(directory, key);
+            File file = new File(directory, name);
             RandomAccessFile raf = new RandomAccessFile(file, "rw");
             raf.seek(length);
             raf.write(0);
@@ -63,7 +65,7 @@ public class FileBackedMemMappedByteBufferFactory implements ByteBufferFactory {
     }
 
     @Override
-    public ByteBuffer reallocate(String key, ByteBuffer oldBuffer, long newSize) {
+    public ByteBuffer reallocate(byte[] key, ByteBuffer oldBuffer, long newSize) {
         //System.out.println(String.format("Reallocate key=%s newSize=%s for directories=%s", key, newSize, Arrays.toString(directories)));
         return allocate(key, newSize);
     }

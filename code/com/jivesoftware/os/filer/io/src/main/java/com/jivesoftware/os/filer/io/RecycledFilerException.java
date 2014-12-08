@@ -13,28 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jivesoftware.os.filer.chunk.store;
+package com.jivesoftware.os.filer.io;
 
-import com.jivesoftware.os.filer.io.Filer;
+import java.io.IOException;
 
 /**
- * @author jonathan
+ *
+ * @author jonathan.colt
  */
-public interface MultiChunkStore {
+public class RecycledFilerException extends IOException {
 
-    void allChunks(ChunkIdStream _chunks) throws Exception;
-
-    long newChunk(byte[] key, long _capacity) throws Exception;
-
-    Filer getFiler(byte[] key, long _chunkFP) throws Exception;
-
-    void remove(byte[] key, long _chunkFP) throws Exception;
-
-    /**
-     * Destroys all the back chunk stores
-     *
-     * @throws Exception
-     */
-    void delete() throws Exception;
+    public RecycledFilerException(String message) {
+        super(message);
+    }
 
 }

@@ -27,9 +27,13 @@ public class LongSkipListComparator implements SkipListComparator {
 
     @Override
     public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) {
-        long al = MapStore.DEFAULT.readLong(a.array, astart);
-        long bl = MapStore.DEFAULT.readLong(b.array, bstart);
-        return (al < bl ? -1 : (al == bl ? 0 : 1));
+        try {
+            long al = a.readLong(astart);
+            long bl = b.readLong(bstart);
+            return (al < bl ? -1 : (al == bl ? 0 : 1));
+        } catch (Exception x) {
+            throw new RuntimeException("failed reading long while trying to compare.", x);
+        }
 
     }
 

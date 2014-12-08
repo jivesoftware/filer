@@ -63,15 +63,6 @@ public class VariableKeySizeBytesObjectMapStore<K, V> implements KeyValueStore<K
     }
 
     @Override
-    public long estimateSizeInBytes() throws Exception {
-        long estimate = 0;
-        for (BytesObjectMapStore<byte[], V> mapStore : mapStores) {
-            estimate += mapStore.estimateSizeInBytes();
-        }
-        return estimate;
-    }
-
-    @Override
     public void copyTo(VariableKeySizeBytesObjectMapStore<K, V> to) throws Exception {
         for (int i = 0; i < mapStores.length; i++) {
             mapStores[i].copyTo(to.mapStores[i]);

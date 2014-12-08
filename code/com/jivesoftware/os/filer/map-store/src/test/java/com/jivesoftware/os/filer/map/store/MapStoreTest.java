@@ -1,8 +1,11 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ByteBufferProvider;
+import com.google.common.base.Charsets;
+import com.jivesoftware.os.filer.io.ByteBufferBackedConcurrentFilerFactory;
+import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Random;
 import org.testng.annotations.Test;
@@ -14,7 +17,7 @@ import org.testng.annotations.Test;
 public class MapStoreTest {
 
     @Test(enabled = false)
-    public void basicTest() {
+    public void basicTest() throws IOException {
         test();
     }
 
@@ -29,24 +32,29 @@ public class MapStoreTest {
 
                 @Override
                 public void run() {
-                    test();
+                    try {
+                        test();
+                    } catch (IOException ex) {
+                        ex.printStackTrace();
+                    }
                 }
             };
             t.start();
         }
     }
 
-    public static void test() {
+    public static void test() throws IOException {
 
         int it = 1_000_000;
         int ksize = 4;
         for (int i = 0; i < 10; i++) {
             System.out.println("----------------- " + i + " -----------------");
-            test(it, ksize, it, new ByteBufferProvider("booya", new HeapByteBufferFactory()));
+            test(it, ksize, it, new ConcurrentFilerProvider("booya".getBytes(Charsets.UTF_8),
+                new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory())));
         }
     }
 
-    private static boolean test(int _iterations, int keySize, int _maxSize, ByteBufferProvider provider) {
+    private static boolean test(int _iterations, int keySize, int _maxSize, ConcurrentFilerProvider provider) throws IOException {
 
         MapStore pset = MapStore.DEFAULT;
         int payloadSize = 4;
@@ -55,7 +63,6 @@ public class MapStoreTest {
         MapChunk set = pset.allocate((byte) 0, (byte) 0, new byte[16], 0, _maxSize, keySize, false, payloadSize, false, provider);
         long seed = System.currentTimeMillis();
         int maxCapacity = pset.getCapacity(set);
-        System.out.println("ByteSet size in mb for (" + _maxSize + ") is " + (set.size() / 1024d / 1024d) + "mb");
 
         Random random = new Random(seed);
         long t = System.currentTimeMillis();

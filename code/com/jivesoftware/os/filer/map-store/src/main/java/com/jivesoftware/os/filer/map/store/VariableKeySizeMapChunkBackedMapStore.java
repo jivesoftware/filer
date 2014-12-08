@@ -70,15 +70,6 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
     }
 
     @Override
-    public long estimateSizeInBytes() throws Exception {
-        long sizeInBytes = 0;
-        for (PartitionSizedByMapStore mapStore : mapStores) {
-            sizeInBytes += mapStore.store.estimateSizeInBytes();
-        }
-        return sizeInBytes;
-    }
-
-    @Override
     public void copyTo(VariableKeySizeMapChunkBackedMapStore<K, V> to) throws Exception {
         for (int i = 0; i < mapStores.length; i++) {
             mapStores[i].store.copyTo(to.mapStores[i].store);

@@ -23,12 +23,12 @@ import java.nio.ByteBuffer;
 public class DirectByteBufferFactory implements ByteBufferFactory {
 
     @Override
-    public ByteBuffer allocate(String key, long _size) {
+    public ByteBuffer allocate(byte[] key, long _size) {
         return ByteBuffer.allocateDirect((int) _size);
     }
 
     @Override
-    public ByteBuffer reallocate(String key, ByteBuffer oldBuffer, long newSize) {
+    public ByteBuffer reallocate(byte[] key, ByteBuffer oldBuffer, long newSize) {
         ByteBuffer newBuffer = allocate(key, newSize);
         if (oldBuffer != null) {
             oldBuffer.position(0);

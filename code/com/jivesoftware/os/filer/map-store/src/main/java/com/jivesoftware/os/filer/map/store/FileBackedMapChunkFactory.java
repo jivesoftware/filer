@@ -15,10 +15,14 @@
  */
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ByteBufferProvider;
+import com.google.common.base.Charsets;
+import com.jivesoftware.os.filer.io.ByteBufferBackedConcurrentFilerFactory;
+import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
+import com.jivesoftware.os.filer.io.ConcurrentFiler;
+import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FileBackedMemMappedByteBufferFactory;
+import com.jivesoftware.os.filer.io.FilerIO;
 import java.io.File;
-import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.util.UUID;
 import org.apache.commons.io.FileUtils;
@@ -97,11 +101,12 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
     public MapChunk copy(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception {
 
         File temporaryNewKeyIndexPartition = createIndexTempFile(pageId);
-        ByteBuffer newBuffer = mapStore.allocateBuffer(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes,
+        ConcurrentFiler newFiler = mapStore.allocateFiler(newSize,
+            keySize, variableKeySizes, payloadSize, variablePayloadSizes,
             getPageProvider(temporaryNewKeyIndexPartition));
-        chunk.array.position(0);
-        newBuffer.position(0);
-        newBuffer.put(chunk.array);
+        chunk.filer.seek(0);
+        newFiler.seek(0);
+        FilerIO.copy(chunk.filer, newFiler, -1); // TODO add copy to onto Filer interface
         File createIndexSetFile = createIndexSetFile(pageId);
         FileUtils.copyFile(temporaryNewKeyIndexPartition, createIndexSetFile);
         FileUtils.forceDelete(temporaryNewKeyIndexPartition);
@@ -123,18 +128,19 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
         return new FileBackedMemMappedByteBufferFactory(file.getParentFile());
     }
 
-    private ByteBufferProvider getPageProvider(File file) {
-        return new ByteBufferProvider(file.getName(), getPageFactory(file));
+    private ConcurrentFilerProvider getPageProvider(File file) {
+        return new ConcurrentFilerProvider(file.getName().getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(getPageFactory(file)));
     }
 
     private MapChunk mmap(MapStore mapStore, final File file, int maxCapacity) throws Exception {
         if (file.exists()) {
             MappedByteBuffer buffer = getPageFactory(file).open(file.getName());
-            MapChunk page = new MapChunk(buffer);
+            ByteBufferBackedFiler filer = new ByteBufferBackedFiler(file, buffer);
+            MapChunk page = new MapChunk(filer);
             page.init(mapStore);
             return page;
         } else {
-            ByteBufferProvider byteBufferProvider = getPageProvider(file);
+            ConcurrentFilerProvider concurrentFilerProvider = getPageProvider(file);
             return mapStore.allocate((byte) 0,
                 (byte) 0,
                 EMPTY_ID,
@@ -144,7 +150,7 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
                 variableKeySizes,
                 payloadSize,
                 variablePayloadSizes,
-                byteBufferProvider);
+                concurrentFilerProvider);
         }
     }
 

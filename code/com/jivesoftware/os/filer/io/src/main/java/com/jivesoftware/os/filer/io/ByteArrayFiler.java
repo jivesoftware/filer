@@ -47,7 +47,7 @@ public class ByteArrayFiler implements ConcurrentFiler {
     }
 
     @Override
-    public Filer asConcurrentReadWrite(final Object suggestedLock) throws IOException {
+    public ConcurrentFiler asConcurrentReadWrite(final Object suggestedLock) throws IOException {
         return new ByteArrayFiler(bytes) {
 
             @Override

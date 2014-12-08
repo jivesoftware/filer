@@ -10,7 +10,7 @@ package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
-import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
+import com.jivesoftware.os.filer.chunk.store.MultiChunkStoreInitializer;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
@@ -41,8 +41,8 @@ public class PartitionedMapChunkBackedKeyedStoreTest {
         };
 
         ChunkStoreInitializer chunkStoreInitializer = new ChunkStoreInitializer();
-        MultiChunkStore multChunkStore = chunkStoreInitializer.initializeMultiFileBacked(chunkDirs, "data", 4, 4096, false, 8,
-            new ByteArrayStripingLocksProvider(64));
+        MultiChunkStore multChunkStore = new MultiChunkStoreInitializer(chunkStoreInitializer)
+            .initializeMultiFileBacked(chunkDirs, "data", 4, 4096, true, 8, 64);
         int newFilerInitialCapacity = 512;
 
         MapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
@@ -85,8 +85,8 @@ public class PartitionedMapChunkBackedKeyedStoreTest {
         };
 
         ChunkStoreInitializer chunkStoreInitializer = new ChunkStoreInitializer();
-        MultiChunkStore multChunkStore = chunkStoreInitializer.initializeMultiFileBacked(chunkDirs, "data", 4, 4096, false, 8,
-            new ByteArrayStripingLocksProvider(64));
+        MultiChunkStore multChunkStore = new MultiChunkStoreInitializer(chunkStoreInitializer)
+            .initializeMultiFileBacked(chunkDirs, "data", 4, 4096, true, 8, 64);
         int newFilerInitialCapacity = 512;
         MapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
         MapChunkFactory swapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, swapDirs);

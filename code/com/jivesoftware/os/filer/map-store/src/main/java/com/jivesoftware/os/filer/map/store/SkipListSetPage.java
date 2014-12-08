@@ -1,17 +1,19 @@
 package com.jivesoftware.os.filer.map.store;
 
-import java.nio.ByteBuffer;
+import com.jivesoftware.os.filer.io.ByteArrayFiler;
+import com.jivesoftware.os.filer.io.ConcurrentFiler;
+import java.io.IOException;
 
 /**
  *
  * @author jonathan
  */
-public class SkipListSetPage {
+public class SkipListSetPage<F extends ConcurrentFiler> {
 
     /**
      *
      */
-    final MapChunk map;
+    final MapChunk<F> map;
     byte maxHeight;
     SkipListComparator valueComparator;
     long headIndex;
@@ -23,7 +25,7 @@ public class SkipListSetPage {
      * @param headKey
      * @param _valueComparator
      */
-    public SkipListSetPage(MapChunk page, byte[] headKey, SkipListComparator _valueComparator) {
+    public SkipListSetPage(MapChunk<F> page, byte[] headKey, SkipListComparator _valueComparator) {
         this.map = page;
         this.headKey = headKey;
         valueComparator = _valueComparator;
@@ -33,7 +35,7 @@ public class SkipListSetPage {
      *
      * @param mapStore
      */
-    public void init(MapStore mapStore) {
+    public void init(MapStore mapStore) throws IOException {
         map.init(mapStore);
         maxHeight = heightFit(map.capacity);
         headIndex = mapStore.get(map, headKey);
@@ -65,7 +67,7 @@ public class SkipListSetPage {
      * @param startOfBKey
      * @return
      */
-    public int compare(int startOfAKey, int startOfBKey) {
+    public int compare(int startOfAKey, int startOfBKey) throws IOException {
         return valueComparator.compare(map, startOfAKey, map, startOfBKey, map.keySize);
     }
 
@@ -75,8 +77,8 @@ public class SkipListSetPage {
      * @param _key
      * @return
      */
-    public int compare(int startOfAKey, byte[] _key) {
-        return valueComparator.compare(map, startOfAKey, new MapChunk(ByteBuffer.wrap(_key)), 0, map.keySize);
+    public int compare(int startOfAKey, byte[] _key) throws IOException {
+        return valueComparator.compare(map, startOfAKey, new MapChunk(new ByteArrayFiler(_key)), 0, map.keySize);
     }
 
     /**

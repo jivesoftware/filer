@@ -33,15 +33,6 @@ public class VariableKeySizeMapChunkBackedKeyedStore implements KeyedFilerStore,
     }
 
     @Override
-    public long sizeInBytes() throws Exception {
-        long sizeInBytes = 0;
-        for (PartitionSizedByKeyStore keyedStore : keyedStores) {
-            sizeInBytes += keyedStore.store.mapStoreSizeInBytes();
-        }
-        return sizeInBytes;
-    }
-
-    @Override
     public void close() {
         for (PartitionSizedByKeyStore keyedStore : keyedStores) {
             keyedStore.store.close();

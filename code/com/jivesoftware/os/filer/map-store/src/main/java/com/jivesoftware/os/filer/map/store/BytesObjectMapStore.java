@@ -167,15 +167,6 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
     }
 
     @Override
-    public long estimateSizeInBytes() {
-        Index index = indexRef.get();
-        if (index != null) {
-            return index.chunk.size() + (index.payloads.length * 8);
-        }
-        return 0;
-    }
-
-    @Override
     public void copyTo(BytesObjectMapStore<K, V> to) throws Exception {
         synchronized (indexRef) {
             Index got = indexRef.get();

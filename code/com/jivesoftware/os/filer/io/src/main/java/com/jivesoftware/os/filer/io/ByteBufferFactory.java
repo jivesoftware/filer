@@ -12,7 +12,7 @@ public interface ByteBufferFactory {
      * @param size
      * @return
      */
-    ByteBuffer allocate(String key, long size);
+    ByteBuffer allocate(byte[] key, long size);
 
     /**
      * @param key
@@ -20,6 +20,6 @@ public interface ByteBufferFactory {
      * @param newSize
      * @return
      */
-    ByteBuffer reallocate(String key, ByteBuffer oldBuffer, long newSize);
+    ByteBuffer reallocate(byte[] key, ByteBuffer oldBuffer, long newSize);
 
 }

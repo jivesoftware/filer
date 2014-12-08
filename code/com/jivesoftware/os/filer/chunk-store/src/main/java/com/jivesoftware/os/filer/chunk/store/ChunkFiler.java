@@ -1,6 +1,10 @@
-package com.jivesoftware.os.filer.io;
+package com.jivesoftware.os.filer.chunk.store;
 
+import com.jivesoftware.os.filer.io.ConcurrentFiler;
+import com.jivesoftware.os.filer.io.RecycledFilerException;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /*
  This class segments a single Filer into segment filers where
@@ -10,23 +14,52 @@ import java.io.IOException;
 
  @author jonathan.colt
  */
-public class SubsetableFiler implements Filer {
+public class ChunkFiler implements ConcurrentFiler {
 
-    private final Filer filer;
+    private final ChunkStore chunkStore;
+    private final ConcurrentFiler filer;
+    private final long chunkFP;
     private final long startOfFP;
     private final long endOfFP;
     private final long count;
+    private final AtomicLong semaphore = new AtomicLong();
+    private final AtomicBoolean recycle = new AtomicBoolean();
 
-    public SubsetableFiler(Filer filer, long startOfFP, long endOfFP, long count) {
+    ChunkFiler(ChunkStore chunkStore, ConcurrentFiler filer, long chunkFP, long startOfFP, long endOfFP, long count) {
+        this.chunkStore = chunkStore;
         this.filer = filer;
+        this.chunkFP = chunkFP;
         this.startOfFP = startOfFP;
         this.endOfFP = endOfFP;
         this.count = count;
     }
 
+    public long getChunkFP() {
+        return chunkFP;
+    }
+
+    void recycle() {
+        recycle.set(true);
+    }
+
     @Override
-    public Object lock() {
+    public Object lock() throws RecycledFilerException {
+        semaphore.incrementAndGet();
+        if (recycle.get()) {
+            throw new RecycledFilerException("Cannot aquire a lock for a removed filer.");
+        }
         return filer.lock();
+    }
+
+    @Override
+    public void close() throws IOException {
+        long s = semaphore.decrementAndGet();
+        if (isFileBacked()) {
+            filer.close();
+        }
+        if (s == 0 && recycle.get()) {
+            chunkStore.remove(chunkFP);
+        }
     }
 
     @Override
@@ -102,7 +135,7 @@ public class SubsetableFiler implements Filer {
     public void write(byte b[], int _offset, int _len) throws IOException {
         long fp = filer.getFilePointer();
         if (fp < startOfFP || fp > (endOfFP - _len)) {
-            throw new IndexOutOfBoundsException("FP out of bounds " + fp + " " + this);
+            throw new IndexOutOfBoundsException("A write starting at fp:" + fp + " with a  len:" + length() + " will overflow  bounds. " + this);
         }
         filer.write(b, _offset, _len);
     }
@@ -163,17 +196,24 @@ public class SubsetableFiler implements Filer {
     }
 
     @Override
-    final public void close() throws IOException {
-
-        if (isFileBacked()) {
-            filer.close();
-        }
+    final public void flush() throws IOException {
+        filer.flush();
     }
 
     @Override
-    final public void flush() throws IOException {
+    public ConcurrentFiler asConcurrentReadWrite(Object suggestedLock) throws IOException {
+        ConcurrentFiler asConcurrentReadWrite = filer.asConcurrentReadWrite(suggestedLock);
+        return new ChunkFiler(chunkStore, asConcurrentReadWrite, chunkFP, startOfFP, endOfFP, count);
+    }
 
-        filer.flush();
+    @Override
+    public long capacity() throws IOException {
+        return filer.capacity();
+    }
+
+    @Override
+    public void delete() throws IOException {
+        filer.delete(); // Ahhhh cough
     }
 
 }

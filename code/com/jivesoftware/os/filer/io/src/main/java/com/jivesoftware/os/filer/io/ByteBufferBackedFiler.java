@@ -95,6 +95,7 @@ public class ByteBufferBackedFiler implements ConcurrentFiler {
 
     @Override
     public void close() throws IOException {
+
     }
 
     @Override
@@ -113,7 +114,7 @@ public class ByteBufferBackedFiler implements ConcurrentFiler {
     }
 
     @Override
-    public Filer asConcurrentReadWrite(Object suggestedLock) throws IOException {
+    public ConcurrentFiler asConcurrentReadWrite(Object suggestedLock) throws IOException {
         return new ByteBufferBackedFiler(suggestedLock, buffer.duplicate());
     }
 

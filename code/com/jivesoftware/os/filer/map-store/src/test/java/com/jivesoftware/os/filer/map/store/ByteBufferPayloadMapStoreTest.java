@@ -1,6 +1,8 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ByteBufferProvider;
+import com.google.common.base.Charsets;
+import com.jivesoftware.os.filer.io.ByteBufferBackedConcurrentFilerFactory;
+import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
@@ -28,7 +30,8 @@ public class ByteBufferPayloadMapStoreTest {
                 new BytesBytesMapStore<>("8",
                     8,
                     null,
-                    new ByteBufferProviderBackedMapChunkFactory(8, false, 4, false, 10, new ByteBufferProvider("booya", new HeapByteBufferFactory())),
+                    new ConcurrentFilerProviderBackedMapChunkFactory(8, false, 4, false, 10,
+                        new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
                     new KeyValueMarshaller<Long, Integer>() {
 
                         @Override

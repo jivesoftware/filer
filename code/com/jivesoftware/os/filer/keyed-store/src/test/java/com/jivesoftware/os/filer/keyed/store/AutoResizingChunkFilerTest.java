@@ -1,9 +1,11 @@
 package com.jivesoftware.os.filer.keyed.store;
 
+import com.google.common.base.Charsets;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
-import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
-import com.jivesoftware.os.filer.io.ByteBufferProvider;
+import com.jivesoftware.os.filer.chunk.store.MultiChunkStoreInitializer;
+import com.jivesoftware.os.filer.io.ByteBufferBackedConcurrentFilerFactory;
+import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
@@ -11,7 +13,7 @@ import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
-import com.jivesoftware.os.filer.map.store.ByteBufferProviderBackedMapChunkFactory;
+import com.jivesoftware.os.filer.map.store.ConcurrentFilerProviderBackedMapChunkFactory;
 import com.jivesoftware.os.filer.map.store.PartitionedMapChunkBackedMapStore;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,10 +35,13 @@ public class AutoResizingChunkFilerTest {
     @Test(enabled = false)
     public void testConcurrentResizingChunkStore() throws Exception {
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        final MultiChunkStore multiChunkStore = new ChunkStoreInitializer().initializeMultiByteBufferBacked("test", byteBufferFactory, 1, 512, true, 8,
-            new ByteArrayStripingLocksProvider(64));
-        ByteBufferProviderBackedMapChunkFactory mapChunkFactory = new ByteBufferProviderBackedMapChunkFactory(4, false, 8, false, 512,
-            new ByteBufferProvider("test-bbp", byteBufferFactory));
+
+        final MultiChunkStore multiChunkStore = new MultiChunkStoreInitializer(new ChunkStoreInitializer())
+            .initializeMultiByteBufferBacked("test", byteBufferFactory, 1, 512, true, 8, 64);
+        ConcurrentFilerProvider concurrentFilerProvider = new ConcurrentFilerProvider("test".getBytes(Charsets.UTF_8),
+            new ByteBufferBackedConcurrentFilerFactory(byteBufferFactory));
+        ConcurrentFilerProviderBackedMapChunkFactory mapChunkFactory = new ConcurrentFilerProviderBackedMapChunkFactory(4, false, 8, false, 512,
+            concurrentFilerProvider);
         final PartitionedMapChunkBackedMapStore<IBA, IBA> mapStore = new PartitionedMapChunkBackedMapStore<>(
             mapChunkFactory,
             new StripingLocksProvider<String>(8),
@@ -145,10 +150,12 @@ public class AutoResizingChunkFilerTest {
     @Test(enabled = false)
     public void testConcurrentSwappingChunkStore() throws Exception {
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        final MultiChunkStore multiChunkStore = new ChunkStoreInitializer().initializeMultiByteBufferBacked(
-            "test-chunk", byteBufferFactory, 1, 512, true, 8, new ByteArrayStripingLocksProvider(64));
-        ByteBufferProviderBackedMapChunkFactory mapChunkFactory = new ByteBufferProviderBackedMapChunkFactory(4, false, 8, false, 512,
-            new ByteBufferProvider("test-bbp", byteBufferFactory));
+        final MultiChunkStore multiChunkStore = new MultiChunkStoreInitializer(new ChunkStoreInitializer()).initializeMultiByteBufferBacked(
+            "test-chunk", byteBufferFactory, 1, 512, true, 8, 64);
+        ConcurrentFilerProvider concurrentFilerProvider = new ConcurrentFilerProvider("test".getBytes(Charsets.UTF_8),
+            new ByteBufferBackedConcurrentFilerFactory(byteBufferFactory));
+        ConcurrentFilerProviderBackedMapChunkFactory mapChunkFactory = new ConcurrentFilerProviderBackedMapChunkFactory(4, false, 8, false, 512,
+            concurrentFilerProvider);
         KeyPartitioner<IBA> keyPartitioner = new KeyPartitioner<IBA>() {
             @Override
             public String keyPartition(IBA key) {

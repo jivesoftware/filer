@@ -25,6 +25,16 @@
             <artifactId>io</artifactId>
             <type>jar</type>
         </dependency>
+        <dependency>
+            <groupId>com.jivesoftware.os.filer</groupId>
+            <artifactId>map-store</artifactId>
+            <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
+            <type>jar</type>
+        </dependency>
     </dependencies>
 
 </project>

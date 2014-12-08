@@ -143,7 +143,7 @@ public class RandomAccessFiler extends RandomAccessFile implements ConcurrentFil
     }
 
     @Override
-    public Filer asConcurrentReadWrite(Object suggestedLock) throws IOException {
+    public ConcurrentFiler asConcurrentReadWrite(Object suggestedLock) throws IOException {
         return this;
     }
 

@@ -1,11 +1,9 @@
 package com.jivesoftware.os.filer.map.store;
 
-//!! POORLY TESTING
-
-import com.jivesoftware.os.filer.io.ByteBufferProvider;
+import com.jivesoftware.os.filer.io.ConcurrentFiler;
+import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.map.store.extractors.IndexStream;
-import java.nio.ByteBuffer;
-import java.nio.MappedByteBuffer;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
 
@@ -84,21 +82,22 @@ public class MapStore {
         return (int) (maxCount + (maxCount - (maxCount * cSetDensity)));
     }
 
-    public ByteBuffer allocateBuffer(int maxCount,
+    public <F extends ConcurrentFiler> F allocateFiler(int maxCount,
         int keySize,
         boolean variableKeySizes,
         int payloadSize,
         boolean variablePayloadSizes,
-        ByteBufferProvider byteBufferProvider) {
+        ConcurrentFilerProvider<F> concurrentFilerProvider) throws IOException {
 
         byte keyLengthSize = keyLengthSize(variableKeySizes ? keySize : 0);
         byte payloadLengthSize = keyLengthSize(variablePayloadSizes ? payloadSize : 0);
 
         int arraySize = cost(maxCount, keyLengthSize + keySize, payloadLengthSize + payloadSize);
-        return byteBufferProvider.allocate(arraySize);
+        return concurrentFilerProvider.allocate(arraySize);
     }
 
     /**
+     * @param <F>
      * @param pageVersion
      * @param pageFamily
      * @param id
@@ -108,10 +107,11 @@ public class MapStore {
      * @param variableKeySizes
      * @param payloadSize
      * @param variablePayloadSizes
-     * @param byteBufferProvider
      * @return
+     * @throws java.io.IOException
      */
-    public MapChunk allocate(byte pageFamily,
+    public <F extends ConcurrentFiler> MapChunk<F> bootstrapAllocatedFiler(
+        byte pageFamily,
         byte pageVersion,
         byte[] id,
         long version,
@@ -120,7 +120,7 @@ public class MapStore {
         boolean variableKeySizes,
         int payloadSize,
         boolean variablePayloadSizes,
-        ByteBufferProvider byteBufferProvider) {
+        F filer) throws IOException {
 
         if (id == null || id.length != cIdSize) {
             throw new RuntimeException("Malformed ID");
@@ -130,7 +130,61 @@ public class MapStore {
         byte keyLengthSize = keyLengthSize(variableKeySizes ? keySize : 0);
         byte payloadLengthSize = keyLengthSize(variablePayloadSizes ? payloadSize : 0);
 
-        MapChunk page = new MapChunk(allocateBuffer(maxCount, keySize, variableKeySizes, payloadSize, variablePayloadSizes, byteBufferProvider));
+        MapChunk<F> page = new MapChunk<>(filer);
+
+        setPageFamily(page, pageFamily);
+        setPageVersion(page, pageVersion);
+        setId(page, id);
+        setVersion(page, version);
+        setCount(page, 0);
+        setMaxCount(page, maxCount);
+        setCapacity(page, maxCapacity); // good to use prime
+
+        setKeySize(page, keySize);
+        setKeyLengthSize(page, keyLengthSize);
+        setPayloadSize(page, payloadSize);
+        setPayloadLengthSize(page, payloadLengthSize);
+        page.init(this);
+        return page;
+    }
+
+    /**
+     * @param <F>
+     * @param pageVersion
+     * @param pageFamily
+     * @param id
+     * @param version
+     * @param maxCount
+     * @param keySize
+     * @param variableKeySizes
+     * @param payloadSize
+     * @param variablePayloadSizes
+     * @param concurrentFilerProvider
+     * @return
+     * @throws java.io.IOException
+     */
+    @Deprecated
+    public <F extends ConcurrentFiler> MapChunk<F> allocate(
+        byte pageFamily,
+        byte pageVersion,
+        byte[] id,
+        long version,
+        int maxCount,
+        int keySize,
+        boolean variableKeySizes,
+        int payloadSize,
+        boolean variablePayloadSizes,
+        ConcurrentFilerProvider<F> concurrentFilerProvider) throws IOException {
+
+        if (id == null || id.length != cIdSize) {
+            throw new RuntimeException("Malformed ID");
+        }
+        int maxCapacity = calculateCapacity(maxCount);
+
+        byte keyLengthSize = keyLengthSize(variableKeySizes ? keySize : 0);
+        byte payloadLengthSize = keyLengthSize(variablePayloadSizes ? payloadSize : 0);
+
+        MapChunk<F> page = new MapChunk<>(allocateFiler(maxCount, keySize, variableKeySizes, payloadSize, variablePayloadSizes, concurrentFilerProvider));
 
         setPageFamily(page, pageFamily);
         setPageVersion(page, pageVersion);
@@ -161,44 +215,45 @@ public class MapStore {
     }
 
     /**
+     * @param <F>
      * @param page
      * @return
      */
-    public byte getFamily(MapChunk page) {
-        return read(page.array, cPageFamilyOffset);
+    public <F extends ConcurrentFiler> byte getFamily(MapChunk<F> page) throws IOException {
+        return page.read(cPageFamilyOffset);
     }
 
     /**
      * @param page
      * @param family
      */
-    public void setPageFamily(MapChunk page, byte family) {
-        write(page.array, cPageFamilyOffset, family);
+    public <F extends ConcurrentFiler> void setPageFamily(MapChunk<F> page, byte family) throws IOException {
+        page.write(cPageFamilyOffset, family);
     }
 
     /**
      * @param page
      * @return
      */
-    public byte getPageVersion(MapChunk page) { //?? hacky
-        return read(page.array, cPageVersionOffset);
+    public <F extends ConcurrentFiler> byte getPageVersion(MapChunk<F> page) throws IOException {
+        return page.read(cPageVersionOffset);
     }
 
     /**
      * @param page
      * @param family
      */
-    public void setPageVersion(MapChunk page, byte family) {
-        write(page.array, cPageVersionOffset, family);
+    public <F extends ConcurrentFiler> void setPageVersion(MapChunk<F> page, byte family) throws IOException {
+        page.write(cPageVersionOffset, family);
     }
 
     /**
      * @param page
      * @return
      */
-    public byte[] getId(MapChunk page) {
+    public <F extends ConcurrentFiler> byte[] getId(MapChunk<F> page) throws IOException {
         byte[] id = new byte[cIdSize];
-        read(page.array, cIdOffset, id, 0, cIdSize);
+        page.read(cIdOffset, id, 0, cIdSize);
         return id;
     }
 
@@ -206,24 +261,24 @@ public class MapStore {
      * @param page
      * @param id
      */
-    public void setId(MapChunk page, byte[] id) {
-        write(page.array, cIdSize, id, 0, cIdSize);
+    public <F extends ConcurrentFiler> void setId(MapChunk<F> page, byte[] id) throws IOException {
+        page.write(cIdSize, id, 0, cIdSize);
     }
 
     /**
      * @param page
      * @return
      */
-    public long getVersion(MapChunk page) {
-        return readLong(page.array, cVersionOffset);
+    public <F extends ConcurrentFiler> long getVersion(MapChunk<F> page) throws IOException {
+        return page.readLong(cVersionOffset);
     }
 
     /**
      * @param page
      * @param version
      */
-    public void setVersion(MapChunk page, long version) {
-        write(page.array, cVersionOffset, longBytes(version, new byte[8], 0), 0, 8); // todo  refactor to use writeLong(
+    public <F extends ConcurrentFiler> void setVersion(MapChunk<F> page, long version) throws IOException {
+        page.write(cVersionOffset, longBytes(version, new byte[8], 0), 0, 8); // todo  refactor to use writeLong(
     }
 
     private byte[] longBytes(long v, byte[] _bytes, int _offset) {
@@ -242,103 +297,112 @@ public class MapStore {
      * @param page
      * @return
      */
-    public long getCount(MapChunk page) {
-        return readInt(page.array, cCountOffset);
+    public <F extends ConcurrentFiler> long getCount(MapChunk<F> page) throws IOException {
+        return page.readInt(cCountOffset);
+    }
+
+    public <F extends ConcurrentFiler> boolean isFull(MapChunk<F> page) throws IOException {
+        return getCount(page) >= page.maxCount;
+    }
+
+    public <F extends ConcurrentFiler> int nextGrowSize(MapChunk<F> page) throws IOException {
+        return page.maxCount * 2;
     }
 
     /**
      * @param page
      * @return
      */
-    public long getFreeCount(MapChunk page) {
+    public <F extends ConcurrentFiler> long getFreeCount(MapChunk<F> page) throws IOException {
         return getMaxCount(page) - getCount(page);
     }
 
-    private void setCount(MapChunk page, long v) {
-        writeInt(page.array, cCountOffset, (int) v);
+    private <F extends ConcurrentFiler> void setCount(MapChunk<F> page, long v) throws IOException {
+        page.writeInt(cCountOffset, (int) v);
     }
 
     /**
      * @param page
      * @return
      */
-    public int getMaxCount(MapChunk page) {
-        return readInt(page.array, cMaxCountOffset);
+    public <F extends ConcurrentFiler> int getMaxCount(MapChunk<F> page) throws IOException {
+        return page.readInt(cMaxCountOffset);
     }
 
-    private void setMaxCount(MapChunk page, int v) {
-        writeInt(page.array, cMaxCountOffset, v);
-    }
-
-    /**
-     * @param page
-     * @return
-     */
-    public int getCapacity(MapChunk page) {
-        return readInt(page.array, cCapacityOffset);
-    }
-
-    private void setCapacity(MapChunk page, int v) {
-        writeInt(page.array, cCapacityOffset, v);
+    private <F extends ConcurrentFiler> void setMaxCount(MapChunk<F> page, int v) throws IOException {
+        page.writeInt(cMaxCountOffset, v);
     }
 
     /**
      * @param page
      * @return
      */
-    public int getKeySize(MapChunk page) {
-        return readInt(page.array, cKeySizeOffset);
+    public <F extends ConcurrentFiler> int getCapacity(MapChunk<F> page) throws IOException {
+        return page.readInt(cCapacityOffset);
     }
 
-    private void setKeySize(MapChunk page, int v) {
-        writeInt(page.array, cKeySizeOffset, v);
-    }
-
-    public byte getKeyLengthSize(MapChunk page) {
-        return read(page.array, cKeySizeVariableOffset);
-    }
-
-    private void setKeyLengthSize(MapChunk page, byte v) {
-        write(page.array, cKeySizeVariableOffset, v);
+    private <F extends ConcurrentFiler> void setCapacity(MapChunk<F> page, int v) throws IOException {
+        page.writeInt(cCapacityOffset, v);
     }
 
     /**
      * @param page
      * @return
      */
-    public int getPayloadSize(MapChunk page) {
-        return readInt(page.array, cPayloadSizeOffset);
+    public <F extends ConcurrentFiler> int getKeySize(MapChunk<F> page) throws IOException {
+        return page.readInt(cKeySizeOffset);
     }
 
-    private void setPayloadSize(MapChunk page, int v) {
-        writeInt(page.array, cPayloadSizeOffset, v);
+    private <F extends ConcurrentFiler> void setKeySize(MapChunk<F> page, int v) throws IOException {
+        page.writeInt(cKeySizeOffset, v);
     }
 
-    public byte getPayloadLengthSize(MapChunk page) {
-        return read(page.array, cPayloadSizeVariableOffset);
+    public <F extends ConcurrentFiler> byte getKeyLengthSize(MapChunk<F> page) throws IOException {
+        return page.read(cKeySizeVariableOffset);
     }
 
-    private void setPayloadLengthSize(MapChunk page, byte v) {
-        write(page.array, cPayloadSizeVariableOffset, v);
+    private <F extends ConcurrentFiler> void setKeyLengthSize(MapChunk<F> page, byte v) throws IOException {
+        page.write(cKeySizeVariableOffset, v);
+    }
+
+    /**
+     * @param page
+     * @return
+     */
+    public <F extends ConcurrentFiler> int getPayloadSize(MapChunk<F> page) throws IOException {
+        return page.readInt(cPayloadSizeOffset);
+    }
+
+    private <F extends ConcurrentFiler> void setPayloadSize(MapChunk<F> page, int v) throws IOException {
+        page.writeInt(cPayloadSizeOffset, v);
+    }
+
+    public <F extends ConcurrentFiler> byte getPayloadLengthSize(MapChunk<F> page) throws IOException {
+        return page.read(cPayloadSizeVariableOffset);
+    }
+
+    private <F extends ConcurrentFiler> void setPayloadLengthSize(MapChunk<F> page, byte v) throws IOException {
+        page.write(cPayloadSizeVariableOffset, v);
     }
 
     private long index(long _arrayIndex, int entrySize) {
         return cHeaderSize + (1 + entrySize) * _arrayIndex;
     }
 
-    public int add(MapChunk page, byte mode, byte[] key, byte[] payload) {
+    public <F extends ConcurrentFiler> int add(MapChunk<F> page, byte mode, byte[] key, byte[] payload) throws IOException {
         return add(page, mode, key, 0, payload, 0);
     }
 
-    public int add(MapChunk page, byte mode, long keyHash, byte[] key, byte[] payload) {
+    public <F extends ConcurrentFiler> int add(MapChunk<F> page, byte mode, long keyHash, byte[] key, byte[] payload) throws IOException {
         return add(page, mode, keyHash, key, 0, payload, 0);
     }
 
-    public int add(MapChunk page, byte mode, byte[] key, int keyOffset, byte[] payload, int _payloadOffset) {
+    public <F extends ConcurrentFiler> int add(MapChunk<F> page, byte mode, byte[] key, int keyOffset, byte[] payload, int _payloadOffset) throws IOException {
         return add(page, mode, hash(key, keyOffset, key.length), key, keyOffset, payload, _payloadOffset);
     }
 
-    public int add(MapChunk page, byte mode, long keyHash, byte[] key, int keyOffset, byte[] payload, int _payloadOffset) {
+    public <F extends ConcurrentFiler> int add(MapChunk<F> page, byte mode, long keyHash, byte[] key, int keyOffset, byte[] payload, int _payloadOffset)
+        throws IOException {
         int capacity = page.capacity;
         if (getCount(page) >= page.maxCount) {
             throw new OverCapacityException(getCount(page) + " > " + page.maxCount);
@@ -346,19 +410,19 @@ public class MapStore {
         int keySize = page.keySize;
         int payloadSize = page.payloadSize;
         for (long i = keyHash % (capacity - 1), j = 0, k = capacity; // stack vars for efficiency
-             j < k; // max search for available slot
-             i = (++i) % k, j++) { // wraps around table
+            j < k; // max search for available slot
+            i = (++i) % k, j++) { // wraps around table
 
             long ai = index(i, page.entrySize);
-            if (read(page.array, (int) ai) == cNull || read(page.array, (int) ai) == cSkip) {
-                write(page.array, (int) ai, mode);
+            if (page.read((int) ai) == cNull || page.read((int) ai) == cSkip) {
+                page.write((int) ai, mode);
                 write(page, (int) (ai + 1), page.keyLengthSize, key, keySize, keyOffset);
                 write(page, (int) (ai + 1 + page.keyLengthSize + keySize), page.payloadLengthSize, payload, payloadSize, _payloadOffset);
                 setCount(page, getCount(page) + 1);
                 return (int) i;
             }
-            if (equals(page.array, ai, page.keyLengthSize, key.length, key, keyOffset)) {
-                write(page.array, (int) ai, mode);
+            if (equals(page, ai, page.keyLengthSize, key.length, key, keyOffset)) {
+                page.write((int) ai, mode);
                 write(page, (int) (ai + 1 + page.keyLengthSize + keySize), page.payloadLengthSize, payload, payloadSize, _payloadOffset);
                 return (int) i;
             }
@@ -366,23 +430,23 @@ public class MapStore {
         return -1;
     }
 
-    private void write(MapChunk page, int offest, int length, byte[] key, int size, int keyOffset) {
+    private <F extends ConcurrentFiler> void write(MapChunk<F> page, int offest, int length, byte[] key, int size, int keyOffset) throws IOException {
 
         if (length == 0) {
         } else if (length == 1) {
-            write(page.array, offest, (byte) key.length);
+            page.write(offest, (byte) key.length);
         } else if (length == 2) {
-            writeUnsignedShort(page.array, offest, key.length);
+            page.writeUnsignedShort(offest, key.length);
         } else if (length == 4) {
-            writeInt(page.array, offest, key.length);
+            page.writeInt(offest, key.length);
         } else {
             throw new RuntimeException("Unssuprted length. 0,1,2,4 valid but encounterd:" + length);
         }
-        write(page.array, offest + length, key, keyOffset, key.length);
+        page.write(offest + length, key, keyOffset, key.length);
 
         int padding = size - key.length;
         if (padding > 0) {
-            write(page.array, offest + length + key.length, new byte[padding], 0, padding);
+            page.write(offest + length + key.length, new byte[padding], 0, padding);
         }
     }
 
@@ -391,7 +455,7 @@ public class MapStore {
      * @param _key
      * @return
      */
-    public boolean contains(MapChunk page, byte[] _key) {
+    public <F extends ConcurrentFiler> boolean contains(MapChunk<F> page, byte[] _key) throws IOException {
         return get(page, _key) != -1;
     }
 
@@ -409,15 +473,15 @@ public class MapStore {
      * @param i
      * @return
      */
-    public byte[] getKeyAtIndex(MapChunk page, long i) {
+    public <F extends ConcurrentFiler> byte[] getKeyAtIndex(MapChunk<F> page, long i) throws IOException {
         if (i < 0 || i >= page.capacity) {
             throw new RuntimeException("Requested index (" + i + ") is out of bounds (0->" + (getCapacity(page) - 1) + ")");
         }
         long ai = index(i, page.entrySize);
-        if (read(page.array, (int) ai) == cSkip) {
+        if (page.read((int) ai) == cSkip) {
             return null;
         }
-        if (read(page.array, (int) ai) == cNull) {
+        if (page.read((int) ai) == cNull) {
             return null;
         }
         return getKey(page, i);
@@ -438,15 +502,15 @@ public class MapStore {
      * @param i
      * @return
      */
-    public byte[] getPayloadAtIndex(MapChunk page, int i) {
+    public <F extends ConcurrentFiler> byte[] getPayloadAtIndex(MapChunk<F> page, int i) throws IOException {
         if (i < 0 || i >= page.capacity) {
             throw new RuntimeException("Requested index (" + i + ") is out of bounds (0->" + (getCapacity(page) - 1) + ")");
         }
         long ai = index(i, page.entrySize);
-        if (read(page.array, (int) ai) == cSkip) {
+        if (page.read((int) ai) == cSkip) {
             return null;
         }
-        if (read(page.array, (int) ai) == cNull) {
+        if (page.read((int) ai) == cNull) {
             return null;
         }
         return getPayload(page, i);
@@ -460,142 +524,144 @@ public class MapStore {
      * @param _poffset
      * @param _plength
      */
-    public void setPayloadAtIndex(MapChunk page, long i, int _destOffset, byte[] payload, int _poffset, int _plength) {
+    public <F extends ConcurrentFiler> void setPayloadAtIndex(MapChunk<F> page, long i, int _destOffset, byte[] payload, int _poffset, int _plength)
+        throws IOException {
         if (i < 0 || i >= page.capacity) {
             throw new RuntimeException("Requested index (" + i + ") is out of bounds (0->" + (getCapacity(page) - 1) + ")");
         }
         long ai = index(i, page.entrySize);
-        if (read(page.array, (int) ai) == cSkip) {
+        if (page.read((int) ai) == cSkip) {
             return;
         }
-        if (read(page.array, (int) ai) == cNull) {
+        if (page.read((int) ai) == cNull) {
             return;
         }
         write(page, (int) (ai + 1 + page.keyLengthSize + page.keySize) + _destOffset, page.payloadLengthSize, payload, page.payloadSize, _poffset);
     }
 
-    public byte[] getPayload(MapChunk page, byte[] key) {
+    public <F extends ConcurrentFiler> byte[] getPayload(MapChunk<F> page, byte[] key) throws IOException {
         long i = get(page, key);
         return (i == -1) ? null : getPayload(page, i);
     }
 
     /**
+     * @param <F>
      * @param page
      * @param key
      * @return
      */
-    public long get(MapChunk page, byte[] key) {
+    public <F extends ConcurrentFiler> long get(MapChunk<F> page, byte[] key) throws IOException {
         return get(page, key, 0);
     }
 
-    public long get(MapChunk page, long keyHash, byte[] key) {
+    public <F extends ConcurrentFiler> long get(MapChunk<F> page, long keyHash, byte[] key) throws IOException {
         return get(page, keyHash, key, 0);
     }
 
-    public long get(MapChunk page, byte[] key, int keyOffset) {
+    public <F extends ConcurrentFiler> long get(MapChunk<F> page, byte[] key, int keyOffset) throws IOException {
         return get(page, hash(key, keyOffset, key.length), key, keyOffset);
     }
 
-    public long get(MapChunk page, long keyHash, byte[] key, int keyOffset) {
+    public <F extends ConcurrentFiler> long get(MapChunk<F> page, long keyHash, byte[] key, int keyOffset) throws IOException {
         if (key == null || key.length == 0) {
             return -1;
         }
         int entrySize = page.entrySize;
         int capacity = page.capacity;
         for (long i = keyHash % (capacity - 1), j = 0, k = capacity; // stack vars for efficiency
-             j < k; // max search for key
-             i = (++i) % k, j++) { // wraps around table
+            j < k; // max search for key
+            i = (++i) % k, j++) { // wraps around table
 
             long ai = index(i, entrySize);
-            byte mode = read(page.array, (int) ai);
+            byte mode = page.read((int) ai);
             if (mode == cSkip) {
                 continue;
             }
             if (mode == cNull) {
                 return -1;
             }
-            if (equals(page.array, ai, page.keyLengthSize, key.length, key, keyOffset)) {
+            if (equals(page, ai, page.keyLengthSize, key.length, key, keyOffset)) {
                 return i;
             }
         }
         return -1;
     }
 
-    public byte getMode(MapChunk page, long i) {
+    public <F extends ConcurrentFiler> byte getMode(MapChunk<F> page, long i) throws IOException {
         long ai = index(i, page.entrySize);
-        return read(page.array, ai);
+        return page.read(ai);
     }
 
-    public byte[] getKey(MapChunk page, long i) {
+    public <F extends ConcurrentFiler> byte[] getKey(MapChunk<F> page, long i) throws IOException {
         long ai = index(i, page.entrySize);
         int length = length(page, page.keyLengthSize, page.keySize, ai + 1);
         byte[] k = new byte[length];
-        read(page.array, (int) ai + 1 + page.keyLengthSize, k, 0, length);
+        page.read((int) ai + 1 + page.keyLengthSize, k, 0, length);
         return k;
     }
 
-    private int length(MapChunk page, byte lengthSize, int size, long i) {
+    private <F extends ConcurrentFiler> int length(MapChunk<F> page, byte lengthSize, int size, long i) throws IOException {
         if (lengthSize == 0) {
             return size;
         } else if (lengthSize == 1) {
-            return read(page.array, i);
+            return page.read(i);
         } else if (lengthSize == 2) {
-            return readUnsignedShort(page.array, i);
+            return page.readUnsignedShort(i);
         } else {
-            return readInt(page.array, i);
+            return page.readInt(i);
         }
     }
 
-    public byte[] getPayload(MapChunk page, long i) {
+    public <F extends ConcurrentFiler> byte[] getPayload(MapChunk<F> page, long i) throws IOException {
         long ai = index(i, page.entrySize);
         long offest = ai + 1 + page.keyLengthSize + page.keySize;
         int length = length(page, page.payloadLengthSize, page.payloadSize, offest);
         byte[] p = new byte[length];
-        read(page.array, (int) offest + page.payloadLengthSize, p, 0, length);
+        page.read((int) offest + page.payloadLengthSize, p, 0, length);
         return p;
     }
 
-    public int remove(MapChunk page, byte[] key) {
+    public <F extends ConcurrentFiler> int remove(MapChunk<F> page, byte[] key) throws IOException {
         return remove(page, key, 0);
     }
 
-    public int remove(MapChunk page, long keyHash, byte[] key) {
+    public <F extends ConcurrentFiler> int remove(MapChunk<F> page, long keyHash, byte[] key) throws IOException {
         return remove(page, keyHash, key, 0);
     }
 
-    public int remove(MapChunk page, byte[] key, int keyOffset) {
+    public <F extends ConcurrentFiler> int remove(MapChunk<F> page, byte[] key, int keyOffset) throws IOException {
         return remove(page, hash(key, 0, key.length), key, keyOffset);
     }
 
-    public int remove(MapChunk page, long keyHash, byte[] key, int keyOffset) {
+    public <F extends ConcurrentFiler> int remove(MapChunk<F> page, long keyHash, byte[] key, int keyOffset) throws IOException {
         if (key == null || key.length == 0) {
             return -1;
         }
         int capacity = page.capacity;
         int entrySize = page.entrySize;
         for (long i = keyHash % (capacity - 1), j = 0, k = capacity; // stack vars for efficiency
-             j < k; // max search for key
-             i = (++i) % k, j++) { // wraps around table
+            j < k; // max search for key
+            i = (++i) % k, j++) { // wraps around table
 
             long ai = index(i, page.entrySize);
-            if (read(page.array, (int) ai) == cSkip) {
+            if (page.read((int) ai) == cSkip) {
                 continue;
             }
-            if (read(page.array, (int) ai) == cNull) {
+            if (page.read((int) ai) == cNull) {
                 return -1;
             }
-            if (equals(page.array, ai, page.keyLengthSize, key.length, key, keyOffset)) {
+            if (equals(page, ai, page.keyLengthSize, key.length, key, keyOffset)) {
                 long next = (i + 1) % k;
-                if (read(page.array, (int) index(next, entrySize)) == cNull) {
+                if (page.read((int) index(next, entrySize)) == cNull) {
                     for (long z = i; z >= 0; z--) {
-                        if (read(page.array, (int) index(z, entrySize)) != cSkip) {
+                        if (page.read((int) index(z, entrySize)) != cSkip) {
                             break;
                         }
-                        write(page.array, (int) index(z, entrySize), cNull);
+                        page.write((int) index(z, entrySize), cNull);
                     }
-                    write(page.array, (int) index(i, entrySize), cNull);
+                    page.write((int) index(i, entrySize), cNull);
                 } else {
-                    write(page.array, (int) index(i, entrySize), cSkip);
+                    page.write((int) index(i, entrySize), cSkip);
                 }
                 setCount(page, getCount(page) - 1);
                 return (int) i;
@@ -610,16 +676,16 @@ public class MapStore {
      * @param page
      * @param _callback
      */
-    public <R, E extends Exception> void get(MapChunk page, IndexStream<E> _callback) {
+    public <F extends ConcurrentFiler, R, E extends Exception> void get(MapChunk<F> page, IndexStream<E> _callback) {
         try {
             int capacity = page.capacity;
             long count = getCount(page);
             for (int i = 0; i < capacity; i++) {
                 long ai = index(i, page.entrySize);
-                if (read(page.array, (int) ai) == cNull) {
+                if (page.read((int) ai) == cNull) {
                     continue;
                 }
-                if (read(page.array, (int) ai) == cSkip) {
+                if (page.read((int) ai) == cSkip) {
                     continue;
                 }
                 count--;
@@ -642,7 +708,7 @@ public class MapStore {
      * @param to
      * @param stream
      */
-    public void copyTo(MapChunk from, MapChunk to, CopyToStream stream) {
+    public <F extends ConcurrentFiler> void copyTo(MapChunk<F> from, MapChunk<F> to, CopyToStream stream) throws IOException {
         int fcapacity = from.capacity;
         int fkeySize = from.keySize;
         int fpayloadSize = from.payloadSize;
@@ -665,7 +731,7 @@ public class MapStore {
 
         for (int fromIndex = 0; fromIndex < fcapacity; fromIndex++) {
             long ai = index(fromIndex, from.entrySize);
-            byte mode = read(from.array, (int) ai);
+            byte mode = from.read((int) ai);
             if (mode == cNull) {
                 continue;
             }
@@ -691,20 +757,22 @@ public class MapStore {
     }
 
     /**
+     * @param <F>
      * @param page
+     * @throws java.io.IOException
      */
-    public void toSysOut(MapChunk page) {
+    public <F extends ConcurrentFiler> void toSysOut(MapChunk<F> page) throws IOException {
         try {
             int capacity = page.capacity;
             int keySize = page.keySize;
             int payloadSize = page.payloadSize;
             for (int i = 0; i < capacity; i++) {
                 long ai = index(i, page.entrySize);
-                if (read(page.array, (int) ai) == cNull) {
+                if (page.read((int) ai) == cNull) {
                     System.out.println("\t" + i + "): null");
                     continue;
                 }
-                if (read(page.array, (int) ai) == cSkip) {
+                if (page.read((int) ai) == cSkip) {
                     System.out.println("\t" + i + "): skip");
                     continue;
                 }
@@ -736,7 +804,7 @@ public class MapStore {
         return Math.abs(hash);
     }
 
-    public Iterator<Entry> iterator(final MapChunk page) {
+    public <F extends ConcurrentFiler> Iterator<Entry> iterator(final MapChunk<F> page) {
         return new Iterator<Entry>() {
 
             private int index = 0;
@@ -762,13 +830,17 @@ public class MapStore {
             }
 
             private void seekNext() {
-                while (index < page.capacity && key == null) {
-                    key = getKeyAtIndex(page, index);
-                    if (key != null) {
-                        payload = getPayloadAtIndex(page, index);
-                        payloadIndex = index;
+                try {
+                    while (index < page.capacity && key == null) {
+                        key = getKeyAtIndex(page, index);
+                        if (key != null) {
+                            payload = getPayloadAtIndex(page, index);
+                            payloadIndex = index;
+                        }
+                        index++;
                     }
-                    index++;
+                } catch (Exception x) {
+                    throw new RuntimeException("Failed to seekNext:" + x);
                 }
             }
 
@@ -801,9 +873,13 @@ public class MapStore {
             }
 
             private void seekNext() {
-                while (index < page.capacity && key == null) {
-                    key = getKeyAtIndex(page, index);
-                    index++;
+                try {
+                    while (index < page.capacity && key == null) {
+                        key = getKeyAtIndex(page, index);
+                        index++;
+                    }
+                } catch (Exception x) {
+                    throw new RuntimeException("Failed to seekNext:" + x);
                 }
             }
 
@@ -829,137 +905,26 @@ public class MapStore {
 
     /**
      * @param pageStart
-     * @return
-     */
-    byte read(ByteBuffer array, long pageStart) {
-        return array.get((int) pageStart);
-    }
-
-    /**
-     * @param pageStart
-     * @return
-     */
-    int readUnsingedByte(ByteBuffer array, long pageStart) {
-        return array.get((int) pageStart);
-    }
-
-    /**
-     * @param pageStart
-     * @param v
-     */
-    void write(ByteBuffer array, long pageStart, byte v) {
-        array.put((int) pageStart, v);
-    }
-
-    /**
-     * @param pageStart
-     * @return
-     */
-    int readShort(ByteBuffer array, long pageStart) {
-        return array.getShort((int) pageStart);
-    }
-
-    /**
-     * @param pageStart
-     * @return
-     */
-    int readUnsignedShort(ByteBuffer array, long pageStart) {
-        int v = 0;
-        v |= (array.get((int) pageStart) & 0xFF);
-        v <<= 8;
-        v |= (array.get((int) pageStart + 1) & 0xFF);
-        return v;
-    }
-
-    /**
-     * @param pageStart
-     * @return
-     */
-    int readInt(ByteBuffer array, long pageStart) {
-        return array.getInt((int) pageStart);
-    }
-
-    /**
-     * @param pageStart
-     * @return
-     */
-    float readFloat(ByteBuffer array, long pageStart) {
-        return array.getFloat((int) pageStart);
-    }
-
-    /**
-     * @param pageStart
-     * @return
-     */
-    long readLong(ByteBuffer array, long pageStart) {
-        return array.getLong((int) pageStart);
-    }
-
-    /**
-     * @param pageStart
-     * @return
-     */
-    double readDouble(ByteBuffer array, long pageStart) {
-        return array.getDouble((int) pageStart);
-    }
-
-    void writeUnsignedShort(ByteBuffer array, long pageStart, int v) {
-        array.put((int) pageStart, (byte) (v >>> 8));
-        array.put((int) pageStart + 1, (byte) v);
-    }
-
-    /**
-     * @param pageStart
-     * @param v
-     */
-    void writeInt(ByteBuffer array, long pageStart, int v) {
-        array.putInt((int) pageStart, v);
-    }
-
-    /**
-     * @param pageStart
-     * @param read
-     * @param offset
-     * @param length
-     */
-    void read(ByteBuffer array, int pageStart, byte[] read, int offset, int length) {
-        array.position(pageStart);
-        array.get(read, offset, length);
-    }
-
-    /**
-     * @param pageStart
-     * @param towrite
-     * @param offest
-     * @param length
-     */
-    void write(ByteBuffer array, int pageStart, byte[] towrite, int offest, int length) {
-        array.position(pageStart);
-        array.put(towrite, offest, length);
-    }
-
-    /**
-     * @param pageStart
      * @param keySize
      * @param b
      * @param boffset
      * @return
      */
-    boolean equals(ByteBuffer array, long pageStart, int keyLength, int keySize, byte[] b, int boffset) {
+    <F extends ConcurrentFiler> boolean equals(MapChunk<F> page, long pageStart, int keyLength, int keySize, byte[] b, int boffset) throws IOException {
         pageStart++; // remove mode byte
         if (keyLength == 0) {
         } else if (keyLength == 1) {
-            if (array.get((int) (pageStart)) != keySize) {
+            if (page.read(pageStart) != keySize) {
                 return false;
             }
             pageStart++;
         } else if (keyLength == 2) {
-            if (readUnsignedShort(array, pageStart) != keySize) {
+            if (page.readUnsignedShort(pageStart) != keySize) {
                 return false;
             }
             pageStart += 2;
         } else if (keyLength == 4) {
-            if (array.getInt((int) (pageStart)) != keySize) {
+            if (page.readInt((int) (pageStart)) != keySize) {
                 return false;
             }
             pageStart += 4;
@@ -968,30 +933,10 @@ public class MapStore {
         }
         for (int i = 0; i < keySize; i++) {
             int pageIndex = (int) (pageStart + i);
-            if (array.get(pageIndex) != b[boffset + i]) {
+            if (page.read(pageIndex) != b[boffset + i]) {
                 return false;
             }
         }
         return true;
     }
-
-    /**
-     * @return
-     */
-    boolean isLoaded(ByteBuffer array) {
-        if (array instanceof MappedByteBuffer) {
-            return ((MappedByteBuffer) array).isLoaded();
-        }
-        return true;
-    }
-
-    /**
-     *
-     */
-    void force(ByteBuffer array) {
-        if (array instanceof MappedByteBuffer) {
-            ((MappedByteBuffer) array).force();
-        }
-    }
-
 }

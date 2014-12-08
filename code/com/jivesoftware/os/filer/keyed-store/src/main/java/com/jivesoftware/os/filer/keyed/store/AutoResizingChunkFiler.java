@@ -5,6 +5,7 @@ import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.IBA;
+import com.jivesoftware.os.filer.io.RecycledFilerException;
 import com.jivesoftware.os.filer.map.store.PartitionedMapChunkBackedMapStore;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -56,7 +57,7 @@ public class AutoResizingChunkFiler implements Filer {
     }
 
     @Override
-    public Object lock() {
+    public Object lock() throws RecycledFilerException {
         return filerReference.get().lock();
     }
 

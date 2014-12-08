@@ -1,6 +1,8 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ByteBufferProvider;
+import com.google.common.base.Charsets;
+import com.jivesoftware.os.filer.io.ByteBufferBackedConcurrentFilerFactory;
+import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import java.nio.file.Files;
@@ -15,7 +17,8 @@ public class BytesObjectMapStoreTest {
         BytesObjectMapStore<byte[], Object> from = new BytesObjectMapStore<>("4",
             4,
             null,
-            new ByteBufferProviderBackedMapChunkFactory(4, false, 0, false, 8, new ByteBufferProvider("booya", new HeapByteBufferFactory())),
+            new ConcurrentFilerProviderBackedMapChunkFactory(4, false, 0, false, 8,
+                new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
             PassThroughKeyMarshaller.INSTANCE);
         BytesObjectMapStore<byte[], Object> to = new BytesObjectMapStore<>("4",
             4,
@@ -56,12 +59,14 @@ public class BytesObjectMapStoreTest {
         BytesObjectMapStore<byte[], Object> from = new BytesObjectMapStore<>("4",
             4,
             null,
-            new ByteBufferProviderBackedMapChunkFactory(4, false, 0, false, 8, new ByteBufferProvider("booya", new HeapByteBufferFactory())),
+            new ConcurrentFilerProviderBackedMapChunkFactory(4, false, 0, false, 8,
+                new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
             PassThroughKeyMarshaller.INSTANCE);
         BytesObjectMapStore<byte[], Object> to = new BytesObjectMapStore<>("4",
             4,
             null,
-            new ByteBufferProviderBackedMapChunkFactory(4, false, 0, false, 8, new ByteBufferProvider("booya", new HeapByteBufferFactory())),
+            new ConcurrentFilerProviderBackedMapChunkFactory(4, false, 0, false, 8,
+                new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
             PassThroughKeyMarshaller.INSTANCE);
 
         assertCopyTo(from, to);

@@ -1,8 +1,10 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ByteBufferProvider;
+import com.jivesoftware.os.filer.io.ConcurrentFiler;
+import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.map.store.extractors.IndexStream;
+import java.io.IOException;
 import java.util.Arrays;
 
 //!! NOT FINISHED this is a starting point impl
@@ -41,14 +43,14 @@ public class SkipListSet {
      * @param provider
      * @return
      */
-    public SkipListSetPage slallocate(MapStore mapStore, byte[] id,
+    public <F extends ConcurrentFiler> SkipListSetPage<F> slallocate(MapStore mapStore, byte[] id,
         long version, int _maxCount, byte[] headKey,
         int _keySize,
         boolean variableKeySizes,
         int _payloadSize,
         boolean variablePayloadSizes,
         SkipListComparator _valueComparator,
-        ByteBufferProvider provider) {
+        ConcurrentFilerProvider<F> provider) throws IOException {
 
         if (headKey.length != _keySize) {
             throw new RuntimeException("Expected that headKey.length == keySize");
@@ -57,7 +59,7 @@ public class SkipListSet {
         byte maxHeight = SkipListSetPage.heightFit(_maxCount);
         int payloadSize = slpayloadSize(maxHeight) + _payloadSize;
 
-        MapChunk setPage = map.allocate((byte) 0, (byte) 0, id, version, _maxCount, _keySize, variableKeySizes, payloadSize, variablePayloadSizes, provider);
+        MapChunk<F> setPage = map.allocate((byte) 0, (byte) 0, id, version, _maxCount, _keySize, variableKeySizes, payloadSize, variablePayloadSizes, provider);
         byte[] headPayload = new byte[payloadSize];
         Arrays.fill(headPayload, Byte.MIN_VALUE);
         map.add(setPage, (byte) 1, headKey, newColumn(headPayload, maxHeight, maxHeight));
@@ -90,7 +92,7 @@ public class SkipListSet {
      * @param page
      * @return
      */
-    public long slgetCount(SkipListSetPage page) {
+    public long slgetCount(SkipListSetPage page) throws IOException {
         return map.getCount(page.map) - 1; // -1 because of head
     }
 
@@ -99,7 +101,7 @@ public class SkipListSet {
      * @param _key
      * @param _payload
      */
-    public void sladd(SkipListSetPage page, byte[] _key, byte[] _payload) {
+    public void sladd(SkipListSetPage page, byte[] _key, byte[] _payload) throws IOException {
 
         long index = map.get(page.map, _key);
         if (index != -1) { // aready exists so just update payload
@@ -153,7 +155,7 @@ public class SkipListSet {
      * @param _key
      * @return
      */
-    public byte[] slfindWouldInsertAfter(SkipListSetPage page, byte[] _key) {
+    public byte[] slfindWouldInsertAfter(SkipListSetPage page, byte[] _key) throws IOException {
 
         long index = map.get(page.map, _key);
         if (index != -1) { // aready exists so return self
@@ -196,7 +198,7 @@ public class SkipListSet {
      * @param page
      * @return
      */
-    public byte[] slgetFirst(SkipListSetPage page) {
+    public byte[] slgetFirst(SkipListSetPage page) throws IOException {
         int firstIndex = rcolumnLevel(page, page.headIndex, 1);
         if (firstIndex == -1) {
             return null;
@@ -209,7 +211,7 @@ public class SkipListSet {
      * @param page
      * @param _key
      */
-    public void slremove(SkipListSetPage page, byte[] _key) {
+    public void slremove(SkipListSetPage page, byte[] _key) throws IOException {
         if (_key == null || _key.length == 0) {
             throw new RuntimeException("null not supported");
         }
@@ -253,7 +255,7 @@ public class SkipListSet {
      * @param _key
      * @return
      */
-    public byte[] slgetPrior(SkipListSetPage page, byte[] _key) {
+    public byte[] slgetPrior(SkipListSetPage page, byte[] _key) throws IOException {
         if (_key == null || _key.length == 0) {
             return null;
         }
@@ -279,7 +281,7 @@ public class SkipListSet {
      * @param _key
      * @return
      */
-    public byte[] slgetNext(SkipListSetPage page, byte[] _key) {
+    public byte[] slgetNext(SkipListSetPage page, byte[] _key) throws IOException {
         if (_key == null || _key.length == 0) {
             return null;
         }
@@ -301,7 +303,7 @@ public class SkipListSet {
      * @param _key
      * @return
      */
-    public byte[] slgetExisting(SkipListSetPage page, byte[] _key) {
+    public byte[] slgetExisting(SkipListSetPage page, byte[] _key) throws IOException {
         if (_key == null || _key.length == 0) {
             throw new RuntimeException("null not supported");
         }
@@ -318,7 +320,7 @@ public class SkipListSet {
      * @param key
      * @return
      */
-    public byte[] slgetAfterExisting(SkipListSetPage page, byte[] key) {
+    public byte[] slgetAfterExisting(SkipListSetPage page, byte[] key) throws IOException {
         if (key == null || key.length == 0) {
             throw new RuntimeException("null not supported");
         }
@@ -432,41 +434,41 @@ public class SkipListSet {
         System.arraycopy(_key, 0, _column, 1 + (_h * cColumKeySize), cColumKeySize);
     }
 
-    private byte columnLength(SkipListSetPage page, long setIndex) {
+    private byte columnLength(SkipListSetPage page, long setIndex) throws IOException {
         int keyLengthSize = page.map.keyLengthSize;
         int keySize = page.map.keySize;
         int entrySize = page.map.entrySize;
-        return MapStore.DEFAULT.read(page.map.array, map.startOfPayload(setIndex, entrySize, keyLengthSize, keySize));
+        return page.map.read(map.startOfPayload(setIndex, entrySize, keyLengthSize, keySize));
     }
 
-    private int rcolumnLevel(SkipListSetPage page, long setIndex, int level) {
+    private int rcolumnLevel(SkipListSetPage page, long setIndex, int level) throws IOException {
         int keyLengthSize = page.map.keyLengthSize;
         int keySize = page.map.keySize;
         int entrySize = page.map.entrySize;
         long offset = map.startOfPayload(setIndex, entrySize, keyLengthSize, keySize) + 1 + (level * cColumKeySize);
-        return MapStore.DEFAULT.readInt(page.map.array, offset);
+        return page.map.readInt(offset);
     }
 
-    private void wcolumnLevel(SkipListSetPage page, long setIndex, int level, long v) {
+    private void wcolumnLevel(SkipListSetPage page, long setIndex, int level, long v) throws IOException {
         int keyLengthSize = page.map.keyLengthSize;
         int keySize = page.map.keySize;
         int entrySize = page.map.entrySize;
         long offset = map.startOfPayload(setIndex, entrySize, keyLengthSize, keySize) + 1 + (level * cColumKeySize);
-        MapStore.DEFAULT.writeInt(page.map.array, offset, (int) v);
+        page.map.writeInt(offset, (int) v);
     }
 
     private int startOfPayload(int maxHeight) {
         return 1 + (cColumKeySize * maxHeight);
     }
 
-    private byte[] getColumnPayload(SkipListSetPage page, long setIndex, int maxHeight) {
+    private byte[] getColumnPayload(SkipListSetPage page, long setIndex, int maxHeight) throws IOException {
         int keyLengthSize = page.map.keyLengthSize;
         int keySize = page.map.keySize;
         int entrySize = page.map.entrySize;
         long startOfPayload = map.startOfPayload(setIndex, entrySize, keyLengthSize, keySize);
         int size = (page.map.payloadLengthSize + page.map.payloadSize) - startOfPayload(maxHeight);
         byte[] payload = new byte[size];
-        MapStore.DEFAULT.read(page.map.array, (int) (startOfPayload + 1 + (maxHeight * cColumKeySize)), payload, 0, size);
+        page.map.read((int) (startOfPayload + 1 + (maxHeight * cColumKeySize)), payload, 0, size);
         return payload;
     }
 
@@ -476,7 +478,7 @@ public class SkipListSet {
      * @param page
      * @param keyToString
      */
-    public void sltoSysOut(SkipListSetPage page, BytesToString keyToString) {
+    public void sltoSysOut(SkipListSetPage page, BytesToString keyToString) throws IOException {
         if (keyToString == null) {
             keyToString = new BytesToBytesString();
         }
@@ -529,7 +531,7 @@ public class SkipListSet {
         }
     }
 
-    private void toSysOut(SkipListSetPage page, long index, BytesToString keyToString) {
+    private void toSysOut(SkipListSetPage page, long index, BytesToString keyToString) throws IOException {
         byte[] key = map.getKeyAtIndex(page.map, index);
         System.out.print("\t" + keyToString.bytesToString(key) + " - ");
         int l = columnLength(page, index);

@@ -1,5 +1,7 @@
 package com.jivesoftware.os.filer.map.store;
 
+import java.io.IOException;
+
 /**
  *
  * @author jonathan
@@ -15,8 +17,9 @@ public interface SkipListComparator {
      * @param bstart
      * @param length
      * @return
+     * @throws java.io.IOException
      */
-    public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length);
+    public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) throws IOException;
 
     /**
      * Should return the maximum number of items between a and b.

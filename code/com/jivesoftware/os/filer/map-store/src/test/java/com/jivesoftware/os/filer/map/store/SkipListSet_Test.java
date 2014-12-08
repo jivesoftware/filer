@@ -1,9 +1,12 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ByteBufferProvider;
+import com.google.common.base.Charsets;
+import com.jivesoftware.os.filer.io.ByteBufferBackedConcurrentFilerFactory;
+import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.map.store.extractors.IndexStream;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Random;
@@ -18,11 +21,12 @@ public class SkipListSet_Test {
     /**
      * @param _args
      */
-    public static void main(String[] _args) {
+    public static void main(String[] _args) throws IOException {
 
         long maxCountBetweenZeroAndOne = (long) (1d / Double.MIN_VALUE);
         System.out.println(maxCountBetweenZeroAndOne + " " + Double.MAX_VALUE);
-        ByteBufferProvider provider = new ByteBufferProvider("booya", new HeapByteBufferFactory());
+        ConcurrentFilerProvider provider = new ConcurrentFilerProvider("booya".getBytes(Charsets.UTF_8),
+            new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()));
 
         //chart(factory);
         //System.exit(0);
@@ -36,17 +40,17 @@ public class SkipListSet_Test {
         it = 150;
 
         SkipListSet sls = new SkipListSet();
-        byte[] headKey = new byte[] { Byte.MIN_VALUE };
+        byte[] headKey = new byte[]{Byte.MIN_VALUE};
 
         MapStore pset = MapStore.DEFAULT;
 
         SkipListSetPage slsp = sls.slallocate(pset, new byte[16], 0, it, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
 
             @Override
-            public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) {
+            public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) throws IOException {
                 for (int i = 0; i < length; i++) {
-                    byte av = MapStore.DEFAULT.read(a.array, astart + i);
-                    byte bv = MapStore.DEFAULT.read(a.array, bstart + i);
+                    byte av = a.read(astart + i);
+                    byte bv = a.read(bstart + i);
 
                     if (av == bv) {
                         continue;
@@ -71,10 +75,10 @@ public class SkipListSet_Test {
         }, provider);
 
         Random random = new Random(1_234);
-        byte[] a = new byte[] { 65 }; //URandom.randomLowerCaseAlphaBytes(keySize);
-        byte[] b = new byte[] { 66 }; //URandom.randomLowerCaseAlphaBytes(keySize);
-        byte[] c = new byte[] { 67 }; //URandom.randomLowerCaseAlphaBytes(keySize);
-        byte[] k4 = new byte[] { 68 }; //URandom.randomLowerCaseAlphaBytes(keySize);
+        byte[] a = new byte[]{65}; //URandom.randomLowerCaseAlphaBytes(keySize);
+        byte[] b = new byte[]{66}; //URandom.randomLowerCaseAlphaBytes(keySize);
+        byte[] c = new byte[]{67}; //URandom.randomLowerCaseAlphaBytes(keySize);
+        byte[] k4 = new byte[]{68}; //URandom.randomLowerCaseAlphaBytes(keySize);
         byte[] payload1 = TestUtils.randomLowerCaseAlphaBytes(random, payloadSize);
 
         int n = 1;
@@ -94,7 +98,7 @@ public class SkipListSet_Test {
 
         //}
         //System.exit(0);
-        Object[] keys = new Object[] { a, b, c };
+        Object[] keys = new Object[]{a, b, c};
         for (int i = 0; i < 100_000; i++) {
             if (Math.random() < 0.5d) {
                 byte[] ak = (byte[]) keys[random.nextInt(keys.length)];
@@ -159,21 +163,21 @@ public class SkipListSet_Test {
 
     }
 
-    private static int p(int n, byte[] v, SkipListSet sls, SkipListSetPage slsp, byte[] p) {
+    private static int p(int n, byte[] v, SkipListSet sls, SkipListSetPage slsp, byte[] p) throws IOException {
         System.out.println(n + ": add " + new String(v) + " " + sls.slgetCount(slsp));
         sls.sladd(slsp, v, p);
         sls.sltoSysOut(slsp, null);
         return n + 1;
     }
 
-    private static int m(int n, byte[] v, SkipListSet sls, SkipListSetPage slsp) {
+    private static int m(int n, byte[] v, SkipListSet sls, SkipListSetPage slsp) throws IOException {
         System.out.println(n + ": remove " + new String(v) + " " + sls.slgetCount(slsp));
         sls.slremove(slsp, v);
         sls.sltoSysOut(slsp, null);
         return n + 1;
     }
 
-    private static boolean test(int _iterations, int _keySize, int _maxSize, ByteBufferProvider provider) {
+    private static boolean test(int _iterations, int _keySize, int _maxSize, ConcurrentFilerProvider provider) throws IOException {
         byte[] headKey = new byte[_keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
         int keySize = _keySize;
@@ -183,10 +187,10 @@ public class SkipListSet_Test {
         SkipListSetPage slsp = sls.slallocate(pset, new byte[16], 0, _maxSize, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
 
             @Override
-            public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) {
+            public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) throws IOException {
                 for (int i = 0; i < length; i++) {
-                    byte av = MapStore.DEFAULT.read(a.array, astart + i);
-                    byte bv = MapStore.DEFAULT.read(b.array, bstart + i);
+                    byte av = a.read(astart + i);
+                    byte bv = b.read(bstart + i);
                     if (av == bv) {
                         continue;
                     }
@@ -212,8 +216,6 @@ public class SkipListSet_Test {
         System.out.println("MaxCount = " + sls.map.getMaxCount(slsp.map) + " vs " + _iterations + " vs " + sls.map.getCapacity(slsp.map));
         System.out.println("Upper Bound Max Count = " + sls.map.absoluteMaxCount(sls.map.getKeySize(slsp.map), sls.map.getPayloadSize(slsp.map)));
         long seed = System.currentTimeMillis();
-
-        System.out.println("ByteSL size in mb for (" + _maxSize + ") is " + (slsp.map.size() / 1024d / 1024d) + "mb");
 
         System.out.println("\nadd:");
         Random random = new Random(seed);
@@ -337,7 +339,7 @@ public class SkipListSet_Test {
     /**
      * @param provider
      */
-    public static void chart(ByteBufferProvider provider) {
+    public static void chart(ConcurrentFilerProvider provider) throws IOException {
         int ksize = 16;
         int payloadSize = 4;
         int maxSize = 1_000_000;
@@ -370,7 +372,7 @@ public class SkipListSet_Test {
         }
     }
 
-    private static void stats(int keySize, int payloadSize, int _maxSize, ByteBufferProvider provider) {
+    private static void stats(int keySize, int payloadSize, int _maxSize, ConcurrentFilerProvider provider) throws IOException {
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
         SkipListSet sls = new SkipListSet();
@@ -378,10 +380,10 @@ public class SkipListSet_Test {
         SkipListSetPage slsp = sls.slallocate(pset, new byte[16], 0, _maxSize, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
 
             @Override
-            public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) {
+            public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) throws IOException {
                 for (int i = 0; i < length; i++) {
-                    byte av = MapStore.DEFAULT.read(a.array, astart + i);
-                    byte bv = MapStore.DEFAULT.read(a.array, bstart + i);
+                    byte av = a.read(astart + i);
+                    byte bv = b.read(bstart + i);
 
                     if (av == bv) {
                         continue;
@@ -404,11 +406,11 @@ public class SkipListSet_Test {
                 throw new UnsupportedOperationException("Not supported yet.");
             }
         }, provider);
-        System.out.print("," + _maxSize + "," + (slsp.map.size() / 1024d / 1024d));
     }
 
     private static SkipListSetPage testSet(SkipListSet sls,
-        SkipListSetPage set, long seed, int _iterations, int keySize, int payloadSize, int _maxSize, int mode, boolean _out, ByteBufferProvider provider) {
+        SkipListSetPage set, long seed, int _iterations, int keySize, int payloadSize, int _maxSize, int mode, boolean _out, ConcurrentFilerProvider provider)
+        throws IOException {
 
         if (set == null) {
             byte[] headKey = new byte[keySize];
@@ -417,10 +419,10 @@ public class SkipListSet_Test {
             set = sls.slallocate(pset, new byte[16], 0, _maxSize, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
 
                 @Override
-                public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) {
+                public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) throws IOException {
                     for (int i = 0; i < length; i++) {
-                        byte av = MapStore.DEFAULT.read(a.array, astart + i);
-                        byte bv = MapStore.DEFAULT.read(a.array, bstart + i);
+                        byte av = a.read(astart + i);
+                        byte bv = b.read(bstart + i);
 
                         if (av == bv) {
                             continue;

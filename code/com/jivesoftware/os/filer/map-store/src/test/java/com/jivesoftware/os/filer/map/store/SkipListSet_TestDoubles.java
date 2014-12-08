@@ -1,6 +1,8 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ByteBufferProvider;
+import com.google.common.base.Charsets;
+import com.jivesoftware.os.filer.io.ByteBufferBackedConcurrentFilerFactory;
+import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.map.store.extractors.IndexStream;
@@ -27,7 +29,7 @@ public class SkipListSet_TestDoubles {
         SkipListSet sls = new SkipListSet();
         MapStore pset = MapStore.DEFAULT;
         SkipListSetPage page = sls.slallocate(pset, new byte[16], 0, 16, headKey, keySize, false, payloadSize, false, DoubleSkipListComparator.cSingleton,
-            new ByteBufferProvider("booya", new HeapByteBufferFactory()));
+            new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory())));
         for (int i = 0; i < 16; i++) {
             sls.sladd(page, FilerIO.doubleBytes(random.nextInt(32)), new byte[0]);
         }

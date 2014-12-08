@@ -68,7 +68,7 @@ public class AutoResizingByteBufferBackedFiler implements ConcurrentFiler {
     }
 
     @Override
-    public Filer asConcurrentReadWrite(Object suggestedLock) throws IOException {
+    public ConcurrentFiler asConcurrentReadWrite(Object suggestedLock) throws IOException {
         acquire(1, "As concurrent");
         try {
             return new AutoResizingByteBufferBackedFiler(suggestedLock, byteBufferProvider, semaphore, semaphorePermits,
@@ -79,7 +79,7 @@ public class AutoResizingByteBufferBackedFiler implements ConcurrentFiler {
     }
 
     @Override
-    public void delete() throws Exception {
+    public void delete() throws IOException {
         acquire(semaphorePermits, "Delete");
         try {
             ByteBuffer bb = sharedByteBuffer.delete();

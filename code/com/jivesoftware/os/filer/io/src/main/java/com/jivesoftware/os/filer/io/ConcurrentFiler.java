@@ -31,9 +31,9 @@ public interface ConcurrentFiler extends Filer {
      * @param suggestedLock
      * @return @throws IOException
      */
-    Filer asConcurrentReadWrite(Object suggestedLock) throws IOException;
+    ConcurrentFiler asConcurrentReadWrite(Object suggestedLock) throws IOException;
 
-    long capacity();
+    long capacity() throws IOException;
 
-    void delete() throws Exception;
+    void delete() throws IOException;
 }

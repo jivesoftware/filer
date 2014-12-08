@@ -12,6 +12,10 @@ import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import java.util.Arrays;
 import java.util.Iterator;
 
+// Key -> MapStore -> MapStore -> MultiChunks
+/*
+ Key -> (Strippped) -> (Stripped) -> (Stripped)
+ */
 /**
  * @author jonathan
  */
@@ -93,15 +97,6 @@ public class PartitionedMapChunkBackedKeyedStore implements KeyedFilerStore, Cop
             }
         }
         return new AutoResizingChunkSwappableFiler(filer, chunkStore, key, mapStore, swapStore);
-    }
-
-    @Override
-    public long sizeInBytes() throws Exception {
-        return mapStore.estimateSizeInBytes() + chunkStore.sizeInBytes();
-    }
-
-    public long mapStoreSizeInBytes() throws Exception {
-        return mapStore.estimateSizeInBytes();
     }
 
     @Override

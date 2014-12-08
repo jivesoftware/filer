@@ -64,8 +64,8 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
             MapChunk chunk = index(pageId);
             try {
                 // grow the set if needed;
-                if (mapStore.getCount(chunk) >= chunk.maxCount) {
-                    int newSize = chunk.maxCount * 2;
+                if (mapStore.isFull(chunk)) {
+                    int newSize = mapStore.nextGrowSize(chunk);
 
                     chunk = chunkFactory.resize(mapStore, chunk, pageId, newSize, null);
                     indexPages.put(pageId, chunk);
@@ -158,18 +158,6 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
             }
         }
         return got;
-    }
-
-    @Override
-    public long estimateSizeInBytes() throws Exception {
-        long sizeInBytes = 0;
-        for (String pageId : keyPartitioner.allPartitions()) {
-            MapChunk got = get(pageId, false);
-            if (got != null) {
-                sizeInBytes += got.size();
-            }
-        }
-        return sizeInBytes;
     }
 
     @Override

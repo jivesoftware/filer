@@ -144,15 +144,6 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public long estimateSizeInBytes() {
-        MapChunk mapChunk = indexRef.get();
-        if (mapChunk != null) {
-            return mapChunk.size();
-        }
-        return 0;
-    }
-
-    @Override
     public Iterator<Entry<K, V>> iterator() {
         List<Iterator<Entry<K, V>>> iterators = Lists.newArrayList();
         final MapChunk got;

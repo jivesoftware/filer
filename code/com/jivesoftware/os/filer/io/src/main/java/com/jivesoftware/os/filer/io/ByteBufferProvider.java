@@ -7,10 +7,10 @@ import java.nio.ByteBuffer;
  */
 public class ByteBufferProvider {
 
-    private final String key;
+    private final byte[] key;
     private final ByteBufferFactory byteBufferFactory;
 
-    public ByteBufferProvider(String key, ByteBufferFactory byteBufferFactory) {
+    public ByteBufferProvider(byte[] key, ByteBufferFactory byteBufferFactory) {
         this.key = key;
         this.byteBufferFactory = byteBufferFactory;
     }
