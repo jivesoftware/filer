@@ -148,61 +148,6 @@ public class MapStore {
         return page;
     }
 
-    /**
-     * @param <F>
-     * @param pageVersion
-     * @param pageFamily
-     * @param id
-     * @param version
-     * @param maxCount
-     * @param keySize
-     * @param variableKeySizes
-     * @param payloadSize
-     * @param variablePayloadSizes
-     * @param concurrentFilerProvider
-     * @return
-     * @throws java.io.IOException
-     * @deprecated Instead call {@link #allocateFiler} and then {@link #bootstrapAllocatedFiler}.
-     */
-    @Deprecated
-    public <F extends ConcurrentFiler> MapChunk<F> allocate(
-        byte pageFamily,
-        byte pageVersion,
-        byte[] id,
-        long version,
-        int maxCount,
-        int keySize,
-        boolean variableKeySizes,
-        int payloadSize,
-        boolean variablePayloadSizes,
-        ConcurrentFilerProvider<F> concurrentFilerProvider) throws IOException {
-
-        if (id == null || id.length != cIdSize) {
-            throw new RuntimeException("Malformed ID");
-        }
-        int maxCapacity = calculateCapacity(maxCount);
-
-        byte keyLengthSize = keyLengthSize(variableKeySizes ? keySize : 0);
-        byte payloadLengthSize = keyLengthSize(variablePayloadSizes ? payloadSize : 0);
-
-        MapChunk<F> page = new MapChunk<>(allocateFiler(maxCount, keySize, variableKeySizes, payloadSize, variablePayloadSizes, concurrentFilerProvider));
-
-        setPageFamily(page, pageFamily);
-        setPageVersion(page, pageVersion);
-        setId(page, id);
-        setVersion(page, version);
-        setCount(page, 0);
-        setMaxCount(page, maxCount);
-        setCapacity(page, maxCapacity); // good to use prime
-
-        setKeySize(page, keySize);
-        setKeyLengthSize(page, keyLengthSize);
-        setPayloadSize(page, payloadSize);
-        setPayloadLengthSize(page, payloadLengthSize);
-        page.init(this);
-        return page;
-    }
-
     private byte keyLengthSize(int size) {
         if (size == 0) {
             return 0;

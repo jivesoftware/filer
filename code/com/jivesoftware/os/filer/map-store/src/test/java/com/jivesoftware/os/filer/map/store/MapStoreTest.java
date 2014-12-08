@@ -2,6 +2,7 @@ package com.jivesoftware.os.filer.map.store;
 
 import com.google.common.base.Charsets;
 import com.jivesoftware.os.filer.io.ByteBufferBackedConcurrentFilerFactory;
+import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
@@ -60,7 +61,8 @@ public class MapStoreTest {
         int payloadSize = 4;
 
         System.out.println("Upper Bound Max Count = " + pset.absoluteMaxCount(keySize, payloadSize));
-        MapChunk set = pset.allocate((byte) 0, (byte) 0, new byte[16], 0, _maxSize, keySize, false, payloadSize, false, provider);
+        ConcurrentFiler filer = pset.allocateFiler(_maxSize, keySize, false, payloadSize, false, provider);
+        MapChunk set = pset.bootstrapAllocatedFiler((byte) 0, (byte) 0, new byte[16], 0, _maxSize, keySize, false, payloadSize, false, filer);
         long seed = System.currentTimeMillis();
         int maxCapacity = pset.getCapacity(set);
 

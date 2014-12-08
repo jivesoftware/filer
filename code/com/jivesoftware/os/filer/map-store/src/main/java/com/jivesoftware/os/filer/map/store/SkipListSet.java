@@ -59,7 +59,9 @@ public class SkipListSet {
         byte maxHeight = SkipListSetPage.heightFit(_maxCount);
         int payloadSize = slpayloadSize(maxHeight) + _payloadSize;
 
-        MapChunk<F> setPage = map.allocate((byte) 0, (byte) 0, id, version, _maxCount, _keySize, variableKeySizes, payloadSize, variablePayloadSizes, provider);
+        F filer = map.allocateFiler(_maxCount, _keySize, variableKeySizes, payloadSize, variablePayloadSizes, provider);
+        MapChunk<F> setPage = map.bootstrapAllocatedFiler((byte) 0, (byte) 0, id, version, _maxCount, _keySize, variableKeySizes, payloadSize,
+            variablePayloadSizes, filer);
         byte[] headPayload = new byte[payloadSize];
         Arrays.fill(headPayload, Byte.MIN_VALUE);
         map.add(setPage, (byte) 1, headKey, newColumn(headPayload, maxHeight, maxHeight));

@@ -141,7 +141,13 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
             return page;
         } else {
             ConcurrentFilerProvider concurrentFilerProvider = getPageProvider(file);
-            return mapStore.allocate((byte) 0,
+            ConcurrentFiler filer = mapStore.allocateFiler(maxCapacity,
+                keySize,
+                variableKeySizes,
+                payloadSize,
+                variablePayloadSizes,
+                concurrentFilerProvider);
+            return mapStore.bootstrapAllocatedFiler((byte) 0,
                 (byte) 0,
                 EMPTY_ID,
                 0,
@@ -150,7 +156,7 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
                 variableKeySizes,
                 payloadSize,
                 variablePayloadSizes,
-                concurrentFilerProvider);
+                filer);
         }
     }
 
