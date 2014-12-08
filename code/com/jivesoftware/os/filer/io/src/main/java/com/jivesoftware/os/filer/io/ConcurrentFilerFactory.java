@@ -22,7 +22,7 @@ public interface ConcurrentFilerFactory<F extends ConcurrentFiler> {
      * @param old can be null and if it is you could have just called allocate which is what implementation should do.
      * @param newSize
      * @return
-     * @throws java.lang.IOException
+     * @throws java.io.IOException
      */
     F reallocate(byte[] key, F old, long newSize) throws IOException;
 }

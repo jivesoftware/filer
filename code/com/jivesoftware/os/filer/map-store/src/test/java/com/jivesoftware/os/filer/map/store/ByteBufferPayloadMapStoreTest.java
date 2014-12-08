@@ -30,8 +30,9 @@ public class ByteBufferPayloadMapStoreTest {
                 new BytesBytesMapStore<>("8",
                     8,
                     null,
-                    new ConcurrentFilerProviderBackedMapChunkFactory(8, false, 4, false, 10,
-                        new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
+                    new ConcurrentFilerProviderBackedMapChunkFactory<>(8, false, 4, false, 10,
+                        new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8),
+                            new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
                     new KeyValueMarshaller<Long, Integer>() {
 
                         @Override

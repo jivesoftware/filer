@@ -7,7 +7,7 @@ import java.nio.ByteBuffer;
  *
  * @author jonathan.colt
  */
-public class ByteBufferBackedConcurrentFilerFactory implements ConcurrentFilerFactory {
+public class ByteBufferBackedConcurrentFilerFactory implements ConcurrentFilerFactory<ByteBufferBackedFiler> {
 
     private final ByteBufferFactory byteBufferFactory;
 
@@ -16,13 +16,13 @@ public class ByteBufferBackedConcurrentFilerFactory implements ConcurrentFilerFa
     }
 
     @Override
-    public ConcurrentFiler allocate(byte[] key, long size) {
+    public ByteBufferBackedFiler allocate(byte[] key, long size) {
         ByteBuffer bb = byteBufferFactory.allocate(key, size);
         return new ByteBufferBackedFiler(new Object(), bb);
     }
 
     @Override
-    public ConcurrentFiler reallocate(byte[] key, ConcurrentFiler old, long newSize) throws IOException {
+    public ByteBufferBackedFiler reallocate(byte[] key, ByteBufferBackedFiler old, long newSize) throws IOException {
         ByteBuffer bb = byteBufferFactory.allocate(key, newSize);
         ByteBufferBackedFiler newFiler = new ByteBufferBackedFiler(new Object(), bb);
         if (old != null) {

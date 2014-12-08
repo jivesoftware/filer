@@ -162,6 +162,7 @@ public class MapStore {
      * @param concurrentFilerProvider
      * @return
      * @throws java.io.IOException
+     * @deprecated Instead call {@link #allocateFiler} and then {@link #bootstrapAllocatedFiler}.
      */
     @Deprecated
     public <F extends ConcurrentFiler> MapChunk<F> allocate(

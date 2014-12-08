@@ -43,7 +43,6 @@ public class MultiChunkStoreInitializer {
         return builder.build();
     }
 
-    
     public MultiChunkStoreConcurrentFilerFactory initializeMultiByteBufferBacked(
         String keyPrefix,
         ByteBufferFactory byteBufferFactory,
