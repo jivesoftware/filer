@@ -2,6 +2,7 @@ package com.jivesoftware.os.filer.map.store;
 
 import com.google.common.base.Charsets;
 import com.jivesoftware.os.filer.io.ByteBufferBackedConcurrentFilerFactory;
+import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
@@ -27,11 +28,11 @@ public class ByteBufferObjectMapStoreTest {
             System.out.println("---------------------- " + i + " ----------------------");
 
             // bytebuffer mapstore setup
-            BytesObjectMapStore<Long, Object> byteBufferObjectMapStore = new BytesObjectMapStore<>("8",
+            BytesObjectMapStore<ByteBufferBackedFiler, Long, Object> byteBufferObjectMapStore = new BytesObjectMapStore<>("8",
                 8,
                 null,
-                new ConcurrentFilerProviderBackedMapChunkFactory(8, false, 0, false, 10,
-                    new ConcurrentFilerProvider("booya".getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
+                new ConcurrentFilerProviderBackedMapChunkFactory<>(8, false, 0, false, 10,
+                    new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
                 new KeyMarshaller<Long>() {
 
                     @Override

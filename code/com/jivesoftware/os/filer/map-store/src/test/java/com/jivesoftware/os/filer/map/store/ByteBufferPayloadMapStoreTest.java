@@ -2,6 +2,7 @@ package com.jivesoftware.os.filer.map.store;
 
 import com.google.common.base.Charsets;
 import com.jivesoftware.os.filer.io.ByteBufferBackedConcurrentFilerFactory;
+import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
@@ -26,7 +27,7 @@ public class ByteBufferPayloadMapStoreTest {
             System.out.println("---------------------- " + i + " ----------------------");
 
             // bytebuffer mapstore setup
-            BytesBytesMapStore<Long, Integer> mapStore =
+            BytesBytesMapStore<ByteBufferBackedFiler, Long, Integer> mapStore =
                 new BytesBytesMapStore<>("8",
                     8,
                     null,

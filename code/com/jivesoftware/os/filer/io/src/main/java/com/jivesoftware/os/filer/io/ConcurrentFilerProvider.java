@@ -17,6 +17,10 @@ public class ConcurrentFilerProvider<F extends ConcurrentFiler> {
         this.factory = factory;
     }
 
+    public F get() throws IOException {
+        return factory.get(key);
+    }
+
     public F allocate(long size) throws IOException {
         return factory.allocate(key, size);
     }

@@ -16,6 +16,11 @@ public class ByteBufferBackedConcurrentFilerFactory implements ConcurrentFilerFa
     }
 
     @Override
+    public ByteBufferBackedFiler get(byte[] key) throws IOException {
+        return null;
+    }
+
+    @Override
     public ByteBufferBackedFiler allocate(byte[] key, long size) {
         ByteBuffer bb = byteBufferFactory.allocate(key, size);
         return new ByteBufferBackedFiler(new Object(), bb);

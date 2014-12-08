@@ -3,6 +3,7 @@ package com.jivesoftware.os.filer.map.store;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import java.util.Iterator;
@@ -15,22 +16,22 @@ import java.util.concurrent.atomic.AtomicReference;
  * @param <K>
  * @param <V>
  */
-public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
+public class BytesBytesMapStore<F extends ConcurrentFiler, K, V> implements KeyValueStore<K, V> {
 
     private final String pageId;
     private final V returnWhenGetReturnsNull;
-    private final MapChunkFactory mapChunkFactory;
+    private final MapChunkFactory<F> mapChunkFactory;
     private final KeyValueMarshaller<K, V> keyValueMarshaller;
 
     public final int keySize;
 
     private final MapStore mapStore = MapStore.DEFAULT;
-    private final AtomicReference<MapChunk> indexRef = new AtomicReference<>();
+    private final AtomicReference<MapChunk<F>> indexRef = new AtomicReference<>();
 
     public BytesBytesMapStore(String pageId,
         int keySize,
         V returnWhenGetReturnsNull,
-        MapChunkFactory mapChunkFactory,
+        MapChunkFactory<F> mapChunkFactory,
         KeyValueMarshaller<K, V> keyValueMarshaller) {
 
         this.pageId = pageId;
@@ -52,7 +53,7 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
             return;
         }
         synchronized (indexRef) {
-            MapChunk index = index(true);
+            MapChunk<F> index = index(true);
 
             // grow the set if needed;
             if (mapStore.getCount(index) >= index.maxCount) {
@@ -119,8 +120,8 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
         return keyValueMarshaller.bytesValue(key, valueBytes, 0);
     }
 
-    private MapChunk index(boolean createIfAbsent) throws Exception {
-        MapChunk got = indexRef.get();
+    private MapChunk<F> index(boolean createIfAbsent) throws Exception {
+        MapChunk<F> got = indexRef.get();
         if (got != null) {
             return got;
         }
@@ -146,7 +147,7 @@ public class BytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
     @Override
     public Iterator<Entry<K, V>> iterator() {
         List<Iterator<Entry<K, V>>> iterators = Lists.newArrayList();
-        final MapChunk got;
+        final MapChunk<F> got;
         try {
             got = index(false);
         } catch (Exception e) {

@@ -15,19 +15,21 @@
  */
 package com.jivesoftware.os.filer.map.store;
 
+import com.jivesoftware.os.filer.io.ConcurrentFiler;
+
 /**
  *
  * @author jonathan.colt
  */
-public interface MapChunkFactory {
+public interface MapChunkFactory<F extends ConcurrentFiler> {
 
-    MapChunk getOrCreate(MapStore mapStore, String pageId) throws Exception;
+    MapChunk<F> getOrCreate(MapStore mapStore, String pageId) throws Exception;
 
-    MapChunk resize(MapStore mapStore, MapChunk chunk, String pageId, int newSize, MapStore.CopyToStream copyToStream) throws Exception;
+    MapChunk<F> resize(MapStore mapStore, MapChunk<F> chunk, String pageId, int newSize, MapStore.CopyToStream copyToStream) throws Exception;
 
-    MapChunk copy(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception;
+    MapChunk<F> copy(MapStore mapStore, MapChunk<F> chunk, String pageId, int newSize) throws Exception;
 
-    MapChunk get(MapStore mapStore, String pageId) throws Exception;
+    MapChunk<F> get(MapStore mapStore, String pageId) throws Exception;
 
     void delete(String pageId) throws Exception;
 }

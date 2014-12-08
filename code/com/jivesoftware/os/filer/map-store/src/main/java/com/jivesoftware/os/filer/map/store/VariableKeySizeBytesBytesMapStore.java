@@ -2,16 +2,17 @@ package com.jivesoftware.os.filer.map.store;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import java.util.Iterator;
 import java.util.List;
 
 public abstract class VariableKeySizeBytesBytesMapStore<K, V> implements KeyValueStore<K, V> {
 
-    private final BytesBytesMapStore<K, V>[] mapStores;
+    private final BytesBytesMapStore<ByteBufferBackedFiler, K, V>[] mapStores;
 
     @SuppressWarnings("unchecked")
-    public VariableKeySizeBytesBytesMapStore(BytesBytesMapStore<K, V>[] mapStores) {
+    public VariableKeySizeBytesBytesMapStore(BytesBytesMapStore<ByteBufferBackedFiler, K, V>[] mapStores) {
         this.mapStores = mapStores;
 
         /*
@@ -24,7 +25,7 @@ public abstract class VariableKeySizeBytesBytesMapStore<K, V> implements KeyValu
         */
     }
 
-    private BytesBytesMapStore<K, V> getMapStore(int keyLength) {
+    private BytesBytesMapStore<ByteBufferBackedFiler, K, V> getMapStore(int keyLength) {
         for (int i = 0; i < mapStores.length; i++) {
             if (mapStores[i].keySize >= keyLength) {
                 return mapStores[i];
@@ -58,7 +59,7 @@ public abstract class VariableKeySizeBytesBytesMapStore<K, V> implements KeyValu
     @Override
     public Iterator<Entry<K, V>> iterator() {
         List<Iterator<Entry<K, V>>> iterators = Lists.newArrayListWithCapacity(mapStores.length);
-        for (BytesBytesMapStore<K, V> mapStore : mapStores) {
+        for (BytesBytesMapStore<ByteBufferBackedFiler, K, V> mapStore : mapStores) {
             iterators.add(mapStore.iterator());
         }
         return Iterators.concat(iterators.iterator());
@@ -67,7 +68,7 @@ public abstract class VariableKeySizeBytesBytesMapStore<K, V> implements KeyValu
     @Override
     public Iterator<K> keysIterator() {
         List<Iterator<K>> iterators = Lists.newArrayListWithCapacity(mapStores.length);
-        for (BytesBytesMapStore<K, V> mapStore : mapStores) {
+        for (BytesBytesMapStore<ByteBufferBackedFiler, K, V> mapStore : mapStores) {
             iterators.add(mapStore.keysIterator());
         }
         return Iterators.concat(iterators.iterator());

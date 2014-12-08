@@ -1,5 +1,6 @@
 package com.jivesoftware.os.filer.chunk.store;
 
+import com.google.common.base.Preconditions;
 import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.ConcurrentFilerFactory;
 import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
@@ -104,6 +105,11 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
         }
 
         @Override
+        public ChunkFiler get(byte[] key) throws IOException {
+            throw new UnsupportedOperationException("Should not be called for Magic factory");
+        }
+
+        @Override
         public ChunkFiler allocate(byte[] key, long size) throws IOException {
             long newChunkFP = chunkStore.newChunk(size);
             return chunkStore.getFiler(newChunkFP, null);
@@ -173,17 +179,34 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
     }
 
     @Override
+    public ChunkFiler get(byte[] key) throws IOException {
+        return getOrAllocate(key, -1);
+    }
+
+    @Override
     public ChunkFiler allocate(byte[] key, long size) throws IOException {
+        Preconditions.checkArgument(size > 0, "Size must be positive");
+        return getOrAllocate(key, size);
+    }
+
+    private ChunkFiler getOrAllocate(byte[] key, long size) throws IOException {
         int i = getChunkIndexForKey(key);
         AtomicReference<MapChunk<ChunkFiler>> chunkIndex = chunkIndexes[i][FilerIO.chunkPower(key.length, 0)];
         MapChunk mapChunkIndex = getMapChunkIndex(chunkIndex, chunkStores[i], key.length);
-        long chunkFP = MapStore.DEFAULT.get(mapChunkIndex, key);
-        if (chunkFP == -1) {
+        long chunkFP = -1;
+        long ai = MapStore.DEFAULT.get(mapChunkIndex, key);
+        if (ai >= 0) {
+            chunkFP = FilerIO.bytesLong(MapStore.DEFAULT.getPayload(mapChunkIndex, ai));
+        }
+        if (chunkFP == -1 && size > 0) {
             chunkFP = chunkStores[i].newChunk(size);
             MapChunk mapChunk = growMapChunkIfNeeded(chunkIndex, key.length, chunkStores[i]);
             MapStore.DEFAULT.add(mapChunk, (byte) 1, key, FilerIO.longBytes(chunkFP));
         }
-        return chunkStores[i].getFiler(chunkFP, locksProviders[i].lock(key));
+        if (chunkFP >= 0) {
+            return chunkStores[i].getFiler(chunkFP, locksProviders[i].lock(key));
+        }
+        return null;
     }
 
     @Override

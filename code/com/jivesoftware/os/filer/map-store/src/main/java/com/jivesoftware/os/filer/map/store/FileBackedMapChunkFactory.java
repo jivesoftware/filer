@@ -30,9 +30,7 @@ import org.apache.commons.io.FileUtils;
 /**
  * @author jonathan.colt
  */
-public class FileBackedMapChunkFactory implements MapChunkFactory {
-
-    private static final byte[] EMPTY_ID = new byte[16];
+public class FileBackedMapChunkFactory implements MapChunkFactory<ByteBufferBackedFiler> {
 
     private final int keySize;
     private final boolean variableKeySizes;
@@ -57,13 +55,13 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
     }
 
     @Override
-    public MapChunk get(MapStore mapStore, String pageId) throws Exception {
+    public MapChunk<ByteBufferBackedFiler> get(MapStore mapStore, String pageId) throws Exception {
         File file = createIndexSetFile(pageId);
         return (file.exists()) ? mmap(mapStore, file, initialPageCapacity) : null;
     }
 
     @Override
-    public MapChunk getOrCreate(MapStore mapStore, String pageId) throws Exception {
+    public MapChunk<ByteBufferBackedFiler> getOrCreate(MapStore mapStore, String pageId) throws Exception {
 
         File file = createIndexSetFile(pageId);
         if (!file.exists()) {
@@ -81,7 +79,8 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
     }
 
     @Override
-    public MapChunk resize(MapStore mapStore, MapChunk chunk, String pageId, int newSize, MapStore.CopyToStream copyToStream) throws Exception {
+    public MapChunk<ByteBufferBackedFiler> resize(MapStore mapStore, MapChunk chunk, String pageId, int newSize, MapStore.CopyToStream copyToStream)
+        throws Exception {
 
         File temporaryNewKeyIndexPartition = createIndexTempFile(pageId);
         MapChunk newIndex = mmap(mapStore, temporaryNewKeyIndexPartition, newSize);
@@ -98,7 +97,7 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
     }
 
     @Override
-    public MapChunk copy(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception {
+    public MapChunk<ByteBufferBackedFiler> copy(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception {
 
         File temporaryNewKeyIndexPartition = createIndexTempFile(pageId);
         ConcurrentFiler newFiler = mapStore.allocateFiler(newSize,
@@ -132,7 +131,7 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
         return new ConcurrentFilerProvider<>(file.getName().getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(getPageFactory(file)));
     }
 
-    private MapChunk mmap(MapStore mapStore, final File file, int maxCapacity) throws Exception {
+    private MapChunk<ByteBufferBackedFiler> mmap(MapStore mapStore, final File file, int maxCapacity) throws Exception {
         if (file.exists()) {
             MappedByteBuffer buffer = getPageFactory(file).open(file.getName());
             ByteBufferBackedFiler filer = new ByteBufferBackedFiler(file, buffer);
@@ -140,8 +139,8 @@ public class FileBackedMapChunkFactory implements MapChunkFactory {
             page.init(mapStore);
             return page;
         } else {
-            ConcurrentFilerProvider concurrentFilerProvider = getPageProvider(file);
-            ConcurrentFiler filer = mapStore.allocateFiler(maxCapacity,
+            ConcurrentFilerProvider<ByteBufferBackedFiler> concurrentFilerProvider = getPageProvider(file);
+            ByteBufferBackedFiler filer = mapStore.allocateFiler(maxCapacity,
                 keySize,
                 variableKeySizes,
                 payloadSize,

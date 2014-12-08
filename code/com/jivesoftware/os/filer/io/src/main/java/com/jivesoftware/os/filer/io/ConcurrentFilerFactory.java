@@ -11,6 +11,13 @@ public interface ConcurrentFilerFactory<F extends ConcurrentFiler> {
 
     /**
      * @param key
+     * @return
+     * @throws java.io.IOException
+     */
+    F get(byte[] key) throws IOException;
+
+    /**
+     * @param key
      * @param size
      * @return
      * @throws java.io.IOException

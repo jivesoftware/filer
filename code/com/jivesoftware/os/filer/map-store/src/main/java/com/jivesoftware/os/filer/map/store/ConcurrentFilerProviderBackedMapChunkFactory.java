@@ -22,9 +22,7 @@ import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
  * @author jonathan.colt
  * @param <F>
  */
-public class ConcurrentFilerProviderBackedMapChunkFactory<F extends ConcurrentFiler> implements MapChunkFactory {
-
-    private static final byte[] EMPTY_ID = new byte[16];
+public class ConcurrentFilerProviderBackedMapChunkFactory<F extends ConcurrentFiler> implements MapChunkFactory<F> {
 
     private final int keySize;
     private final boolean variableKeySizes;
@@ -48,7 +46,7 @@ public class ConcurrentFilerProviderBackedMapChunkFactory<F extends ConcurrentFi
     }
 
     @Override
-    public MapChunk getOrCreate(MapStore mapStore, String pageId) throws Exception {
+    public MapChunk<F> getOrCreate(MapStore mapStore, String pageId) throws Exception {
         F filer = mapStore.allocateFiler(initialPageCapacity, keySize, variableKeySizes,
             payloadSize, variablePayloadSizes, concurrentFilerProvider);
         return mapStore.bootstrapAllocatedFiler(initialPageCapacity, keySize, variableKeySizes,
@@ -56,21 +54,23 @@ public class ConcurrentFilerProviderBackedMapChunkFactory<F extends ConcurrentFi
     }
 
     @Override
-    public MapChunk resize(MapStore mapStore, MapChunk chunk, String pageId, int newSize, MapStore.CopyToStream copyToStream) throws Exception {
+    public MapChunk<F> resize(MapStore mapStore, MapChunk<F> chunk, String pageId, int newSize, MapStore.CopyToStream copyToStream) throws Exception {
         F filer = mapStore.allocateFiler(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes, concurrentFilerProvider);
-        MapChunk newChunk = mapStore.bootstrapAllocatedFiler(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes, filer);
+        MapChunk<F> newChunk = mapStore.bootstrapAllocatedFiler(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes, filer);
         mapStore.copyTo(chunk, newChunk, copyToStream);
         return newChunk;
     }
 
     @Override
-    public MapChunk copy(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception {
+    public MapChunk<F> copy(MapStore mapStore, MapChunk<F> chunk, String pageId, int newSize) throws Exception {
         return resize(mapStore, chunk, pageId, newSize, null);
     }
 
     @Override
-    public MapChunk get(MapStore mapStore, String pageId) throws Exception {
-        return null; // Since this impl doesn't persist there is nothing to get.
+    public MapChunk<F> get(MapStore mapStore, String pageId) throws Exception {
+        MapChunk<F> mapChunk = new MapChunk<>(concurrentFilerProvider.get());
+        mapChunk.init(MapStore.DEFAULT);
+        return mapChunk;
     }
 
     @Override

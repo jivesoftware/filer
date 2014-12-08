@@ -3,6 +3,7 @@ package com.jivesoftware.os.filer.map.store;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.KeyMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
@@ -13,24 +14,24 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Bytes key to index, index to object array.
  */
-public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<BytesObjectMapStore<K, V>, Exception> {
+public class BytesObjectMapStore<F extends ConcurrentFiler, K, V> implements KeyValueStore<K, V>, Copyable<BytesObjectMapStore<F, K, V>, Exception> {
 
     private static final byte[] EMPTY_PAYLOAD = new byte[0];
 
     private final String pageId;
     private final V returnWhenGetReturnsNull;
-    private final MapChunkFactory mapChunkFactory;
+    private final MapChunkFactory<F> mapChunkFactory;
     private final KeyMarshaller<K> keyMarshaller;
 
     public final int keySize;
 
     private final MapStore mapStore = MapStore.DEFAULT;
-    private final AtomicReference<Index> indexRef = new AtomicReference<>();
+    private final AtomicReference<Index<F>> indexRef = new AtomicReference<>();
 
     public BytesObjectMapStore(String pageId,
         int keySize,
         V returnWhenGetReturnsNull,
-        MapChunkFactory mapChunkFactory,
+        MapChunkFactory<F> mapChunkFactory,
         KeyMarshaller<K> keyMarshaller) {
         this.pageId = pageId;
         this.keySize = keySize;
@@ -48,7 +49,7 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
         byte[] keyBytes = keyMarshaller.keyBytes(key);
         byte[] payload = EMPTY_PAYLOAD;
         synchronized (indexRef) {
-            Index index = index(true);
+            Index<F> index = index(true);
 
             index = ensureCapacity(index);
 
@@ -65,21 +66,21 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
     /*
      Must be called while holding synchronized (indexRef) lock.
      */
-    private Index ensureCapacity(Index index) throws Exception {
+    private Index<F> ensureCapacity(Index<F> index) throws Exception {
         // grow the set if needed;
         if (mapStore.getCount(index.chunk) >= index.chunk.maxCount) {
             int newSize = index.chunk.maxCount * 2;
 
-            final Index oldIndex = index;
+            final Index<F> oldIndex = index;
             final Object[] payloads = new Object[mapStore.calculateCapacity(newSize)];
-            MapChunk newChunk = mapChunkFactory.resize(mapStore, index.chunk, pageId, newSize, new MapStore.CopyToStream() {
+            MapChunk<F> newChunk = mapChunkFactory.resize(mapStore, index.chunk, pageId, newSize, new MapStore.CopyToStream() {
                 @Override
                 public void copied(int fromIndex, int toIndex) {
                     payloads[toIndex] = oldIndex.payloads[fromIndex];
                 }
             });
 
-            index = new Index(newChunk, payloads);
+            index = new Index<>(newChunk, payloads);
             indexRef.set(index);
         }
         return index;
@@ -93,7 +94,7 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
 
         byte[] keyBytes = keyMarshaller.keyBytes(key);
         synchronized (indexRef) {
-            Index index = index(false);
+            Index<F> index = index(false);
             if (index != null) {
                 int payloadIndex = mapStore.remove(index.chunk, keyBytes);
                 index.payloads[payloadIndex] = null;
@@ -110,7 +111,7 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
         byte[] keyBytes = keyMarshaller.keyBytes(key);
         long payloadIndex = -1;
         synchronized (indexRef) {
-            Index index = index(false);
+            Index<F> index = index(false);
             if (index != null) {
                 payloadIndex = mapStore.get(index.chunk, keyBytes);
             }
@@ -128,7 +129,7 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
             return returnWhenGetReturnsNull;
         }
         byte[] keyBytes = keyMarshaller.keyBytes(key);
-        Index index = index(false);
+        Index<F> index = index(false);
         long payloadIndex = -1;
         if (index != null) {
             payloadIndex = mapStore.get(index.chunk.duplicate(), keyBytes);
@@ -139,8 +140,8 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
         return (V) index.payloads[(int) payloadIndex];
     }
 
-    private Index index(boolean createIfAbsent) throws Exception {
-        Index got = indexRef.get();
+    private Index<F> index(boolean createIfAbsent) throws Exception {
+        Index<F> got = indexRef.get();
         if (got != null) {
             return got;
         }
@@ -152,14 +153,14 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
             }
 
             mapChunkFactory.delete(pageId);
-            MapChunk mapChunk;
+            MapChunk<F> mapChunk;
             if (createIfAbsent) {
                 mapChunk = mapChunkFactory.getOrCreate(mapStore, pageId);
             } else {
                 mapChunk = mapChunkFactory.get(mapStore, pageId);
             }
             if (mapChunk != null) {
-                got = new Index(mapChunk, new Object[mapStore.getCapacity(mapChunk)]);
+                got = new Index<>(mapChunk, new Object[mapStore.getCapacity(mapChunk)]);
                 indexRef.set(got);
             }
         }
@@ -167,35 +168,35 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
     }
 
     @Override
-    public void copyTo(BytesObjectMapStore<K, V> to) throws Exception {
+    public void copyTo(BytesObjectMapStore<F, K, V> to) throws Exception {
         synchronized (indexRef) {
-            Index got = indexRef.get();
+            Index<F> got = indexRef.get();
             if (got != null) {
                 to.copyFrom(got);
             }
         }
     }
 
-    private void copyFrom(Index fromIndex) throws Exception {
+    private void copyFrom(Index<F> fromIndex) throws Exception {
         synchronized (indexRef) {
-            MapChunk from = fromIndex.chunk;
+            MapChunk<F> from = fromIndex.chunk;
             // safe just to borrow the existing payloads because indexes should be in alignment
-            MapChunk to = mapChunkFactory.copy(mapStore, from, pageId, from.maxCount);
-            indexRef.set(new Index(to, fromIndex.payloads));
+            MapChunk<F> to = mapChunkFactory.copy(mapStore, from, pageId, from.maxCount);
+            indexRef.set(new Index<>(to, fromIndex.payloads));
         }
     }
 
     @Override
     public Iterator<Entry<K, V>> iterator() {
         List<Iterator<Entry<K, V>>> iterators = Lists.newArrayList();
-        final Index index;
+        final Index<F> index;
         try {
             index = index(false);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
         if (index != null) {
-            MapChunk got = index.chunk;
+            MapChunk<F> got = index.chunk;
             iterators.add(Iterators.transform(mapStore.iterator(got), new Function<MapStore.Entry, Entry<K, V>>() {
                 @Override
                 @SuppressWarnings("unchecked")
@@ -223,14 +224,14 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
     @Override
     public Iterator<K> keysIterator() {
         List<Iterator<K>> iterators = Lists.newArrayList();
-        final Index index;
+        final Index<F> index;
         try {
             index = index(false);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
         if (index != null) {
-            MapChunk got = index.chunk;
+            MapChunk<F> got = index.chunk;
             iterators.add(Iterators.transform(mapStore.keysIterator(got), new Function<byte[], K>() {
                 @Override
                 public K apply(byte[] input) {
@@ -241,12 +242,12 @@ public class BytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<
         return Iterators.concat(iterators.iterator());
     }
 
-    private static class Index {
+    private static class Index<F extends ConcurrentFiler> {
 
-        public final MapChunk chunk;
+        public final MapChunk<F> chunk;
         public final Object[] payloads;
 
-        private Index(MapChunk chunk, Object[] payloads) {
+        private Index(MapChunk<F> chunk, Object[] payloads) {
             this.chunk = chunk;
             this.payloads = payloads;
         }

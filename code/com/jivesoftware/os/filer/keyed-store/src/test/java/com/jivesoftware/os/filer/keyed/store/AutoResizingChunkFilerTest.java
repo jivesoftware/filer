@@ -5,6 +5,7 @@ import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStoreInitializer;
 import com.jivesoftware.os.filer.io.ByteBufferBackedConcurrentFilerFactory;
+import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
@@ -38,10 +39,10 @@ public class AutoResizingChunkFilerTest {
 
         final MultiChunkStore multiChunkStore = new MultiChunkStoreInitializer(new ChunkStoreInitializer())
             .initializeMultiByteBufferBacked("test", byteBufferFactory, 1, 512, true, 8, 64);
-        ConcurrentFilerProvider concurrentFilerProvider = new ConcurrentFilerProvider("test".getBytes(Charsets.UTF_8),
+        ConcurrentFilerProvider<ByteBufferBackedFiler> concurrentFilerProvider = new ConcurrentFilerProvider<>("test".getBytes(Charsets.UTF_8),
             new ByteBufferBackedConcurrentFilerFactory(byteBufferFactory));
-        ConcurrentFilerProviderBackedMapChunkFactory mapChunkFactory = new ConcurrentFilerProviderBackedMapChunkFactory(4, false, 8, false, 512,
-            concurrentFilerProvider);
+        ConcurrentFilerProviderBackedMapChunkFactory<ByteBufferBackedFiler> mapChunkFactory = new ConcurrentFilerProviderBackedMapChunkFactory<>(
+            4, false, 8, false, 512, concurrentFilerProvider);
         final PartitionedMapChunkBackedMapStore<IBA, IBA> mapStore = new PartitionedMapChunkBackedMapStore<>(
             mapChunkFactory,
             new StripingLocksProvider<String>(8),
@@ -152,10 +153,10 @@ public class AutoResizingChunkFilerTest {
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
         final MultiChunkStore multiChunkStore = new MultiChunkStoreInitializer(new ChunkStoreInitializer()).initializeMultiByteBufferBacked(
             "test-chunk", byteBufferFactory, 1, 512, true, 8, 64);
-        ConcurrentFilerProvider concurrentFilerProvider = new ConcurrentFilerProvider("test".getBytes(Charsets.UTF_8),
+        ConcurrentFilerProvider<ByteBufferBackedFiler> concurrentFilerProvider = new ConcurrentFilerProvider<>("test".getBytes(Charsets.UTF_8),
             new ByteBufferBackedConcurrentFilerFactory(byteBufferFactory));
-        ConcurrentFilerProviderBackedMapChunkFactory mapChunkFactory = new ConcurrentFilerProviderBackedMapChunkFactory(4, false, 8, false, 512,
-            concurrentFilerProvider);
+        ConcurrentFilerProviderBackedMapChunkFactory<ByteBufferBackedFiler> mapChunkFactory = new ConcurrentFilerProviderBackedMapChunkFactory<>(
+            4, false, 8, false, 512, concurrentFilerProvider);
         KeyPartitioner<IBA> keyPartitioner = new KeyPartitioner<IBA>() {
             @Override
             public String keyPartition(IBA key) {
