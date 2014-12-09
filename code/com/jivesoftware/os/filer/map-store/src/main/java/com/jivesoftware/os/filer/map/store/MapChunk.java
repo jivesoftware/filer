@@ -1,5 +1,6 @@
 package com.jivesoftware.os.filer.map.store;
 
+import com.google.common.base.Preconditions;
 import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import java.io.IOException;
 
@@ -22,7 +23,7 @@ public class MapChunk<F extends ConcurrentFiler> {
      * @param filer
      */
     public MapChunk(F filer) {
-        this.filer = filer;
+        this.filer = Preconditions.checkNotNull(filer);
     }
 
     /**

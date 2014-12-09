@@ -78,9 +78,13 @@ public class ConcurrentFilerProviderBackedMapChunkFactory<F extends ConcurrentFi
 
     @Override
     public MapChunk<F> get(MapStore mapStore, String pageId) throws Exception {
-        MapChunk<F> mapChunk = new MapChunk<>(concurrentFilerProvider.get());
-        mapChunk.init(MapStore.DEFAULT);
-        return mapChunk;
+        F filer = concurrentFilerProvider.get();
+        if (filer != null) {
+            MapChunk<F> mapChunk = new MapChunk<>(filer);
+            mapChunk.init(MapStore.DEFAULT);
+            return mapChunk;
+        }
+        return null;
     }
 
     @Override
