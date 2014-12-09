@@ -2,6 +2,7 @@ package com.jivesoftware.os.filer.map.store;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
+import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
@@ -33,9 +34,10 @@ public class VariableKeySizeMapChunkBackedMapStoreTest {
         };
     }
 
-    private VariableKeySizeMapChunkBackedMapStore<String, Long> createMapStore(String[] pathsToPartitions, int[] keySizeThresholds) throws Exception {
+    private VariableKeySizeMapChunkBackedMapStore<ByteBufferBackedFiler, String, Long> createMapStore(String[] pathsToPartitions, int[] keySizeThresholds)
+        throws Exception {
 
-        VariableKeySizeMapChunkBackedMapStore.Builder<String, Long> builder = new VariableKeySizeMapChunkBackedMapStore.Builder<>(
+        VariableKeySizeMapChunkBackedMapStore.Builder<ByteBufferBackedFiler, String, Long> builder = new VariableKeySizeMapChunkBackedMapStore.Builder<>(
             new StripingLocksProvider<String>(1),
             null,
             new KeyValueMarshaller<String, Long>() {
@@ -85,7 +87,7 @@ public class VariableKeySizeMapChunkBackedMapStoreTest {
     @Test
     public void testAddGet() throws Exception {
         int[] keySizeThresholds = new int[] { 4, 16, 64, 256, 1_024 };
-        VariableKeySizeMapChunkBackedMapStore<String, Long> mapStore = createMapStore(pathsToPartitions, keySizeThresholds);
+        VariableKeySizeMapChunkBackedMapStore<ByteBufferBackedFiler, String, Long> mapStore = createMapStore(pathsToPartitions, keySizeThresholds);
 
         for (int i = 0; i < keySizeThresholds.length; i++) {
             System.out.println("hmm:" + i);
@@ -99,7 +101,7 @@ public class VariableKeySizeMapChunkBackedMapStoreTest {
     @Test(expectedExceptions = { IndexOutOfBoundsException.class })
     public void testKeyTooBig() throws KeyValueStoreException, Exception {
         int[] keySizeThresholds = new int[] { 1, 2, 4 };
-        VariableKeySizeMapChunkBackedMapStore<String, Long> mapStore = createMapStore(pathsToPartitions, keySizeThresholds);
+        VariableKeySizeMapChunkBackedMapStore<ByteBufferBackedFiler, String, Long> mapStore = createMapStore(pathsToPartitions, keySizeThresholds);
 
         int maxLength = keySizeThresholds[keySizeThresholds.length - 1];
         mapStore.add(keyOfLength(maxLength + 1), 0l);
@@ -114,7 +116,7 @@ public class VariableKeySizeMapChunkBackedMapStoreTest {
     @Test
     public void testIterator() throws Exception {
         int[] keySizeThresholds = new int[] { 4, 16 };
-        VariableKeySizeMapChunkBackedMapStore<String, Long> mapStore = createMapStore(pathsToPartitions, keySizeThresholds);
+        VariableKeySizeMapChunkBackedMapStore<ByteBufferBackedFiler, String, Long> mapStore = createMapStore(pathsToPartitions, keySizeThresholds);
 
         String keyspace = "abcdefghijklmnopqrstuvwxyz";
         for (int i = 1; i <= 16; i++) {
@@ -141,7 +143,7 @@ public class VariableKeySizeMapChunkBackedMapStoreTest {
     @Test
     public void testKeysIterator() throws Exception {
         int[] keySizeThresholds = new int[] { 4, 16 };
-        VariableKeySizeMapChunkBackedMapStore<String, Long> mapStore = createMapStore(pathsToPartitions, keySizeThresholds);
+        VariableKeySizeMapChunkBackedMapStore<ByteBufferBackedFiler, String, Long> mapStore = createMapStore(pathsToPartitions, keySizeThresholds);
 
         String keyspace = "abcdefghijklmnopqrstuvwxyz";
         for (int i = 1; i <= 16; i++) {

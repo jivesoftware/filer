@@ -3,6 +3,7 @@ package com.jivesoftware.os.filer.map.store;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
@@ -13,21 +14,22 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStore<K, V>, Copyable<VariableKeySizeMapChunkBackedMapStore<K, V>, Exception> {
+public class VariableKeySizeMapChunkBackedMapStore<F extends ConcurrentFiler, K, V> implements KeyValueStore<K, V>,
+    Copyable<VariableKeySizeMapChunkBackedMapStore<F, K, V>, Exception> {
 
     private final KeyValueMarshaller<K, V> keyValueMarshaller;
-    private final PartitionSizedByMapStore[] mapStores;
+    private final PartitionSizedByMapStore<F>[] mapStores;
     private final V returnWhenGetReturnsNull;
 
     private VariableKeySizeMapChunkBackedMapStore(KeyValueMarshaller<K, V> keyValueMarshaller,
-        PartitionSizedByMapStore[] keyedStores,
+        PartitionSizedByMapStore<F>[] keyedStores,
         V returnWhenGetReturnsNull) {
         this.keyValueMarshaller = keyValueMarshaller;
         this.mapStores = keyedStores;
         this.returnWhenGetReturnsNull = returnWhenGetReturnsNull;
     }
 
-    private PartitionSizedByMapStore getMapStore(int keyLength) {
+    private PartitionSizedByMapStore<F> getMapStore(int keyLength) {
         for (int i = 0; i < mapStores.length; i++) {
             if (mapStores[i].keySize >= keyLength) {
                 return mapStores[i];
@@ -70,7 +72,7 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
     }
 
     @Override
-    public void copyTo(VariableKeySizeMapChunkBackedMapStore<K, V> to) throws Exception {
+    public void copyTo(VariableKeySizeMapChunkBackedMapStore<F, K, V> to) throws Exception {
         for (int i = 0; i < mapStores.length; i++) {
             mapStores[i].store.copyTo(to.mapStores[i].store);
         }
@@ -79,7 +81,7 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
     @Override
     public Iterator<Entry<K, V>> iterator() {
         List<Iterator<Entry<K, V>>> iterators = Lists.newArrayListWithCapacity(mapStores.length);
-        for (PartitionSizedByMapStore mapStore : mapStores) {
+        for (PartitionSizedByMapStore<F> mapStore : mapStores) {
             iterators.add(Iterators.transform(mapStore.store.iterator(), new Function<Entry<byte[], byte[]>, Entry<K, V>>() {
 
                 @Override
@@ -106,7 +108,7 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
     @Override
     public Iterator<K> keysIterator() {
         List<Iterator<K>> iterators = Lists.newArrayListWithCapacity(mapStores.length);
-        for (PartitionSizedByMapStore mapStore : mapStores) {
+        for (PartitionSizedByMapStore<F> mapStore : mapStores) {
             iterators.add(Iterators.transform(mapStore.store.keysIterator(), new Function<byte[], K>() {
                 @Override
                 public K apply(byte[] input) {
@@ -117,13 +119,13 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
         return Iterators.concat(iterators.iterator());
     }
 
-    public static class Builder<K, V> {
+    public static class Builder<F extends ConcurrentFiler, K, V> {
 
         private final StripingLocksProvider<String> keyLocksProvider;
         private final V returnWhenGetReturnsNull;
         private final byte[] returnWhenGetReturnsNullBytes;
         private final KeyValueMarshaller<K, V> keyValueMarshaller;
-        private final List<PartitionSizedByMapStore> stores = new ArrayList<>();
+        private final List<PartitionSizedByMapStore<F>> stores = new ArrayList<>();
 
         public Builder(StripingLocksProvider<String> keyLocksProvider, V returnWhenGetReturnsNull, final KeyValueMarshaller<K, V> keyValueMarshaller) {
             this.keyLocksProvider = keyLocksProvider;
@@ -132,7 +134,7 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
             this.returnWhenGetReturnsNullBytes = (returnWhenGetReturnsNull == null) ? null : keyValueMarshaller.valueBytes(returnWhenGetReturnsNull);
         }
 
-        public Builder add(final int keySize, MapChunkFactory mapChunkFactory, final KeyPartitioner<K> keyPartitioner) {
+        public Builder add(final int keySize, MapChunkFactory<F> mapChunkFactory, final KeyPartitioner<K> keyPartitioner) {
 
             KeyPartitioner<byte[]> delegatingKeyPartitioner = new KeyPartitioner<byte[]>() {
 
@@ -147,7 +149,7 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
                 }
             };
 
-            stores.add(new PartitionSizedByMapStore(keySize,
+            stores.add(new PartitionSizedByMapStore<>(keySize,
                 new PartitionedMapChunkBackedMapStore<>(mapChunkFactory,
                     keyLocksProvider,
                     returnWhenGetReturnsNullBytes,
@@ -156,7 +158,7 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
             return this;
         }
 
-        public VariableKeySizeMapChunkBackedMapStore<K, V> build() throws Exception {
+        public VariableKeySizeMapChunkBackedMapStore<F, K, V> build() throws Exception {
             Collections.sort(stores);
             if (stores.isEmpty()) {
                 throw new IllegalStateException("No stores were added. Must add at least one store.");
@@ -169,19 +171,19 @@ public class VariableKeySizeMapChunkBackedMapStore<K, V> implements KeyValueStor
                 keySize = stores.get(i).keySize;
             }
 
-            return new VariableKeySizeMapChunkBackedMapStore<>(keyValueMarshaller,
-                stores.toArray(new PartitionSizedByMapStore[stores.size()]),
-                returnWhenGetReturnsNull);
+            @SuppressWarnings("unchecked")
+            PartitionSizedByMapStore<F>[] storesArray = stores.toArray(new PartitionSizedByMapStore[stores.size()]);
+            return new VariableKeySizeMapChunkBackedMapStore<>(keyValueMarshaller, storesArray, returnWhenGetReturnsNull);
         }
 
     }
 
-    private static class PartitionSizedByMapStore implements Comparable<PartitionSizedByMapStore> {
+    private static class PartitionSizedByMapStore<F extends ConcurrentFiler> implements Comparable<PartitionSizedByMapStore> {
 
         final int keySize;
-        final PartitionedMapChunkBackedMapStore<byte[], byte[]> store;
+        final PartitionedMapChunkBackedMapStore<F, byte[], byte[]> store;
 
-        public PartitionSizedByMapStore(int keySize, PartitionedMapChunkBackedMapStore<byte[], byte[]> store) {
+        public PartitionSizedByMapStore(int keySize, PartitionedMapChunkBackedMapStore<F, byte[], byte[]> store) {
             this.keySize = keySize;
             this.store = store;
         }

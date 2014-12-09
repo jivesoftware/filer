@@ -56,8 +56,8 @@ public class BytesBytesMapStore<F extends ConcurrentFiler, K, V> implements KeyV
             MapChunk<F> index = index(true);
 
             // grow the set if needed;
-            if (mapStore.getCount(index) >= index.maxCount) {
-                int newSize = index.maxCount * 2;
+            if (mapStore.isFull(index)) {
+                int newSize = mapStore.nextGrowSize(index);
 
                 index = mapChunkFactory.resize(mapStore, index, pageId, newSize, null);
                 indexRef.set(index);

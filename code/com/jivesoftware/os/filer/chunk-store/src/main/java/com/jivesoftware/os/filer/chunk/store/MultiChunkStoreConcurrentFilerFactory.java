@@ -3,7 +3,6 @@ package com.jivesoftware.os.filer.chunk.store;
 import com.google.common.base.Preconditions;
 import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.ConcurrentFilerFactory;
-import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.map.store.MapChunk;
@@ -14,7 +13,6 @@ import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- *
  * @author jonathan.colt
  */
 public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFactory<ChunkFiler>, MultiChunkStore {
@@ -80,8 +78,9 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                     skyHookFiler.seek(0);
                     FilerIO.writeLong(skyHookFiler, MAGIC_SKY_HOOK_NUMBER, "magic");
                     for (int i = 1, keySize = 1; i < maxKeySizePower; i++, keySize *= 2) {
-                        ConcurrentFilerProvider<ChunkFiler> concurrentFilerProvider = new ConcurrentFilerProvider<>(null, new Magic(chunkStore));
-                        ChunkFiler mapStoresFiler = MapStore.DEFAULT.allocateFiler(2, keySize, true, 8, false, concurrentFilerProvider);
+                        int filerSize = MapStore.DEFAULT.computeFilerSize(2, keySize, true, 8, false);
+                        long chunkFP = chunkStore.newChunk(filerSize);
+                        ChunkFiler mapStoresFiler = chunkStore.getFiler(chunkFP, new Object());
                         MapStore.DEFAULT.bootstrapAllocatedFiler(2, keySize, true, 8, false, mapStoresFiler);
                         MapChunk<ChunkFiler> mapChunk = new MapChunk<>(mapStoresFiler);
                         mapChunk.init(MapStore.DEFAULT);
@@ -96,44 +95,19 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
         }
     }
 
-    private class Magic implements ConcurrentFilerFactory<ChunkFiler> {
-
-        private final ChunkStore chunkStore;
-
-        public Magic(ChunkStore chunkStore) {
-            this.chunkStore = chunkStore;
-        }
-
-        @Override
-        public ChunkFiler get(byte[] key) throws IOException {
-            throw new UnsupportedOperationException("Should not be called for Magic factory");
-        }
-
-        @Override
-        public ChunkFiler allocate(byte[] key, long size) throws IOException {
-            long newChunkFP = chunkStore.newChunk(size);
-            return chunkStore.getFiler(newChunkFP, null);
-        }
-
-        @Override
-        public ChunkFiler reallocate(byte[] key, ChunkFiler old, long newSize) throws IOException {
-            throw new RuntimeException("This should never called.");
-        }
-
-    }
-
-    private MapChunk growMapChunkIfNeeded(AtomicReference<MapChunk<ChunkFiler>> atomicMapChunk,
+    private MapChunk<ChunkFiler> growMapChunkIfNeeded(AtomicReference<MapChunk<ChunkFiler>> atomicMapChunk,
         int keyLength,
         ChunkStore chunkStore) throws IOException {
 
-        MapChunk<ChunkFiler> mapChunk = atomicMapChunk.get();
+        MapChunk<ChunkFiler> mapChunk = getMapChunkIndex(atomicMapChunk, chunkStore, keyLength);
         try {
             if (MapStore.DEFAULT.isFull(mapChunk)) {
                 int newSize = MapStore.DEFAULT.nextGrowSize(mapChunk);
                 int chunkPower = FilerIO.chunkPower(keyLength, 1);
 
-                ConcurrentFilerProvider<ChunkFiler> concurrentFilerProvider = new ConcurrentFilerProvider<>(null, new Magic(chunkStore));
-                ChunkFiler mapStoresFiler = MapStore.DEFAULT.allocateFiler(newSize, chunkPower, true, 8, false, concurrentFilerProvider);
+                int filerSize = MapStore.DEFAULT.computeFilerSize(newSize, chunkPower, true, 8, false);
+                long chunkFP = chunkStore.newChunk(filerSize);
+                ChunkFiler mapStoresFiler = chunkStore.getFiler(chunkFP, new Object());
                 MapChunk<ChunkFiler> newMapChunk = MapStore.DEFAULT.bootstrapAllocatedFiler(newSize, chunkPower, true, 8, false, mapStoresFiler);
                 MapStore.DEFAULT.copyTo(mapChunk, newMapChunk, null);
 
@@ -156,7 +130,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
         }
     }
 
-    private MapChunk getMapChunkIndex(AtomicReference<MapChunk<ChunkFiler>> chunkIndex, ChunkStore chunkStore, int keyLength) throws IOException {
+    private MapChunk<ChunkFiler> getMapChunkIndex(AtomicReference<MapChunk<ChunkFiler>> chunkIndex, ChunkStore chunkStore, int keyLength) throws IOException {
 
         MapChunk<ChunkFiler> mapChunk = chunkIndex.get();
         if (mapChunk == null) {
@@ -180,44 +154,49 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
 
     @Override
     public ChunkFiler get(byte[] key) throws IOException {
-        return getOrAllocate(key, -1);
-    }
-
-    @Override
-    public ChunkFiler allocate(byte[] key, long size) throws IOException {
-        Preconditions.checkArgument(size > 0, "Size must be positive");
-        return getOrAllocate(key, size);
-    }
-
-    private ChunkFiler getOrAllocate(byte[] key, long size) throws IOException {
         int i = getChunkIndexForKey(key);
         AtomicReference<MapChunk<ChunkFiler>> chunkIndex = chunkIndexes[i][FilerIO.chunkPower(key.length, 0)];
         MapChunk mapChunkIndex = getMapChunkIndex(chunkIndex, chunkStores[i], key.length);
-        long chunkFP = -1;
         long ai = MapStore.DEFAULT.get(mapChunkIndex, key);
         if (ai >= 0) {
-            chunkFP = FilerIO.bytesLong(MapStore.DEFAULT.getPayload(mapChunkIndex, ai));
-        }
-        if (chunkFP == -1 && size > 0) {
-            chunkFP = chunkStores[i].newChunk(size);
-            MapChunk mapChunk = growMapChunkIfNeeded(chunkIndex, key.length, chunkStores[i]);
-            MapStore.DEFAULT.add(mapChunk, (byte) 1, key, FilerIO.longBytes(chunkFP));
-        }
-        if (chunkFP >= 0) {
-            return chunkStores[i].getFiler(chunkFP, locksProviders[i].lock(key));
+            long chunkFP = FilerIO.bytesLong(MapStore.DEFAULT.getPayload(mapChunkIndex, ai));
+            if (chunkFP >= 0) {
+                return chunkStores[i].getFiler(chunkFP, locksProviders[i].lock(key));
+            }
         }
         return null;
     }
 
     @Override
-    public ChunkFiler reallocate(byte[] key, ChunkFiler oldFiler, long newSize) throws IOException {
-        ChunkFiler newFiler = allocate(key, newSize);
+    public ChunkFiler allocate(byte[] key, long size) throws IOException {
+        Preconditions.checkArgument(size > 0, "Size must be positive");
+        int i = getChunkIndexForKey(key);
+        AtomicReference<MapChunk<ChunkFiler>> chunkIndex = chunkIndexes[i][FilerIO.chunkPower(key.length, 0)];
+        MapChunk<ChunkFiler> mapChunk = getMapChunkIndex(chunkIndex, chunkStores[i], key.length);
+        long chunkFP = chunkStores[i].newChunk(size);
+        MapStore.DEFAULT.add(mapChunk, (byte) 1, key, FilerIO.longBytes(chunkFP));
+        return chunkStores[i].getFiler(chunkFP, locksProviders[i].lock(key));
+    }
+
+    @Override
+    public <R> R reallocate(byte[] key, long newSize, ReallocateFiler<ChunkFiler, R> reallocateFiler) throws IOException {
+        ChunkFiler oldFiler = get(key);
         if (oldFiler == null) {
-            return newFiler;
+            throw new IllegalStateException("Trying to reallocate an unallocated key of " + Arrays.toString(key));
         }
-        FilerIO.copy(oldFiler, newFiler, -1);
+
+        ChunkFiler newFiler = allocate(key, newSize);
+        R result = reallocateFiler.reallocate(newFiler);
+
+        int i = getChunkIndexForKey(key);
+        AtomicReference<MapChunk<ChunkFiler>> chunkIndex = chunkIndexes[i][FilerIO.chunkPower(key.length, 0)];
+        //TODO MapChunk could be changing out from under us, need some locking behavior
+        MapChunk mapChunk = growMapChunkIfNeeded(chunkIndex, key.length, chunkStores[i]);
+        long chunkFP = newFiler.getChunkFP();
+        MapStore.DEFAULT.add(mapChunk, (byte) 1, key, FilerIO.longBytes(chunkFP));
+
         oldFiler.recycle();
-        return newFiler;
+        return result;
     }
 
     @Override

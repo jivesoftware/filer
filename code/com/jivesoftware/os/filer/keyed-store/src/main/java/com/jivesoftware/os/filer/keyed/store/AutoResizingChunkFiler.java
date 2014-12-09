@@ -2,6 +2,7 @@ package com.jivesoftware.os.filer.keyed.store;
 
 import com.google.common.base.Preconditions;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
+import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.IBA;
@@ -14,13 +15,13 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  *
  */
-public class AutoResizingChunkFiler implements Filer {
+public class AutoResizingChunkFiler<F extends ConcurrentFiler> implements Filer {
     private final AtomicReference<Filer> filerReference;
     private final MultiChunkStore chunkStore;
     private final IBA key;
-    private final PartitionedMapChunkBackedMapStore<IBA, IBA> mapStore;
+    private final PartitionedMapChunkBackedMapStore<F, IBA, IBA> mapStore;
 
-    public AutoResizingChunkFiler(PartitionedMapChunkBackedMapStore<IBA, IBA> mapStore, IBA key, MultiChunkStore chunkStore) {
+    public AutoResizingChunkFiler(PartitionedMapChunkBackedMapStore<F, IBA, IBA> mapStore, IBA key, MultiChunkStore chunkStore) {
         this.chunkStore = chunkStore;
         this.mapStore = mapStore;
         this.key = key;

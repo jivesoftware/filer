@@ -27,13 +27,11 @@ public class ByteBufferBackedConcurrentFilerFactory implements ConcurrentFilerFa
     }
 
     @Override
-    public ByteBufferBackedFiler reallocate(byte[] key, ByteBufferBackedFiler old, long newSize) throws IOException {
+    public <R> R reallocate(byte[] key, long newSize, ReallocateFiler<ByteBufferBackedFiler, R> reallocateFiler) throws IOException {
+
         ByteBuffer bb = byteBufferFactory.allocate(key, newSize);
         ByteBufferBackedFiler newFiler = new ByteBufferBackedFiler(new Object(), bb);
-        if (old != null) {
-            FilerIO.copy(old, newFiler, -1); // Kinda lame wish we could do a bytebuffer copy :(
-        }
-        return newFiler;
+        return reallocateFiler.reallocate(newFiler);
     }
 
 }

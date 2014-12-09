@@ -1,6 +1,7 @@
 package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
+import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.KeyPartitioner;
@@ -19,16 +20,17 @@ import java.util.Iterator;
 /**
  * @author jonathan
  */
-public class PartitionedMapChunkBackedKeyedStore implements KeyedFilerStore, Copyable<PartitionedMapChunkBackedKeyedStore, Exception>,
+public class PartitionedMapChunkBackedKeyedStore<F extends ConcurrentFiler> implements KeyedFilerStore,
+    Copyable<PartitionedMapChunkBackedKeyedStore<F>, Exception>,
     Iterable<KeyValueStore.Entry<IBA, SwappableFiler>> {
 
-    private final PartitionedMapChunkBackedMapStore<IBA, IBA> mapStore;
-    private final PartitionedMapChunkBackedMapStore<IBA, IBA> swapStore;
+    private final PartitionedMapChunkBackedMapStore<F, IBA, IBA> mapStore;
+    private final PartitionedMapChunkBackedMapStore<F, IBA, IBA> swapStore;
     private final MultiChunkStore chunkStore;
     private final String[] partitions;
 
-    public PartitionedMapChunkBackedKeyedStore(MapChunkFactory mapChunkFactory,
-        MapChunkFactory swapChunkFactory,
+    public PartitionedMapChunkBackedKeyedStore(MapChunkFactory<F> mapChunkFactory,
+        MapChunkFactory<F> swapChunkFactory,
         MultiChunkStore chunkStore,
         StripingLocksProvider<String> keyLocksProvider,
         int numPartitions)
@@ -43,7 +45,8 @@ public class PartitionedMapChunkBackedKeyedStore implements KeyedFilerStore, Cop
         }
     }
 
-    private PartitionedMapChunkBackedMapStore<IBA, IBA> initializeMapStore(MapChunkFactory chunkFactory, final StripingLocksProvider<String> keyLocksProvider)
+    private PartitionedMapChunkBackedMapStore<F, IBA, IBA> initializeMapStore(MapChunkFactory<F> chunkFactory,
+        final StripingLocksProvider<String> keyLocksProvider)
         throws Exception {
 
         // TODO push up factory!
@@ -88,7 +91,7 @@ public class PartitionedMapChunkBackedKeyedStore implements KeyedFilerStore, Cop
     @Override
     public SwappableFiler get(byte[] keyBytes, long newFilerInitialCapacity) throws Exception {
         IBA key = new IBA(keyBytes);
-        AutoResizingChunkFiler filer = new AutoResizingChunkFiler(mapStore, key, chunkStore);
+        AutoResizingChunkFiler<F> filer = new AutoResizingChunkFiler<>(mapStore, key, chunkStore);
         if (!filer.open()) {
             if (newFilerInitialCapacity > 0) {
                 filer.init(newFilerInitialCapacity);
@@ -96,11 +99,11 @@ public class PartitionedMapChunkBackedKeyedStore implements KeyedFilerStore, Cop
                 return null;
             }
         }
-        return new AutoResizingChunkSwappableFiler(filer, chunkStore, key, mapStore, swapStore);
+        return new AutoResizingChunkSwappableFiler<>(filer, chunkStore, key, mapStore, swapStore);
     }
 
     @Override
-    public void copyTo(PartitionedMapChunkBackedKeyedStore to) throws Exception {
+    public void copyTo(PartitionedMapChunkBackedKeyedStore<F> to) throws Exception {
         mapStore.copyTo(to.mapStore);
         swapStore.copyTo(to.swapStore);
     }

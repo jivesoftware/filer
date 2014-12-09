@@ -1,6 +1,7 @@
 package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
+import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.IBA;
@@ -12,16 +13,16 @@ import java.io.IOException;
  *
  *
  */
-public class AutoResizingChunkSwappableFiler implements SwappableFiler {
+public class AutoResizingChunkSwappableFiler<F extends ConcurrentFiler> implements SwappableFiler {
 
     private final AutoResizingChunkFiler filer;
     private final MultiChunkStore chunkStore;
     private final IBA key;
-    private final PartitionedMapChunkBackedMapStore<IBA, IBA> mapStore;
-    private final PartitionedMapChunkBackedMapStore<IBA, IBA> swapStore;
+    private final PartitionedMapChunkBackedMapStore<F, IBA, IBA> mapStore;
+    private final PartitionedMapChunkBackedMapStore<F, IBA, IBA> swapStore;
 
     public AutoResizingChunkSwappableFiler(AutoResizingChunkFiler filer, MultiChunkStore chunkStore, IBA key,
-        PartitionedMapChunkBackedMapStore<IBA, IBA> mapStore, PartitionedMapChunkBackedMapStore<IBA, IBA> swapStore) {
+        PartitionedMapChunkBackedMapStore<F, IBA, IBA> mapStore, PartitionedMapChunkBackedMapStore<F, IBA, IBA> swapStore) {
         this.filer = filer;
         this.chunkStore = chunkStore;
         this.key = key;
@@ -30,7 +31,7 @@ public class AutoResizingChunkSwappableFiler implements SwappableFiler {
     }
 
     public SwappingFiler swap(long initialChunkSize) throws Exception {
-        AutoResizingChunkFiler filer = new AutoResizingChunkFiler(swapStore, key, chunkStore);
+        AutoResizingChunkFiler<F> filer = new AutoResizingChunkFiler<>(swapStore, key, chunkStore);
         filer.init(initialChunkSize);
         return new AutoResizingChunkSwappingFiler(filer);
     }

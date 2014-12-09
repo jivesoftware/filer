@@ -68,8 +68,8 @@ public class BytesObjectMapStore<F extends ConcurrentFiler, K, V> implements Key
      */
     private Index<F> ensureCapacity(Index<F> index) throws Exception {
         // grow the set if needed;
-        if (mapStore.getCount(index.chunk) >= index.chunk.maxCount) {
-            int newSize = index.chunk.maxCount * 2;
+        if (mapStore.isFull(index.chunk)) {
+            int newSize = mapStore.nextGrowSize(index.chunk);
 
             final Index<F> oldIndex = index;
             final Object[] payloads = new Object[mapStore.calculateCapacity(newSize)];

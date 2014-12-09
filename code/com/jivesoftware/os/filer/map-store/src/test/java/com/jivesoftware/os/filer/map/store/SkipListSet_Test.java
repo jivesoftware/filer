@@ -2,6 +2,7 @@ package com.jivesoftware.os.filer.map.store;
 
 import com.google.common.base.Charsets;
 import com.jivesoftware.os.filer.io.ByteBufferBackedConcurrentFilerFactory;
+import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
@@ -23,9 +24,7 @@ public class SkipListSet_Test {
      */
     public static void main(String[] _args) throws IOException {
 
-        long maxCountBetweenZeroAndOne = (long) (1d / Double.MIN_VALUE);
-        System.out.println(maxCountBetweenZeroAndOne + " " + Double.MAX_VALUE);
-        ConcurrentFilerProvider provider = new ConcurrentFilerProvider("booya".getBytes(Charsets.UTF_8),
+        ConcurrentFilerProvider<ByteBufferBackedFiler> provider = new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8),
             new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()));
 
         //chart(factory);

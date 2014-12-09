@@ -6,6 +6,7 @@ import com.google.common.collect.DiscreteDomain;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
+import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
@@ -30,7 +31,7 @@ public class FileBackMapStoreTest {
             Files.createTempDirectory("testIterator").toFile().getAbsolutePath()
         };
         FileBackedMapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 512, paths);
-        PartitionedMapChunkBackedMapStore<Integer, Long> fileBackMapStore = new PartitionedMapChunkBackedMapStore<>(mapChunkFactory,
+        PartitionedMapChunkBackedMapStore<ByteBufferBackedFiler, Integer, Long> fileBackMapStore = new PartitionedMapChunkBackedMapStore<>(mapChunkFactory,
             new StripingLocksProvider<String>(4),
             null,
             new KeyPartitioner<Integer>() {

@@ -1,7 +1,6 @@
 package com.jivesoftware.os.filer.map.store;
 
 import com.jivesoftware.os.filer.io.ConcurrentFiler;
-import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.map.store.extractors.IndexStream;
 import java.io.IOException;
 import java.util.Arrays;
@@ -82,18 +81,16 @@ public class MapStore {
         return (int) (maxCount + (maxCount - (maxCount * cSetDensity)));
     }
 
-    public <F extends ConcurrentFiler> F allocateFiler(int maxCount,
+    public int computeFilerSize(int maxCount,
         int keySize,
         boolean variableKeySizes,
         int payloadSize,
-        boolean variablePayloadSizes,
-        ConcurrentFilerProvider<F> concurrentFilerProvider) throws IOException {
+        boolean variablePayloadSizes) throws IOException {
 
         byte keyLengthSize = keyLengthSize(variableKeySizes ? keySize : 0);
         byte payloadLengthSize = keyLengthSize(variablePayloadSizes ? payloadSize : 0);
 
-        int arraySize = cost(maxCount, keyLengthSize + keySize, payloadLengthSize + payloadSize);
-        return concurrentFilerProvider.allocate(arraySize);
+        return cost(maxCount, keyLengthSize + keySize, payloadLengthSize + payloadSize);
     }
 
     /**

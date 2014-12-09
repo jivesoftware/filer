@@ -3,6 +3,7 @@ package com.jivesoftware.os.filer.map.store;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
@@ -19,18 +20,19 @@ import java.util.concurrent.ConcurrentSkipListMap;
  * @param <V>
  * @author jonathan
  */
-public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K, V>, Copyable<PartitionedMapChunkBackedMapStore<K, V>, Exception> {
+public class PartitionedMapChunkBackedMapStore<F extends ConcurrentFiler, K, V> implements KeyValueStore<K, V>,
+    Copyable<PartitionedMapChunkBackedMapStore<F, K, V>, Exception> {
 
     private static final MapStore mapStore = MapStore.DEFAULT;
 
-    private final MapChunkFactory chunkFactory;
+    private final MapChunkFactory<F> chunkFactory;
     private final StripingLocksProvider<String> keyLocksProvider;
-    private final Map<String, MapChunk> indexPages;
+    private final Map<String, MapChunk<F>> indexPages;
     private final V returnWhenGetReturnsNull;
     private final KeyPartitioner<K> keyPartitioner;
     private final KeyValueMarshaller<K, V> keyValueMarshaller;
 
-    public PartitionedMapChunkBackedMapStore(MapChunkFactory chunkFactory,
+    public PartitionedMapChunkBackedMapStore(MapChunkFactory<F> chunkFactory,
         StripingLocksProvider<String> keyLocksProvider,
         V returnWhenGetReturnsNull,
         KeyPartitioner<K> keyPartitioner,
@@ -61,7 +63,7 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
         }
         String pageId = keyPartitioner.keyPartition(key);
         synchronized (keyLocksProvider.lock(pageId)) {
-            MapChunk chunk = index(pageId);
+            MapChunk<F> chunk = index(pageId);
             try {
                 // grow the set if needed;
                 if (mapStore.isFull(chunk)) {
@@ -87,7 +89,7 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
         byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         String pageId = keyPartitioner.keyPartition(key);
         synchronized (keyLocksProvider.lock(pageId)) {
-            MapChunk index = get(pageId, false);
+            MapChunk<F> index = get(pageId, false);
             if (index != null) {
                 mapStore.remove(index, keyBytes);
             }
@@ -101,7 +103,7 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
         }
         byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         String pageId = keyPartitioner.keyPartition(key);
-        MapChunk index = get(pageId, false);
+        MapChunk<F> index = get(pageId, false);
         byte[] payload = null;
         if (index != null) {
             payload = mapStore.getPayload(index.duplicate(), keyBytes);
@@ -121,7 +123,7 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
         byte[] payload = null;
         String pageId = keyPartitioner.keyPartition(key);
         synchronized (keyLocksProvider.lock(pageId)) {
-            MapChunk index = get(pageId, false);
+            MapChunk<F> index = get(pageId, false);
             if (index != null) {
                 payload = mapStore.getPayload(index, keyBytes);
             }
@@ -132,7 +134,7 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
         return keyValueMarshaller.bytesValue(key, payload, 0);
     }
 
-    private MapChunk index(String pageId) throws KeyValueStoreException {
+    private MapChunk<F> index(String pageId) throws KeyValueStoreException {
         try {
             return get(pageId, true);
         } catch (Exception e) {
@@ -140,8 +142,8 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
         }
     }
 
-    private MapChunk get(String pageId, boolean createIfAbsent) throws Exception {
-        MapChunk got = indexPages.get(pageId);
+    private MapChunk<F> get(String pageId, boolean createIfAbsent) throws Exception {
+        MapChunk<F> got = indexPages.get(pageId);
         if (got == null) {
             synchronized (keyLocksProvider.lock(pageId)) {
                 got = indexPages.get(pageId);
@@ -161,10 +163,10 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
     }
 
     @Override
-    public void copyTo(PartitionedMapChunkBackedMapStore<K, V> to) throws Exception {
+    public void copyTo(PartitionedMapChunkBackedMapStore<F, K, V> to) throws Exception {
         for (String pageId : keyPartitioner.allPartitions()) {
             synchronized (keyLocksProvider.lock(pageId)) {
-                MapChunk got;
+                MapChunk<F> got;
                 try {
                     got = get(pageId, false);
                 } catch (Exception x) {
@@ -178,9 +180,9 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
         }
     }
 
-    private void copyFrom(String pageId, MapChunk got) throws Exception {
+    private void copyFrom(String pageId, MapChunk<F> got) throws Exception {
         synchronized (keyLocksProvider.lock(pageId)) {
-            MapChunk give = get(pageId, false);
+            MapChunk<F> give = get(pageId, false);
             if (give != null) {
                 // "resizes" the old chunk over the top of an existing chunk, using the old chunk's size
                 give = chunkFactory.resize(mapStore, got, pageId, got.maxCount, null);
@@ -196,7 +198,7 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
     public Iterator<Entry<K, V>> iterator() {
         List<Iterator<Entry<K, V>>> iterators = Lists.newArrayList();
         for (String pageId : keyPartitioner.allPartitions()) {
-            MapChunk got;
+            MapChunk<F> got;
             try {
                 got = get(pageId, false);
             } catch (Exception x) {
@@ -236,7 +238,7 @@ public class PartitionedMapChunkBackedMapStore<K, V> implements KeyValueStore<K,
     public Iterator<K> keysIterator() {
         List<Iterator<K>> iterators = Lists.newArrayList();
         for (String pageId : keyPartitioner.allPartitions()) {
-            MapChunk got;
+            MapChunk<F> got;
             try {
                 got = get(pageId, false);
             } catch (Exception x) {

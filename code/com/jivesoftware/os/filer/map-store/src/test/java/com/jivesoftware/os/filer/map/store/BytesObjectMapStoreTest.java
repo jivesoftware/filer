@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 
 public class BytesObjectMapStoreTest {
 
@@ -19,15 +20,18 @@ public class BytesObjectMapStoreTest {
             4,
             null,
             new ConcurrentFilerProviderBackedMapChunkFactory<>(4, false, 0, false, 8,
-                new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
+                new ConcurrentFilerProvider<>(
+                    "booya".getBytes(Charsets.UTF_8),
+                    new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
             PassThroughKeyMarshaller.INSTANCE);
         BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> to = new BytesObjectMapStore<>("4",
             4,
             null,
-            new FileBackedMapChunkFactory(4, false, 0, false, 8, new String[] {
-                Files.createTempDirectory("copy").toFile().getAbsolutePath(),
-                Files.createTempDirectory("copy").toFile().getAbsolutePath()
-            }),
+            new FileBackedMapChunkFactory(4, false, 0, false, 8,
+                new String[] {
+                    Files.createTempDirectory("copy").toFile().getAbsolutePath(),
+                    Files.createTempDirectory("copy").toFile().getAbsolutePath()
+                }),
             PassThroughKeyMarshaller.INSTANCE);
 
         assertCopyTo(from, to);
@@ -38,18 +42,20 @@ public class BytesObjectMapStoreTest {
         BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> from = new BytesObjectMapStore<>("4",
             4,
             null,
-            new FileBackedMapChunkFactory(4, false, 0, false, 8, new String[] {
-                Files.createTempDirectory("copy").toFile().getAbsolutePath(),
-                Files.createTempDirectory("copy").toFile().getAbsolutePath()
-            }),
+            new FileBackedMapChunkFactory(4, false, 0, false, 8,
+                new String[] {
+                    Files.createTempDirectory("copy").toFile().getAbsolutePath(),
+                    Files.createTempDirectory("copy").toFile().getAbsolutePath()
+                }),
             PassThroughKeyMarshaller.INSTANCE);
         BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> to = new BytesObjectMapStore<>("4",
             4,
             null,
-            new FileBackedMapChunkFactory(4, false, 0, false, 8, new String[] {
-                Files.createTempDirectory("copy").toFile().getAbsolutePath(),
-                Files.createTempDirectory("copy").toFile().getAbsolutePath()
-            }),
+            new FileBackedMapChunkFactory(4, false, 0, false, 8,
+                new String[] {
+                    Files.createTempDirectory("copy").toFile().getAbsolutePath(),
+                    Files.createTempDirectory("copy").toFile().getAbsolutePath()
+                }),
             PassThroughKeyMarshaller.INSTANCE);
 
         assertCopyTo(from, to);
@@ -61,13 +67,17 @@ public class BytesObjectMapStoreTest {
             4,
             null,
             new ConcurrentFilerProviderBackedMapChunkFactory<>(4, false, 0, false, 8,
-                new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
+                new ConcurrentFilerProvider<>(
+                    "booya".getBytes(Charsets.UTF_8),
+                    new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
             PassThroughKeyMarshaller.INSTANCE);
         BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> to = new BytesObjectMapStore<>("4",
             4,
             null,
             new ConcurrentFilerProviderBackedMapChunkFactory<>(4, false, 0, false, 8,
-                new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
+                new ConcurrentFilerProvider<>(
+                    "booya".getBytes(Charsets.UTF_8),
+                    new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
             PassThroughKeyMarshaller.INSTANCE);
 
         assertCopyTo(from, to);
@@ -102,6 +112,7 @@ public class BytesObjectMapStoreTest {
 
         for (int i = 0; i < numEntries; i++) {
             assertEquals(to.get(FilerIO.intBytes(numEntries + i)), objects[numEntries + i]);
+            assertNull(from.get(FilerIO.intBytes(numEntries + i)));
         }
     }
 }

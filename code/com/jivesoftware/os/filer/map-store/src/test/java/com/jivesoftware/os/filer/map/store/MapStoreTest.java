@@ -61,7 +61,8 @@ public class MapStoreTest {
         int payloadSize = 4;
 
         System.out.println("Upper Bound Max Count = " + pset.absoluteMaxCount(keySize, payloadSize));
-        ConcurrentFiler filer = pset.allocateFiler(_maxSize, keySize, false, payloadSize, false, provider);
+        int filerSize = pset.computeFilerSize(_maxSize, keySize, false, payloadSize, false);
+        ConcurrentFiler filer = provider.allocate(filerSize);
         MapChunk set = pset.bootstrapAllocatedFiler(_maxSize, keySize, false, payloadSize, false, filer);
         long seed = System.currentTimeMillis();
         int maxCapacity = pset.getCapacity(set);

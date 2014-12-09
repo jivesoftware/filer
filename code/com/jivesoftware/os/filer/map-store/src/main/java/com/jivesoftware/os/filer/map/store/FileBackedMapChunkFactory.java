@@ -18,7 +18,6 @@ package com.jivesoftware.os.filer.map.store;
 import com.google.common.base.Charsets;
 import com.jivesoftware.os.filer.io.ByteBufferBackedConcurrentFilerFactory;
 import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
-import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FileBackedMemMappedByteBufferFactory;
 import com.jivesoftware.os.filer.io.FilerIO;
@@ -100,9 +99,8 @@ public class FileBackedMapChunkFactory implements MapChunkFactory<ByteBufferBack
     public MapChunk<ByteBufferBackedFiler> copy(MapStore mapStore, MapChunk chunk, String pageId, int newSize) throws Exception {
 
         File temporaryNewKeyIndexPartition = createIndexTempFile(pageId);
-        ConcurrentFiler newFiler = mapStore.allocateFiler(newSize,
-            keySize, variableKeySizes, payloadSize, variablePayloadSizes,
-            getPageProvider(temporaryNewKeyIndexPartition));
+        int filerSize = mapStore.computeFilerSize(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes);
+        ByteBufferBackedFiler newFiler = getPageProvider(temporaryNewKeyIndexPartition).allocate(filerSize);
         chunk.filer.seek(0);
         newFiler.seek(0);
         FilerIO.copy(chunk.filer, newFiler, -1); // TODO add copy to onto Filer interface
@@ -140,12 +138,8 @@ public class FileBackedMapChunkFactory implements MapChunkFactory<ByteBufferBack
             return page;
         } else {
             ConcurrentFilerProvider<ByteBufferBackedFiler> concurrentFilerProvider = getPageProvider(file);
-            ByteBufferBackedFiler filer = mapStore.allocateFiler(maxCapacity,
-                keySize,
-                variableKeySizes,
-                payloadSize,
-                variablePayloadSizes,
-                concurrentFilerProvider);
+            int filerSize = mapStore.computeFilerSize(maxCapacity, keySize, variableKeySizes, payloadSize, variablePayloadSizes);
+            ByteBufferBackedFiler filer = concurrentFilerProvider.allocate(filerSize);
             return mapStore.bootstrapAllocatedFiler(maxCapacity,
                 keySize,
                 variableKeySizes,

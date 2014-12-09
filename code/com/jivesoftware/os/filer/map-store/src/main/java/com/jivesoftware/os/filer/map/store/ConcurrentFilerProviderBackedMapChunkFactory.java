@@ -16,7 +16,9 @@
 package com.jivesoftware.os.filer.map.store;
 
 import com.jivesoftware.os.filer.io.ConcurrentFiler;
+import com.jivesoftware.os.filer.io.ConcurrentFilerFactory;
 import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
+import java.io.IOException;
 
 /**
  * @author jonathan.colt
@@ -47,18 +49,26 @@ public class ConcurrentFilerProviderBackedMapChunkFactory<F extends ConcurrentFi
 
     @Override
     public MapChunk<F> getOrCreate(MapStore mapStore, String pageId) throws Exception {
-        F filer = mapStore.allocateFiler(initialPageCapacity, keySize, variableKeySizes,
-            payloadSize, variablePayloadSizes, concurrentFilerProvider);
+        int filerSize = mapStore.computeFilerSize(initialPageCapacity, keySize, variableKeySizes,
+            payloadSize, variablePayloadSizes);
+        F filer = concurrentFilerProvider.allocate(filerSize);
         return mapStore.bootstrapAllocatedFiler(initialPageCapacity, keySize, variableKeySizes,
             payloadSize, variablePayloadSizes, filer);
     }
 
     @Override
-    public MapChunk<F> resize(MapStore mapStore, MapChunk<F> chunk, String pageId, int newSize, MapStore.CopyToStream copyToStream) throws Exception {
-        F filer = mapStore.allocateFiler(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes, concurrentFilerProvider);
-        MapChunk<F> newChunk = mapStore.bootstrapAllocatedFiler(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes, filer);
-        mapStore.copyTo(chunk, newChunk, copyToStream);
-        return newChunk;
+    public MapChunk<F> resize(final MapStore mapStore, final MapChunk<F> chunk, String pageId, final int newSize, final MapStore.CopyToStream copyToStream)
+        throws Exception {
+
+        int filerSize = mapStore.computeFilerSize(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes);
+        return concurrentFilerProvider.reallocate(filerSize, new ConcurrentFilerFactory.ReallocateFiler<F, MapChunk<F>>() {
+            @Override
+            public MapChunk<F> reallocate(F newFiler) throws IOException {
+                MapChunk<F> newChunk = mapStore.bootstrapAllocatedFiler(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes, newFiler);
+                mapStore.copyTo(chunk, newChunk, copyToStream);
+                return newChunk;
+            }
+        });
     }
 
     @Override

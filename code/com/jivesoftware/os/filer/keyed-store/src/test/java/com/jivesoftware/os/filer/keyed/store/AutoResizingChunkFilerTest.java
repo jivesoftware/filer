@@ -43,7 +43,7 @@ public class AutoResizingChunkFilerTest {
             new ByteBufferBackedConcurrentFilerFactory(byteBufferFactory));
         ConcurrentFilerProviderBackedMapChunkFactory<ByteBufferBackedFiler> mapChunkFactory = new ConcurrentFilerProviderBackedMapChunkFactory<>(
             4, false, 8, false, 512, concurrentFilerProvider);
-        final PartitionedMapChunkBackedMapStore<IBA, IBA> mapStore = new PartitionedMapChunkBackedMapStore<>(
+        final PartitionedMapChunkBackedMapStore<ByteBufferBackedFiler, IBA, IBA> mapStore = new PartitionedMapChunkBackedMapStore<>(
             mapChunkFactory,
             new StripingLocksProvider<String>(8),
             null,
@@ -85,7 +85,7 @@ public class AutoResizingChunkFilerTest {
         final AtomicInteger[] expectedCounts = new AtomicInteger[numFilers];
         for (int i = 0; i < numFilers; i++) {
             byte[] key = FilerIO.intBytes(i);
-            AutoResizingChunkFiler autoResizingChunkFiler = new AutoResizingChunkFiler(mapStore, new IBA(key), multiChunkStore);
+            AutoResizingChunkFiler<ByteBufferBackedFiler> autoResizingChunkFiler = new AutoResizingChunkFiler<>(mapStore, new IBA(key), multiChunkStore);
             autoResizingChunkFiler.init(32);
             filers[i] = autoResizingChunkFiler;
             expectedCounts[i] = new AtomicInteger();
@@ -189,9 +189,9 @@ public class AutoResizingChunkFilerTest {
                 return new IBA(keyBytes);
             }
         };
-        final PartitionedMapChunkBackedMapStore<IBA, IBA> mapStore = new PartitionedMapChunkBackedMapStore<>(
+        final PartitionedMapChunkBackedMapStore<ByteBufferBackedFiler, IBA, IBA> mapStore = new PartitionedMapChunkBackedMapStore<>(
             mapChunkFactory, new StripingLocksProvider<String>(8), null, keyPartitioner, keyValueMarshaller);
-        final PartitionedMapChunkBackedMapStore<IBA, IBA> swapStore = new PartitionedMapChunkBackedMapStore<>(
+        final PartitionedMapChunkBackedMapStore<ByteBufferBackedFiler, IBA, IBA> swapStore = new PartitionedMapChunkBackedMapStore<>(
             mapChunkFactory, new StripingLocksProvider<String>(8), null, keyPartitioner, keyValueMarshaller);
 
         int numFilers = 2;
@@ -201,10 +201,10 @@ public class AutoResizingChunkFilerTest {
         for (int i = 0; i < numFilers; i++) {
             byte[] keyBytes = FilerIO.intBytes(i);
             IBA key = new IBA(keyBytes);
-            AutoResizingChunkFiler autoResizingChunkFiler = new AutoResizingChunkFiler(mapStore, key, multiChunkStore);
+            AutoResizingChunkFiler<ByteBufferBackedFiler> autoResizingChunkFiler = new AutoResizingChunkFiler<>(mapStore, key, multiChunkStore);
             autoResizingChunkFiler.init(32);
-            AutoResizingChunkSwappableFiler swappableFiler = new AutoResizingChunkSwappableFiler(autoResizingChunkFiler, multiChunkStore, key, mapStore,
-                swapStore);
+            AutoResizingChunkSwappableFiler<ByteBufferBackedFiler> swappableFiler = new AutoResizingChunkSwappableFiler<>(
+                autoResizingChunkFiler, multiChunkStore, key, mapStore, swapStore);
             filers[i] = swappableFiler;
             expectedCounts[i] = new AtomicInteger();
             filerOffsets[i] = new AtomicInteger();
