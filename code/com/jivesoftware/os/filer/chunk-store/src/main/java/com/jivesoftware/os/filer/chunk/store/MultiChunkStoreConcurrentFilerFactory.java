@@ -3,8 +3,8 @@ package com.jivesoftware.os.filer.chunk.store;
 import com.google.common.base.Preconditions;
 import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.ConcurrentFilerFactory;
-import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.map.store.MapChunk;
 import com.jivesoftware.os.filer.map.store.MapStore;
 import java.io.IOException;
@@ -179,14 +179,14 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
     }
 
     @Override
-    public <R> R reallocate(byte[] key, long newSize, ReallocateFiler<ChunkFiler, R> reallocateFiler) throws IOException {
+    public <R> R reallocate(byte[] key, long newSize, FilerTransaction<ChunkFiler, R> reallocateFilerTransaction) throws IOException {
         ChunkFiler oldFiler = get(key);
         if (oldFiler == null) {
             throw new IllegalStateException("Trying to reallocate an unallocated key of " + Arrays.toString(key));
         }
 
         ChunkFiler newFiler = allocate(key, newSize);
-        R result = reallocateFiler.reallocate(newFiler);
+        R result = reallocateFilerTransaction.commit(newFiler);
 
         int i = getChunkIndexForKey(key);
         AtomicReference<MapChunk<ChunkFiler>> chunkIndex = chunkIndexes[i][FilerIO.chunkPower(key.length, 0)];
@@ -200,7 +200,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
     }
 
     @Override
-    public void allChunks(ChunkIdStream _chunks) throws Exception {
+    public void allChunks(ChunkIdStream _chunks) throws IOException {
         for (ChunkStore chunkStore : chunkStores) {
             chunkStore.allChunks(_chunks);
         }
@@ -211,24 +211,202 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
     }
 
     @Override
-    public long newChunk(byte[] key, long _capacity) throws Exception {
+    public long newChunk(byte[] key, long _capacity) throws IOException {
         return chunkStores[getChunkIndexForKey(key)].newChunk(_capacity);
     }
 
     @Override
-    public Filer getFiler(byte[] key, long _chunkFP) throws Exception {
+    public <R> R execute(byte[] key, long _chunkFP, FilerTransaction<ChunkFiler, R> filerTransaction) throws IOException {
         int i = getChunkIndexForKey(key);
         Object lock = locksProviders[i].lock(key);
-        return chunkStores[i].getFiler(_chunkFP, lock);
+        try (ChunkFiler filer = chunkStores[i].getFiler(_chunkFP, lock)) {
+            synchronized (filer.lock()) {
+                return filerTransaction.commit(filer);
+            }
+        }
     }
 
     @Override
-    public void remove(byte[] key, long _chunkFP) throws Exception {
+    public ResizingChunkFilerProvider getChunkFilerProvider(final byte[] keyBytes, final ChunkFPProvider chunkFPProvider) {
+
+        int i = getChunkIndexForKey(keyBytes);
+        final ChunkStore chunkStore = chunkStores[i];
+        final Object lock = locksProviders[i].lock(keyBytes);
+        return new ResizingChunkFilerProvider() {
+
+            private final AtomicReference<ChunkFiler> filerReference = new AtomicReference<>();
+
+            @Override
+            public Object lock() {
+                return lock;
+            }
+
+            @Override
+            public void init(long initialChunkSize) throws IOException {
+                Preconditions.checkArgument(initialChunkSize > 0);
+                long chunkFP = chunkFPProvider.getChunkFP(keyBytes);
+                ChunkFiler filer = null;
+                if (chunkFP >= 0) {
+                    filer = chunkStore.getFiler(chunkFP, lock);
+                }
+                if (filer == null) {
+                    chunkFP = newChunk(keyBytes, initialChunkSize);
+                    chunkFPProvider.setChunkFP(keyBytes, chunkFP);
+                    filer = chunkStore.getFiler(chunkFP, lock);
+                }
+                filerReference.set(filer);
+            }
+
+            @Override
+            public boolean open() throws IOException {
+                ChunkFiler filer;
+                long chunkFP = chunkFPProvider.getChunkFP(keyBytes);
+                if (chunkFP >= 0) {
+                    filer = chunkStore.getFiler(chunkFP, lock);
+                } else {
+                    filer = null;
+                }
+                filerReference.set(filer);
+                return filer != null;
+            }
+
+            @Override
+            public ChunkFiler get() throws IOException {
+                return filerReference.get();
+            }
+
+            @Override
+            public void transferTo(ResizingChunkFilerProvider to) throws IOException {
+                throw new UnsupportedOperationException("Cannot transfer from ChunkFilerProvider");
+            }
+
+            @Override
+            public void set(long newChunkFP) throws IOException {
+                long oldChunkFP = chunkFPProvider.getAndSetChunkFP(keyBytes, newChunkFP);
+                if (oldChunkFP >= 0) {
+                    chunkStore.remove(oldChunkFP);
+                }
+            }
+
+            @Override
+            public ChunkFiler grow(long capacity) throws IOException {
+                ChunkFiler currentFiler = filerReference.get();
+                if (capacity >= currentFiler.length()) {
+                    long currentOffset = currentFiler.getFilePointer();
+                    long newChunkFP = chunkStore.newChunk(capacity);
+                    ChunkFiler newFiler = chunkStore.getFiler(newChunkFP, lock);
+                    copy(currentFiler, newFiler, -1);
+                    long oldChunkFP = chunkFPProvider.getAndSetChunkFP(keyBytes, newChunkFP);
+                    if (oldChunkFP >= 0) {
+                        chunkStore.remove(oldChunkFP);
+                    }
+                    // copy and remove each manipulate the pointer, so restore pointer afterward
+                    newFiler.seek(currentOffset);
+                    filerReference.set(newFiler);
+                    return newFiler;
+                } else {
+                    return currentFiler;
+                }
+            }
+        };
+    }
+
+    @Override
+    public ResizingChunkFilerProvider getTemporaryFilerProvider(final byte[] keyBytes) {
+        int i = getChunkIndexForKey(keyBytes);
+        final ChunkStore chunkStore = chunkStores[i];
+        final Object lock = locksProviders[i].lock(keyBytes);
+
+        return new ResizingChunkFilerProvider() {
+
+            private final AtomicReference<ChunkFiler> filerReference = new AtomicReference<>();
+
+            @Override
+            public Object lock() {
+                return lock;
+            }
+
+            @Override
+            public void init(long initialChunkSize) throws IOException {
+                Preconditions.checkArgument(initialChunkSize > 0);
+                long chunkFP = newChunk(keyBytes, initialChunkSize);
+                ChunkFiler filer = chunkStore.getFiler(chunkFP, lock);
+                filerReference.set(filer);
+            }
+
+            @Override
+            public boolean open() throws IOException {
+                return true;
+            }
+
+            @Override
+            public ChunkFiler get() throws IOException {
+                return filerReference.get();
+            }
+
+            @Override
+            public void transferTo(ResizingChunkFilerProvider toResizingChunkFilerProvider) throws IOException {
+                toResizingChunkFilerProvider.set(get().getChunkFP());
+                filerReference.set(null);
+            }
+
+            @Override
+            public void set(long newChunkFP) throws IOException {
+                throw new UnsupportedOperationException("Temporary cannot be set");
+            }
+
+            @Override
+            public ChunkFiler grow(long capacity) throws IOException {
+                ChunkFiler currentFiler = filerReference.get();
+                if (capacity >= currentFiler.length()) {
+                    long currentOffset = currentFiler.getFilePointer();
+                    long newChunkFP = chunkStore.newChunk(capacity);
+                    ChunkFiler newFiler = chunkStore.getFiler(newChunkFP, lock);
+                    copy(currentFiler, newFiler, -1);
+                    long chunkFP = currentFiler.getChunkFP();
+                    chunkStore.remove(chunkFP);
+                    // copy and remove each manipulate the pointer, so restore pointer afterward
+                    newFiler.seek(currentOffset);
+
+                    filerReference.set(newFiler);
+                    return newFiler;
+                } else {
+                    return currentFiler;
+                }
+            }
+
+        };
+    }
+
+    private long copy(ChunkFiler _from, ChunkFiler _to, long _bufferSize) throws IOException {
+        long byteCount = _bufferSize;
+        if (_bufferSize < 1) {
+            byteCount = 1024 * 1024; //1MB
+        }
+        byte[] chunk = new byte[(int) byteCount];
+        int bytesRead;
+        long size = 0;
+        synchronized (_from.lock()) {
+            synchronized (_to.lock()) {
+                _from.seek(0);
+                while ((bytesRead = _from.read(chunk)) > -1) {
+                    _to.seek(size);
+                    _to.write(chunk, 0, bytesRead);
+                    size += bytesRead;
+                    _from.seek(size);
+                }
+                return size;
+            }
+        }
+    }
+
+    @Override
+    public void remove(byte[] key, long _chunkFP) throws IOException {
         chunkStores[getChunkIndexForKey(key)].remove(_chunkFP);
     }
 
     @Override
-    public void delete() throws Exception {
+    public void delete() throws IOException {
         for (ChunkStore chunkStore : chunkStores) {
             chunkStore.delete();
         }

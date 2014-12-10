@@ -6,6 +6,7 @@ import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -42,7 +43,7 @@ public class BytesBytesMapStore<F extends ConcurrentFiler, K, V> implements KeyV
     }
 
     @Override
-    public void add(K key, V value) throws Exception {
+    public void add(K key, V value) throws IOException {
         if (key == null || value == null) {
             return;
         }
@@ -68,7 +69,7 @@ public class BytesBytesMapStore<F extends ConcurrentFiler, K, V> implements KeyV
     }
 
     @Override
-    public void remove(K key) throws Exception {
+    public void remove(K key) throws IOException {
         if (key == null) {
             return;
         }
@@ -84,7 +85,7 @@ public class BytesBytesMapStore<F extends ConcurrentFiler, K, V> implements KeyV
 
     @Override
     @SuppressWarnings("unchecked")
-    public V get(K key) throws Exception {
+    public V get(K key) throws IOException {
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
@@ -104,7 +105,7 @@ public class BytesBytesMapStore<F extends ConcurrentFiler, K, V> implements KeyV
 
     @SuppressWarnings("unchecked")
     @Override
-    public V getUnsafe(K key) throws Exception {
+    public V getUnsafe(K key) throws IOException {
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
@@ -120,7 +121,7 @@ public class BytesBytesMapStore<F extends ConcurrentFiler, K, V> implements KeyV
         return keyValueMarshaller.bytesValue(key, valueBytes, 0);
     }
 
-    private MapChunk<F> index(boolean createIfAbsent) throws Exception {
+    private MapChunk<F> index(boolean createIfAbsent) throws IOException {
         MapChunk<F> got = indexRef.get();
         if (got != null) {
             return got;

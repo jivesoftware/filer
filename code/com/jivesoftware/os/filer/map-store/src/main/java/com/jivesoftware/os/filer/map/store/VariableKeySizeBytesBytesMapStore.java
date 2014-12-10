@@ -4,6 +4,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
@@ -37,22 +38,22 @@ public abstract class VariableKeySizeBytesBytesMapStore<K, V> implements KeyValu
     protected abstract int keyLength(K key);
 
     @Override
-    public void add(K key, V value) throws Exception {
+    public void add(K key, V value) throws IOException {
         getMapStore(keyLength(key)).add(key, value);
     }
 
     @Override
-    public void remove(K key) throws Exception {
+    public void remove(K key) throws IOException {
         getMapStore(keyLength(key)).remove(key);
     }
 
     @Override
-    public V get(K key) throws Exception {
+    public V get(K key) throws IOException {
         return getMapStore(keyLength(key)).get(key);
     }
 
     @Override
-    public V getUnsafe(K key) throws Exception {
+    public V getUnsafe(K key) throws IOException {
         return getMapStore(keyLength(key)).getUnsafe(key);
     }
 

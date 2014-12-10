@@ -24,9 +24,9 @@ public interface Filer extends Readable, Writeable {
     /**
      *
      * @return
-     * @throws com.jivesoftware.os.filer.io.RecycledFilerException
+     * @throws IOException
      */
-    public Object lock() throws RecycledFilerException;
+    public Object lock() throws IOException;
 
     /**
      *

@@ -9,13 +9,14 @@ import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
 public class VariableKeySizeMapChunkBackedMapStore<F extends ConcurrentFiler, K, V> implements KeyValueStore<K, V>,
-    Copyable<VariableKeySizeMapChunkBackedMapStore<F, K, V>, Exception> {
+    Copyable<VariableKeySizeMapChunkBackedMapStore<F, K, V>> {
 
     private final KeyValueMarshaller<K, V> keyValueMarshaller;
     private final PartitionSizedByMapStore<F>[] mapStores;
@@ -39,20 +40,20 @@ public class VariableKeySizeMapChunkBackedMapStore<F extends ConcurrentFiler, K,
     }
 
     @Override
-    public void add(K key, V value) throws Exception {
+    public void add(K key, V value) throws IOException {
         byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         byte[] valueBytes = keyValueMarshaller.valueBytes(value);
         getMapStore(keyBytes.length).store.add(keyBytes, valueBytes);
     }
 
     @Override
-    public void remove(K key) throws Exception {
+    public void remove(K key) throws IOException {
         byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         getMapStore(keyBytes.length).store.remove(keyBytes);
     }
 
     @Override
-    public V get(K key) throws Exception {
+    public V get(K key) throws IOException {
         byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         byte[] valueBytes = getMapStore(keyBytes.length).store.get(keyBytes);
         if (valueBytes != null) {
@@ -62,7 +63,7 @@ public class VariableKeySizeMapChunkBackedMapStore<F extends ConcurrentFiler, K,
     }
 
     @Override
-    public V getUnsafe(K key) throws Exception {
+    public V getUnsafe(K key) throws IOException {
         byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         byte[] valueBytes = getMapStore(keyBytes.length).store.getUnsafe(keyBytes);
         if (valueBytes != null) {
@@ -72,7 +73,7 @@ public class VariableKeySizeMapChunkBackedMapStore<F extends ConcurrentFiler, K,
     }
 
     @Override
-    public void copyTo(VariableKeySizeMapChunkBackedMapStore<F, K, V> to) throws Exception {
+    public void copyTo(VariableKeySizeMapChunkBackedMapStore<F, K, V> to) throws IOException {
         for (int i = 0; i < mapStores.length; i++) {
             mapStores[i].store.copyTo(to.mapStores[i].store);
         }

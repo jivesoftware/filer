@@ -2,8 +2,6 @@ package com.jivesoftware.os.filer.io;
 
 import java.io.IOException;
 
-import static com.jivesoftware.os.filer.io.ConcurrentFilerFactory.ReallocateFiler;
-
 /**
  *
  * @author jonathan.colt
@@ -27,7 +25,7 @@ public class ConcurrentFilerProvider<F extends ConcurrentFiler> {
         return factory.allocate(key, size);
     }
 
-    public <R> R reallocate(long newSize, ReallocateFiler<F, R> reallocateFiler) throws Exception {
+    public <R> R reallocate(long newSize, FilerTransaction<F, R> reallocateFiler) throws IOException {
         return factory.reallocate(key, newSize, reallocateFiler);
     }
 }

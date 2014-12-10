@@ -7,10 +7,11 @@ import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.KeyMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
-public class VariableKeySizeBytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<VariableKeySizeBytesObjectMapStore<K, V>, Exception> {
+public class VariableKeySizeBytesObjectMapStore<K, V> implements KeyValueStore<K, V>, Copyable<VariableKeySizeBytesObjectMapStore<K, V>> {
 
     private final BytesObjectMapStore<ByteBufferBackedFiler, byte[], V>[] mapStores;
     private final KeyMarshaller<K> keyMarshaller;
@@ -40,31 +41,31 @@ public class VariableKeySizeBytesObjectMapStore<K, V> implements KeyValueStore<K
         throw new IndexOutOfBoundsException("Key is too long");
     }
 
-    public void add(K key, V value) throws Exception {
+    public void add(K key, V value) throws IOException {
         byte[] keyBytes = keyMarshaller.keyBytes(key);
         getMapStore(keyBytes.length).add(keyBytes, value);
     }
 
     @Override
-    public void remove(K key) throws Exception {
+    public void remove(K key) throws IOException {
         byte[] keyBytes = keyMarshaller.keyBytes(key);
         getMapStore(keyBytes.length).remove(keyBytes);
     }
 
     @Override
-    public V get(K key) throws Exception {
+    public V get(K key) throws IOException {
         byte[] keyBytes = keyMarshaller.keyBytes(key);
         return getMapStore(keyBytes.length).get(keyBytes);
     }
 
     @Override
-    public V getUnsafe(K key) throws Exception {
+    public V getUnsafe(K key) throws IOException {
         byte[] keyBytes = keyMarshaller.keyBytes(key);
         return getMapStore(keyBytes.length).getUnsafe(keyBytes);
     }
 
     @Override
-    public void copyTo(VariableKeySizeBytesObjectMapStore<K, V> to) throws Exception {
+    public void copyTo(VariableKeySizeBytesObjectMapStore<K, V> to) throws IOException {
         for (int i = 0; i < mapStores.length; i++) {
             mapStores[i].copyTo(to.mapStores[i]);
         }

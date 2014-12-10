@@ -7,6 +7,7 @@ import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.KeyMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -14,7 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Bytes key to index, index to object array.
  */
-public class BytesObjectMapStore<F extends ConcurrentFiler, K, V> implements KeyValueStore<K, V>, Copyable<BytesObjectMapStore<F, K, V>, Exception> {
+public class BytesObjectMapStore<F extends ConcurrentFiler, K, V> implements KeyValueStore<K, V>, Copyable<BytesObjectMapStore<F, K, V>> {
 
     private static final byte[] EMPTY_PAYLOAD = new byte[0];
 
@@ -41,7 +42,7 @@ public class BytesObjectMapStore<F extends ConcurrentFiler, K, V> implements Key
     }
 
     @Override
-    public void add(K key, V value) throws Exception {
+    public void add(K key, V value) throws IOException {
         if (key == null || value == null) {
             return;
         }
@@ -66,7 +67,7 @@ public class BytesObjectMapStore<F extends ConcurrentFiler, K, V> implements Key
     /*
      Must be called while holding synchronized (indexRef) lock.
      */
-    private Index<F> ensureCapacity(Index<F> index) throws Exception {
+    private Index<F> ensureCapacity(Index<F> index) throws IOException {
         // grow the set if needed;
         if (mapStore.isFull(index.chunk)) {
             int newSize = mapStore.nextGrowSize(index.chunk);
@@ -87,7 +88,7 @@ public class BytesObjectMapStore<F extends ConcurrentFiler, K, V> implements Key
     }
 
     @Override
-    public void remove(K key) throws Exception {
+    public void remove(K key) throws IOException {
         if (key == null) {
             return;
         }
@@ -104,7 +105,7 @@ public class BytesObjectMapStore<F extends ConcurrentFiler, K, V> implements Key
 
     @Override
     @SuppressWarnings("unchecked")
-    public V get(K key) throws Exception {
+    public V get(K key) throws IOException {
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
@@ -124,7 +125,7 @@ public class BytesObjectMapStore<F extends ConcurrentFiler, K, V> implements Key
 
     @SuppressWarnings("unchecked")
     @Override
-    public V getUnsafe(K key) throws Exception {
+    public V getUnsafe(K key) throws IOException {
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
@@ -140,7 +141,7 @@ public class BytesObjectMapStore<F extends ConcurrentFiler, K, V> implements Key
         return (V) index.payloads[(int) payloadIndex];
     }
 
-    private Index<F> index(boolean createIfAbsent) throws Exception {
+    private Index<F> index(boolean createIfAbsent) throws IOException {
         Index<F> got = indexRef.get();
         if (got != null) {
             return got;
@@ -168,7 +169,7 @@ public class BytesObjectMapStore<F extends ConcurrentFiler, K, V> implements Key
     }
 
     @Override
-    public void copyTo(BytesObjectMapStore<F, K, V> to) throws Exception {
+    public void copyTo(BytesObjectMapStore<F, K, V> to) throws IOException {
         synchronized (indexRef) {
             Index<F> got = indexRef.get();
             if (got != null) {
@@ -177,7 +178,7 @@ public class BytesObjectMapStore<F extends ConcurrentFiler, K, V> implements Key
         }
     }
 
-    private void copyFrom(Index<F> fromIndex) throws Exception {
+    private void copyFrom(Index<F> fromIndex) throws IOException {
         synchronized (indexRef) {
             MapChunk<F> from = fromIndex.chunk;
             // safe just to borrow the existing payloads because indexes should be in alignment

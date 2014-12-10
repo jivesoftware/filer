@@ -4,20 +4,20 @@ import com.google.common.base.Charsets;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStoreConcurrentFilerFactory.Builder;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.ByteBufferProvider;
+import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.FileBackedMemMappedByteBufferFactory;
 import java.io.File;
 
 /**
  *
  */
-public class MultiChunkStoreInitializer {
+public class MultiChunkStoreInitializer<F extends ConcurrentFiler> {
 
     private final ChunkStoreInitializer chunkStoreInitializer;
 
     public MultiChunkStoreInitializer(ChunkStoreInitializer chunkStoreInitializer) {
         this.chunkStoreInitializer = chunkStoreInitializer;
     }
-
 
     public MultiChunkStoreConcurrentFilerFactory initializeMultiFileBacked(
         String[] chunkPaths,

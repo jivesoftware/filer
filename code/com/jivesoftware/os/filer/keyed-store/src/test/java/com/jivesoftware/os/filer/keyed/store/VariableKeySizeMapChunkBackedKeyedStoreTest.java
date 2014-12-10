@@ -11,10 +11,12 @@ import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FileBackedMemMappedByteBufferFactory;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.map.store.ConcurrentFilerProviderBackedMapChunkFactory;
 import com.jivesoftware.os.filer.map.store.FileBackedMapChunkFactory;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import org.apache.commons.math.util.MathUtils;
 import org.testng.Assert;
@@ -27,16 +29,11 @@ import org.testng.annotations.Test;
 public class VariableKeySizeMapChunkBackedKeyedStoreTest {
 
     private String[] mapDirectories;
-    private String[] swapDirectories;
     private String[] chunkDirectories;
 
     @BeforeMethod
     public void setUp() throws Exception {
         mapDirectories = new String[] {
-            Files.createTempDirectory(getClass().getSimpleName()).toFile().getAbsolutePath(),
-            Files.createTempDirectory(getClass().getSimpleName()).toFile().getAbsolutePath()
-        };
-        swapDirectories = new String[] {
             Files.createTempDirectory(getClass().getSimpleName()).toFile().getAbsolutePath(),
             Files.createTempDirectory(getClass().getSimpleName()).toFile().getAbsolutePath()
         };
@@ -66,29 +63,33 @@ public class VariableKeySizeMapChunkBackedKeyedStoreTest {
         for (int keySize : keySizeThresholds) {
             FileBackedMapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(keySize, true, 8, false, 512,
                 buildMapDirectories(mapDirectories, keySize));
-            FileBackedMapChunkFactory swapChunkFactory = new FileBackedMapChunkFactory(keySize, true, 8, false, 512,
-                buildMapDirectories(swapDirectories, keySize));
-            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore<>(mapChunkFactory, swapChunkFactory, multChunkStore,
+            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore<>(mapChunkFactory, multChunkStore,
                 new StripingLocksProvider<String>(16), 4));
         }
 
         VariableKeySizeMapChunkBackedKeyedStore keyedStore = builder.build();
 
-        for (int keySize : keySizeThresholds) {
-            Filer filer = keyedStore.get(keyOfLength(keySize), newFilerInitialCapacity);
-            synchronized (filer.lock()) {
-                filer.seek(0);
-                FilerIO.writeInt(filer, keySize, "keySize");
-            }
+        for (final int keySize : keySizeThresholds) {
+            keyedStore.execute(keyOfLength(keySize), newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+                @Override
+                public Void commit(Filer filer) throws IOException {
+                    filer.seek(0);
+                    FilerIO.writeInt(filer, keySize, "keySize");
+                    return null;
+                }
+            });
         }
 
-        for (int keySize : keySizeThresholds) {
-            Filer filer = keyedStore.get(keyOfLength(keySize), -1);
-            synchronized (filer.lock()) {
-                filer.seek(0);
-                int actual = FilerIO.readInt(filer, "keySize");
-                Assert.assertEquals(actual, keySize);
-            }
+        for (final int keySize : keySizeThresholds) {
+            keyedStore.execute(keyOfLength(keySize), -1, new FilerTransaction<Filer, Void>() {
+                @Override
+                public Void commit(Filer filer) throws IOException {
+                    filer.seek(0);
+                    int actual = FilerIO.readInt(filer, "keySize");
+                    Assert.assertEquals(actual, keySize);
+                    return null;
+                }
+            });
         }
     }
 
@@ -104,9 +105,7 @@ public class VariableKeySizeMapChunkBackedKeyedStoreTest {
         for (int keySize : keySizeThresholds) {
             FileBackedMapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(keySize, true, 8, false, 512,
                 buildMapDirectories(mapDirectories, keySize));
-            FileBackedMapChunkFactory swapChunkFactory = new FileBackedMapChunkFactory(keySize, true, 8, false, 512,
-                buildMapDirectories(swapDirectories, keySize));
-            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore<>(mapChunkFactory, swapChunkFactory, multChunkStore,
+            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore<>(mapChunkFactory, multChunkStore,
                 new StripingLocksProvider<String>(16), 4));
         }
 
@@ -115,27 +114,33 @@ public class VariableKeySizeMapChunkBackedKeyedStoreTest {
         int numberOfIntsInInitialCapacity = newFilerInitialCapacity / 4;
         int numberOfIntsInActualCapacity = numberOfIntsInInitialCapacity * 2; // actual capacity is doubled
         int numberOfTimesToGrow = 3;
-        int totalNumberOfInts = numberOfIntsInActualCapacity * MathUtils.pow(2, numberOfTimesToGrow - 1);
+        final int totalNumberOfInts = numberOfIntsInActualCapacity * MathUtils.pow(2, numberOfTimesToGrow - 1);
 
         for (int keySize : keySizeThresholds) {
-            Filer filer = keyedStore.get(keyOfLength(keySize), newFilerInitialCapacity);
-            synchronized (filer.lock()) {
-                filer.seek(0);
-                for (int i = 0; i < totalNumberOfInts; i++) {
-                    FilerIO.writeInt(filer, i, String.valueOf(i));
+            keyedStore.execute(keyOfLength(keySize), newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+                @Override
+                public Void commit(Filer filer) throws IOException {
+                    filer.seek(0);
+                    for (int i = 0; i < totalNumberOfInts; i++) {
+                        FilerIO.writeInt(filer, i, String.valueOf(i));
+                    }
+                    return null;
                 }
-            }
+            });
         }
 
         for (int keySize : keySizeThresholds) {
-            Filer filer = keyedStore.get(keyOfLength(keySize), newFilerInitialCapacity);
-            synchronized (filer.lock()) {
-                filer.seek(0);
-                for (int i = 0; i < totalNumberOfInts; i++) {
-                    int actual = FilerIO.readInt(filer, String.valueOf(i));
-                    Assert.assertEquals(actual, i);
+            keyedStore.execute(keyOfLength(keySize), newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+                @Override
+                public Void commit(Filer filer) throws IOException {
+                    filer.seek(0);
+                    for (int i = 0; i < totalNumberOfInts; i++) {
+                        int actual = FilerIO.readInt(filer, String.valueOf(i));
+                        Assert.assertEquals(actual, i);
+                    }
+                    return null;
                 }
-            }
+            });
         }
     }
 
@@ -157,37 +162,38 @@ public class VariableKeySizeMapChunkBackedKeyedStoreTest {
             ConcurrentFilerProviderBackedMapChunkFactory<ChunkFiler> mapChunkFactory = new ConcurrentFilerProviderBackedMapChunkFactory<>(
                 keySize, true, 8, false, 512,
                 new ConcurrentFilerProvider<>(("booya-map-" + keySize).getBytes(), store));
-            ConcurrentFilerProviderBackedMapChunkFactory<ChunkFiler> swapChunkFactory = new ConcurrentFilerProviderBackedMapChunkFactory<>(
-                keySize, true, 8, false, 512,
-                new ConcurrentFilerProvider<>(("booya-swap-" + keySize).getBytes(), store));
 
-            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore<>(mapChunkFactory, swapChunkFactory, store,
+            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore<>(mapChunkFactory, store,
                 new StripingLocksProvider<String>(16), 4));
         }
 
         VariableKeySizeMapChunkBackedKeyedStore<ChunkFiler> keyedStore = builder.build();
 
-        for (int keySize : keySizeThresholds) {
-            try (SwappableFiler filer = keyedStore.get(keyOfLength(keySize), newFilerInitialCapacity)) {
-                synchronized (filer.lock()) {
+        for (final int keySize : keySizeThresholds) {
+            keyedStore.execute(keyOfLength(keySize), newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+                @Override
+                public Void commit(Filer filer) throws IOException {
                     filer.seek(0);
                     for (int i = 0; i < 1_000; i++) {
                         FilerIO.writeInt(filer, keySize, "keySize");
                     }
+                    return null;
                 }
-            }
+            });
         }
 
-        for (int keySize : keySizeThresholds) {
-            try (SwappableFiler filer = keyedStore.get(keyOfLength(keySize), -1)) {
-                synchronized (filer.lock()) {
+        for (final int keySize : keySizeThresholds) {
+            keyedStore.execute(keyOfLength(keySize), -1, new FilerTransaction<Filer, Void>() {
+                @Override
+                public Void commit(Filer filer) throws IOException {
                     filer.seek(0);
                     for (int i = 0; i < 1_000; i++) {
                         int actual = FilerIO.readInt(filer, "keySize");
                         Assert.assertEquals(actual, keySize);
                     }
+                    return null;
                 }
-            }
+            });
         }
     }
 

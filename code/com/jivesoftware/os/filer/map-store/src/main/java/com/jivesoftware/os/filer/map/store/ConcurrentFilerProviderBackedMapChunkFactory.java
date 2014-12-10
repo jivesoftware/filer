@@ -16,8 +16,8 @@
 package com.jivesoftware.os.filer.map.store;
 
 import com.jivesoftware.os.filer.io.ConcurrentFiler;
-import com.jivesoftware.os.filer.io.ConcurrentFilerFactory;
 import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
+import com.jivesoftware.os.filer.io.FilerTransaction;
 import java.io.IOException;
 
 /**
@@ -48,7 +48,7 @@ public class ConcurrentFilerProviderBackedMapChunkFactory<F extends ConcurrentFi
     }
 
     @Override
-    public MapChunk<F> getOrCreate(MapStore mapStore, String pageId) throws Exception {
+    public MapChunk<F> getOrCreate(MapStore mapStore, String pageId) throws IOException {
         int filerSize = mapStore.computeFilerSize(initialPageCapacity, keySize, variableKeySizes,
             payloadSize, variablePayloadSizes);
         F filer = concurrentFilerProvider.allocate(filerSize);
@@ -58,13 +58,13 @@ public class ConcurrentFilerProviderBackedMapChunkFactory<F extends ConcurrentFi
 
     @Override
     public MapChunk<F> resize(final MapStore mapStore, final MapChunk<F> chunk, String pageId, final int newSize, final MapStore.CopyToStream copyToStream)
-        throws Exception {
+        throws IOException {
 
         int filerSize = mapStore.computeFilerSize(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes);
-        return concurrentFilerProvider.reallocate(filerSize, new ConcurrentFilerFactory.ReallocateFiler<F, MapChunk<F>>() {
+        return concurrentFilerProvider.reallocate(filerSize, new FilerTransaction<F, MapChunk<F>>() {
             @Override
-            public MapChunk<F> reallocate(F newFiler) throws IOException {
-                MapChunk<F> newChunk = mapStore.bootstrapAllocatedFiler(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes, newFiler);
+            public MapChunk<F> commit(F filer) throws IOException {
+                MapChunk<F> newChunk = mapStore.bootstrapAllocatedFiler(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes, filer);
                 mapStore.copyTo(chunk, newChunk, copyToStream);
                 return newChunk;
             }
@@ -72,12 +72,12 @@ public class ConcurrentFilerProviderBackedMapChunkFactory<F extends ConcurrentFi
     }
 
     @Override
-    public MapChunk<F> copy(MapStore mapStore, MapChunk<F> chunk, String pageId, int newSize) throws Exception {
+    public MapChunk<F> copy(MapStore mapStore, MapChunk<F> chunk, String pageId, int newSize) throws IOException {
         return resize(mapStore, chunk, pageId, newSize, null);
     }
 
     @Override
-    public MapChunk<F> get(MapStore mapStore, String pageId) throws Exception {
+    public MapChunk<F> get(MapStore mapStore, String pageId) throws IOException {
         F filer = concurrentFilerProvider.get();
         if (filer != null) {
             MapChunk<F> mapChunk = new MapChunk<>(filer);
@@ -88,6 +88,6 @@ public class ConcurrentFilerProviderBackedMapChunkFactory<F extends ConcurrentFi
     }
 
     @Override
-    public void delete(String pageId) throws Exception {
+    public void delete(String pageId) throws IOException {
     }
 }

@@ -16,6 +16,7 @@
 package com.jivesoftware.os.filer.map.store;
 
 import com.jivesoftware.os.filer.io.ConcurrentFiler;
+import java.io.IOException;
 
 /**
  *
@@ -23,13 +24,13 @@ import com.jivesoftware.os.filer.io.ConcurrentFiler;
  */
 public interface MapChunkFactory<F extends ConcurrentFiler> {
 
-    MapChunk<F> getOrCreate(MapStore mapStore, String pageId) throws Exception;
+    MapChunk<F> getOrCreate(MapStore mapStore, String pageId) throws IOException;
 
-    MapChunk<F> resize(MapStore mapStore, MapChunk<F> chunk, String pageId, int newSize, MapStore.CopyToStream copyToStream) throws Exception;
+    MapChunk<F> resize(MapStore mapStore, MapChunk<F> chunk, String pageId, int newSize, MapStore.CopyToStream copyToStream) throws IOException;
 
-    MapChunk<F> copy(MapStore mapStore, MapChunk<F> chunk, String pageId, int newSize) throws Exception;
+    MapChunk<F> copy(MapStore mapStore, MapChunk<F> chunk, String pageId, int newSize) throws IOException;
 
-    MapChunk<F> get(MapStore mapStore, String pageId) throws Exception;
+    MapChunk<F> get(MapStore mapStore, String pageId) throws IOException;
 
-    void delete(String pageId) throws Exception;
+    void delete(String pageId) throws IOException;
 }

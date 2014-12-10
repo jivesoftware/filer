@@ -8,7 +8,7 @@ import com.jivesoftware.os.filer.io.FilerIO;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class ChunkStore implements Copyable<ChunkStore, Exception> {
+public class ChunkStore implements Copyable<ChunkStore> {
 
     private static final int maxChunkPower = 32;
     private static ChunkMetric[] allocates = new ChunkMetric[maxChunkPower];
@@ -88,7 +88,7 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
         this.filer = filer;
     }
 
-    public void open() throws Exception {
+    public void open() throws IOException {
         synchronized (filer.lock()) {
             filer.seek(0);
             lengthOfFile = FilerIO.readLong(filer, "lengthOfFile");
@@ -96,19 +96,19 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
         }
     }
 
-    public void delete() throws Exception {
+    public void delete() throws IOException {
         filer.delete();
     }
 
     @Override
-    public void copyTo(ChunkStore to) throws Exception {
+    public void copyTo(ChunkStore to) throws IOException {
         synchronized (filer.lock()) {
             filer.seek(0);
             to.copyFrom(filer);
         }
     }
 
-    private void copyFrom(Filer from) throws Exception {
+    private void copyFrom(Filer from) throws IOException {
         synchronized (filer.lock()) {
             filer.seek(0);
             FilerIO.copy(from, filer, -1); //TODO expose?
@@ -120,7 +120,7 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
         return referenceNumber;
     }
 
-    public void allChunks(ChunkIdStream _chunks) throws Exception {
+    public void allChunks(ChunkIdStream _chunks) throws IOException {
         synchronized (filer.lock()) {
             filer.seek(8 + 8 + (8 * (64 - cMinPower)));
             long size = filer.length();
@@ -128,7 +128,7 @@ public class ChunkStore implements Copyable<ChunkStore, Exception> {
                 long chunkFP = filer.getFilePointer();
                 long magicNumber = FilerIO.readLong(filer, "magicNumber");
                 if (magicNumber != cMagicNumber) {
-                    throw new Exception("Invalid chunkFP " + chunkFP);
+                    throw new IOException("Invalid chunkFP " + chunkFP);
                 }
                 long chunkPower = FilerIO.readLong(filer, "chunkPower");
                 FilerIO.readLong(filer, "chunkNexFreeChunkFP");

@@ -1,7 +1,6 @@
 package com.jivesoftware.os.filer.chunk.store;
 
 import com.jivesoftware.os.filer.io.ConcurrentFiler;
-import com.jivesoftware.os.filer.io.RecycledFilerException;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -43,10 +42,10 @@ public class ChunkFiler implements ConcurrentFiler {
     }
 
     @Override
-    public Object lock() throws RecycledFilerException {
+    public Object lock() throws IOException {
         semaphore.incrementAndGet();
         if (recycle.get()) {
-            throw new RecycledFilerException("Cannot aquire a lock for a removed filer.");
+            throw new IOException("Cannot aquire a lock for a removed filer.");
         }
         return filer.lock();
     }

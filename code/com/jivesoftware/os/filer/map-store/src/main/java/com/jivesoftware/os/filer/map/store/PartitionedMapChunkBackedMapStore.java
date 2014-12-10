@@ -9,7 +9,7 @@ import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
-import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
  * @author jonathan
  */
 public class PartitionedMapChunkBackedMapStore<F extends ConcurrentFiler, K, V> implements KeyValueStore<K, V>,
-    Copyable<PartitionedMapChunkBackedMapStore<F, K, V>, Exception> {
+    Copyable<PartitionedMapChunkBackedMapStore<F, K, V>> {
 
     private static final MapStore mapStore = MapStore.DEFAULT;
 
@@ -51,7 +51,7 @@ public class PartitionedMapChunkBackedMapStore<F extends ConcurrentFiler, K, V> 
     }
 
     @Override
-    public void add(K key, V value) throws Exception {
+    public void add(K key, V value) throws IOException {
         if (key == null || value == null) {
             return;
         }
@@ -64,16 +64,12 @@ public class PartitionedMapChunkBackedMapStore<F extends ConcurrentFiler, K, V> 
         String pageId = keyPartitioner.keyPartition(key);
         synchronized (keyLocksProvider.lock(pageId)) {
             MapChunk<F> chunk = index(pageId);
-            try {
-                // grow the set if needed;
-                if (mapStore.isFull(chunk)) {
-                    int newSize = mapStore.nextGrowSize(chunk);
+            // grow the set if needed;
+            if (mapStore.isFull(chunk)) {
+                int newSize = mapStore.nextGrowSize(chunk);
 
-                    chunk = chunkFactory.resize(mapStore, chunk, pageId, newSize, null);
-                    indexPages.put(pageId, chunk);
-                }
-            } catch (Exception e) {
-                throw new KeyValueStoreException("Error when expanding size of partition!", e);
+                chunk = chunkFactory.resize(mapStore, chunk, pageId, newSize, null);
+                indexPages.put(pageId, chunk);
             }
             mapStore.add(chunk, (byte) 1, keyBytes, valueBytes);
         }
@@ -81,7 +77,7 @@ public class PartitionedMapChunkBackedMapStore<F extends ConcurrentFiler, K, V> 
     }
 
     @Override
-    public void remove(K key) throws Exception {
+    public void remove(K key) throws IOException {
         if (key == null) {
             return;
         }
@@ -97,7 +93,7 @@ public class PartitionedMapChunkBackedMapStore<F extends ConcurrentFiler, K, V> 
     }
 
     @Override
-    public V getUnsafe(K key) throws Exception {
+    public V getUnsafe(K key) throws IOException {
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
@@ -115,7 +111,7 @@ public class PartitionedMapChunkBackedMapStore<F extends ConcurrentFiler, K, V> 
     }
 
     @Override
-    public V get(K key) throws Exception {
+    public V get(K key) throws IOException {
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
@@ -134,15 +130,11 @@ public class PartitionedMapChunkBackedMapStore<F extends ConcurrentFiler, K, V> 
         return keyValueMarshaller.bytesValue(key, payload, 0);
     }
 
-    private MapChunk<F> index(String pageId) throws KeyValueStoreException {
-        try {
-            return get(pageId, true);
-        } catch (Exception e) {
-            throw new KeyValueStoreException("Failed to create map chunk.", e);
-        }
+    private MapChunk<F> index(String pageId) throws IOException {
+        return get(pageId, true);
     }
 
-    private MapChunk<F> get(String pageId, boolean createIfAbsent) throws Exception {
+    private MapChunk<F> get(String pageId, boolean createIfAbsent) throws IOException {
         MapChunk<F> got = indexPages.get(pageId);
         if (got == null) {
             synchronized (keyLocksProvider.lock(pageId)) {
@@ -163,7 +155,7 @@ public class PartitionedMapChunkBackedMapStore<F extends ConcurrentFiler, K, V> 
     }
 
     @Override
-    public void copyTo(PartitionedMapChunkBackedMapStore<F, K, V> to) throws Exception {
+    public void copyTo(PartitionedMapChunkBackedMapStore<F, K, V> to) throws IOException {
         for (String pageId : keyPartitioner.allPartitions()) {
             synchronized (keyLocksProvider.lock(pageId)) {
                 MapChunk<F> got;
@@ -180,7 +172,7 @@ public class PartitionedMapChunkBackedMapStore<F extends ConcurrentFiler, K, V> 
         }
     }
 
-    private void copyFrom(String pageId, MapChunk<F> got) throws Exception {
+    private void copyFrom(String pageId, MapChunk<F> got) throws IOException {
         synchronized (keyLocksProvider.lock(pageId)) {
             MapChunk<F> give = get(pageId, false);
             if (give != null) {

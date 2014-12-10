@@ -15,26 +15,58 @@
  */
 package com.jivesoftware.os.filer.chunk.store;
 
-import com.jivesoftware.os.filer.io.Filer;
+import com.jivesoftware.os.filer.io.FilerTransaction;
+import java.io.IOException;
 
 /**
  * @author jonathan
  */
 public interface MultiChunkStore {
 
-    void allChunks(ChunkIdStream _chunks) throws Exception;
+    void allChunks(ChunkIdStream _chunks) throws IOException;
 
-    long newChunk(byte[] key, long _capacity) throws Exception;
+    long newChunk(byte[] key, long _capacity) throws IOException;
 
-    Filer getFiler(byte[] key, long _chunkFP) throws Exception;
+    <R> R execute(byte[] key, long _chunkFP, FilerTransaction<ChunkFiler, R> filerTransaction) throws IOException;
 
-    void remove(byte[] key, long _chunkFP) throws Exception;
+    ResizingChunkFilerProvider getChunkFilerProvider(byte[] key, ChunkFPProvider chunkFPProvider);
+
+    ResizingChunkFilerProvider getTemporaryFilerProvider(byte[] keyBytes);
+
+    void remove(byte[] key, long _chunkFP) throws IOException;
 
     /**
      * Destroys all the back chunk stores
      *
-     * @throws Exception
+     * @throws IOException
      */
-    void delete() throws Exception;
+    void delete() throws IOException;
 
+    interface ChunkFPProvider {
+        long getChunkFP(byte[] key) throws IOException;
+
+        void setChunkFP(byte[] key, long chunkFP) throws IOException;
+
+        long getAndSetChunkFP(byte[] keyBytes, long newChunkFP) throws IOException;
+    }
+
+    /**
+     *
+     */
+    interface ResizingChunkFilerProvider {
+
+        Object lock();
+
+        void init(long initialChunkSize) throws IOException;
+
+        boolean open() throws IOException;
+
+        ChunkFiler get() throws IOException;
+
+        void transferTo(ResizingChunkFilerProvider to) throws IOException;
+
+        void set(long newChunkFP) throws IOException;
+
+        ChunkFiler grow(long capacity) throws IOException;
+    }
 }

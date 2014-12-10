@@ -1,9 +1,11 @@
 package com.jivesoftware.os.filer.io;
 
+import java.io.IOException;
+
 /**
  *
  */
-public interface Copyable<V, E extends Exception> {
+public interface Copyable<V> {
 
-    void copyTo(V to) throws E;
+    void copyTo(V to) throws IOException;
 }

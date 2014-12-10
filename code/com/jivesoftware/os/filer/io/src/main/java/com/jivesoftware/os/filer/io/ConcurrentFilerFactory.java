@@ -30,9 +30,6 @@ public interface ConcurrentFilerFactory<F extends ConcurrentFiler> {
      * @return
      * @throws java.io.IOException
      */
-    <R> R reallocate(byte[] key, long newSize, ReallocateFiler<F, R> reallocateFiler) throws IOException;
+    <R> R reallocate(byte[] key, long newSize, FilerTransaction<F, R> reallocateFilerTransaction) throws IOException;
 
-    interface ReallocateFiler<F extends ConcurrentFiler, R> {
-        R reallocate(F newFiler) throws IOException;
-    }
 }
