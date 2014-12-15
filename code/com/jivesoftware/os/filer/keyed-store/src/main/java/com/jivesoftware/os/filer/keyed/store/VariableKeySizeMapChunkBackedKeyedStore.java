@@ -1,6 +1,5 @@
 package com.jivesoftware.os.filer.keyed.store;
 
-import com.google.common.collect.Iterators;
 import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerTransaction;
@@ -10,10 +9,9 @@ import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 
-public class VariableKeySizeMapChunkBackedKeyedStore<F extends ConcurrentFiler> implements KeyedFilerStore, Iterable<KeyValueStore.Entry<IBA, Filer>> {
+public class VariableKeySizeMapChunkBackedKeyedStore<F extends ConcurrentFiler> implements KeyedFilerStore {
 
     private final PartitionSizedByKeyStore<F>[] keyedStores;
 
@@ -39,7 +37,7 @@ public class VariableKeySizeMapChunkBackedKeyedStore<F extends ConcurrentFiler> 
 
     @Override
     public <R> R executeRewrite(byte[] keyBytes, long newFilerInitialCapacity, RewriteFilerTransaction<Filer, R> transaction) throws IOException {
-        return get(keyBytes).store.executeRewrite(keyBytes, newFilerInitialCapacity, transaction);
+        return null;
     }
 
     @Override
@@ -49,28 +47,14 @@ public class VariableKeySizeMapChunkBackedKeyedStore<F extends ConcurrentFiler> 
         }
     }
 
-    public void copyTo(VariableKeySizeMapChunkBackedKeyedStore<F> to) throws Exception {
-        for (int i = 0; i < keyedStores.length; i++) {
-            keyedStores[i].store.copyTo(to.keyedStores[i].store);
-        }
+    @Override
+    public void stream(KeyValueStore.EntryStream<IBA, Filer> stream) throws IOException {
+        //TODO
     }
 
     @Override
-    public Iterator<KeyValueStore.Entry<IBA, Filer>> iterator() {
-        List<Iterator<KeyValueStore.Entry<IBA, Filer>>> iterators = new ArrayList<>();
-        for (PartitionSizedByKeyStore<F> keyStore : keyedStores) {
-            iterators.add(keyStore.store.iterator());
-        }
-        return Iterators.concat(iterators.iterator());
-    }
-
-    @Override
-    public Iterator<IBA> keysIterator() {
-        List<Iterator<IBA>> iterators = new ArrayList<>();
-        for (PartitionSizedByKeyStore<F> keyStore : keyedStores) {
-            iterators.add(keyStore.store.keysIterator());
-        }
-        return Iterators.concat(iterators.iterator());
+    public void streamKeys(KeyValueStore.KeyStream<IBA> stream) throws IOException {
+        //TODO
     }
 
     public static class Builder<F extends ConcurrentFiler> {

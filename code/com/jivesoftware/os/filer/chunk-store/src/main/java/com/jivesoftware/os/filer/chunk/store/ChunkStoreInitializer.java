@@ -1,7 +1,7 @@
 package com.jivesoftware.os.filer.chunk.store;
 
 import com.google.common.base.Charsets;
-import com.jivesoftware.os.filer.io.AutoResizingByteBufferBackedFiler;
+import com.jivesoftware.os.filer.io.ResizableByteBuffer;
 import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.io.ConcurrentFiler;
@@ -64,7 +64,7 @@ public class ChunkStoreInitializer {
 
         ChunkStore chunkStore;
         if (autoResize) {
-            ConcurrentFiler filer = new AutoResizingByteBufferBackedFiler(lock, chunkStoreCapacityInBytes, byteBufferProvider,
+            ConcurrentFiler filer = new ResizableByteBuffer(lock, chunkStoreCapacityInBytes, byteBufferProvider,
                 new Semaphore(concurrencyLevel), concurrencyLevel);
             chunkStore = new ChunkStore(filer);
         } else {
@@ -87,7 +87,7 @@ public class ChunkStoreInitializer {
         chunkStore = new ChunkStore();
         chunkStore.setup(referenceNumber);
         if (autoResize) {
-            ConcurrentFiler filer = new AutoResizingByteBufferBackedFiler(lock, chunkStoreCapacityInBytes, byteBufferProvider,
+            ConcurrentFiler filer = new ResizableByteBuffer(lock, chunkStoreCapacityInBytes, byteBufferProvider,
                 new Semaphore(concurrencyLevel, true), concurrencyLevel);
             chunkStore.createAndOpen(filer);
         } else {

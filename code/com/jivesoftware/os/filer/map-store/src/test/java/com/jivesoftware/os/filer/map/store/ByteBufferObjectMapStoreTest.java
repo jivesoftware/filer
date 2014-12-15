@@ -28,11 +28,15 @@ public class ByteBufferObjectMapStoreTest {
             System.out.println("---------------------- " + i + " ----------------------");
 
             // bytebuffer mapstore setup
-            BytesObjectMapStore<ByteBufferBackedFiler, Long, Object> byteBufferObjectMapStore = new BytesObjectMapStore<>("8",
+            @SuppressWarnings("unchecked")
+            BytesObjectMapStore<ByteBufferBackedFiler, Long, Object> byteBufferObjectMapStore = new BytesObjectMapStore<>(
                 8,
                 null,
-                new ConcurrentFilerProviderBackedMapChunkFactory<>(8, false, 0, false, 10,
-                    new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
+                new ConcurrentFilerProviderBackedMapChunkProvider<ByteBufferBackedFiler>(
+                    8, false, 0, false, 10,
+                    new ConcurrentFilerProvider[] {
+                        new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))
+                    }),
                 new KeyMarshaller<Long>() {
 
                     @Override

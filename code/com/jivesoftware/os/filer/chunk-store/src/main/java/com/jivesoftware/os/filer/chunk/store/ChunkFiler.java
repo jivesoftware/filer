@@ -1,6 +1,6 @@
 package com.jivesoftware.os.filer.chunk.store;
 
-import com.jivesoftware.os.filer.io.ConcurrentFiler;
+import com.jivesoftware.os.filer.io.Filer;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -13,24 +13,22 @@ import java.util.concurrent.atomic.AtomicLong;
 
  @author jonathan.colt
  */
-public class ChunkFiler implements ConcurrentFiler {
+public class ChunkFiler implements Filer {
 
     private final ChunkStore chunkStore;
-    private final ConcurrentFiler filer;
+    private final Filer filer;
     private final long chunkFP;
     private final long startOfFP;
     private final long endOfFP;
-    private final long count;
     private final AtomicLong semaphore = new AtomicLong();
     private final AtomicBoolean recycle = new AtomicBoolean();
 
-    ChunkFiler(ChunkStore chunkStore, ConcurrentFiler filer, long chunkFP, long startOfFP, long endOfFP, long count) {
+    ChunkFiler(ChunkStore chunkStore, Filer filer, long chunkFP, long startOfFP, long endOfFP) {
         this.chunkStore = chunkStore;
         this.filer = filer;
         this.chunkFP = chunkFP;
         this.startOfFP = startOfFP;
         this.endOfFP = endOfFP;
-        this.count = count;
     }
 
     public long getChunkFP() {
@@ -63,7 +61,7 @@ public class ChunkFiler implements ConcurrentFiler {
 
     @Override
     public String toString() {
-        return "SOF=" + startOfFP + " EOF=" + endOfFP + " Count=" + count;
+        return "SOF=" + startOfFP + " EOF=" + endOfFP;
     }
 
     final public long getSize() throws IOException {
@@ -79,10 +77,6 @@ public class ChunkFiler implements ConcurrentFiler {
 
     final public long startOfFP() {
         return startOfFP;
-    }
-
-    final public long count() {
-        return count;
     }
 
     final public long endOfFP() {
@@ -197,22 +191,6 @@ public class ChunkFiler implements ConcurrentFiler {
     @Override
     final public void flush() throws IOException {
         filer.flush();
-    }
-
-    @Override
-    public ConcurrentFiler asConcurrentReadWrite(Object suggestedLock) throws IOException {
-        ConcurrentFiler asConcurrentReadWrite = filer.asConcurrentReadWrite(suggestedLock);
-        return new ChunkFiler(chunkStore, asConcurrentReadWrite, chunkFP, startOfFP, endOfFP, count);
-    }
-
-    @Override
-    public long capacity() throws IOException {
-        return filer.capacity();
-    }
-
-    @Override
-    public void delete() throws IOException {
-        filer.delete(); // Ahhhh cough
     }
 
 }

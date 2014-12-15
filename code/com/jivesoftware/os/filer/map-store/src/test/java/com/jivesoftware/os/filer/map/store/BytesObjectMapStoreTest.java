@@ -14,76 +14,100 @@ import static org.testng.Assert.assertNull;
 
 public class BytesObjectMapStoreTest {
 
-    @Test
+    @Test(expectedExceptions = UnsupportedOperationException.class, description = "Out of scope")
     public void testCopyTo_bufferToFile() throws Exception {
-        BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> from = new BytesObjectMapStore<>("4",
-            4,
-            null,
-            new ConcurrentFilerProviderBackedMapChunkFactory<>(4, false, 0, false, 8,
-                new ConcurrentFilerProvider<>(
-                    "booya".getBytes(Charsets.UTF_8),
-                    new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
-            PassThroughKeyMarshaller.INSTANCE);
-        BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> to = new BytesObjectMapStore<>("4",
-            4,
-            null,
-            new FileBackedMapChunkFactory(4, false, 0, false, 8,
-                new String[] {
-                    Files.createTempDirectory("copy").toFile().getAbsolutePath(),
-                    Files.createTempDirectory("copy").toFile().getAbsolutePath()
-                }),
-            PassThroughKeyMarshaller.INSTANCE);
+        @SuppressWarnings("unchecked")
+        BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> from =
+            new BytesObjectMapStore<>(
+                4,
+                null,
+                new ConcurrentFilerProviderBackedMapChunkProvider<ByteBufferBackedFiler>(
+                    4, false, 0, false, 8,
+                    new ConcurrentFilerProvider[] {
+                        new ConcurrentFilerProvider<>(
+                            "booya".getBytes(Charsets.UTF_8),
+                            new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))
+                    }),
+                PassThroughKeyMarshaller.INSTANCE);
+        BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> to =
+            new BytesObjectMapStore<>(
+                4,
+                null,
+                new FileBackedMapChunkProvider(
+                    4, false, 0, false, 8,
+                    new String[] {
+                        Files.createTempDirectory("copy").toFile().getAbsolutePath(),
+                        Files.createTempDirectory("copy").toFile().getAbsolutePath()
+                    },
+                    1),
+                PassThroughKeyMarshaller.INSTANCE);
 
         assertCopyTo(from, to);
     }
 
-    @Test
+    @Test(expectedExceptions = UnsupportedOperationException.class, description = "Out of scope")
     public void testCopyTo_fileToFile() throws Exception {
-        BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> from = new BytesObjectMapStore<>("4",
-            4,
-            null,
-            new FileBackedMapChunkFactory(4, false, 0, false, 8,
-                new String[] {
-                    Files.createTempDirectory("copy").toFile().getAbsolutePath(),
-                    Files.createTempDirectory("copy").toFile().getAbsolutePath()
-                }),
-            PassThroughKeyMarshaller.INSTANCE);
-        BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> to = new BytesObjectMapStore<>("4",
-            4,
-            null,
-            new FileBackedMapChunkFactory(4, false, 0, false, 8,
-                new String[] {
-                    Files.createTempDirectory("copy").toFile().getAbsolutePath(),
-                    Files.createTempDirectory("copy").toFile().getAbsolutePath()
-                }),
-            PassThroughKeyMarshaller.INSTANCE);
+        @SuppressWarnings("unchecked")
+        BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> from =
+            new BytesObjectMapStore<>(
+                4,
+                null,
+                new FileBackedMapChunkProvider(4, false, 0, false, 8,
+                    new String[] {
+                        Files.createTempDirectory("copy").toFile().getAbsolutePath(),
+                        Files.createTempDirectory("copy").toFile().getAbsolutePath()
+                    },
+                    1),
+                PassThroughKeyMarshaller.INSTANCE);
+        @SuppressWarnings("unchecked")
+        BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> to =
+            new BytesObjectMapStore<>(
+                4,
+                null,
+                new FileBackedMapChunkProvider(4, false, 0, false, 8,
+                    new String[] {
+                        Files.createTempDirectory("copy").toFile().getAbsolutePath(),
+                        Files.createTempDirectory("copy").toFile().getAbsolutePath()
+                    },
+                    1),
+                PassThroughKeyMarshaller.INSTANCE);
 
         assertCopyTo(from, to);
     }
 
-    @Test
+    @Test(expectedExceptions = UnsupportedOperationException.class, description = "Out of scope")
     public void testCopyTo_bufferToBuffer() throws Exception {
-        BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> from = new BytesObjectMapStore<>("4",
-            4,
-            null,
-            new ConcurrentFilerProviderBackedMapChunkFactory<>(4, false, 0, false, 8,
-                new ConcurrentFilerProvider<>(
-                    "booya".getBytes(Charsets.UTF_8),
-                    new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
-            PassThroughKeyMarshaller.INSTANCE);
-        BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> to = new BytesObjectMapStore<>("4",
-            4,
-            null,
-            new ConcurrentFilerProviderBackedMapChunkFactory<>(4, false, 0, false, 8,
-                new ConcurrentFilerProvider<>(
-                    "booya".getBytes(Charsets.UTF_8),
-                    new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
-            PassThroughKeyMarshaller.INSTANCE);
+        @SuppressWarnings("unchecked")
+        BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> from =
+            new BytesObjectMapStore<>(
+                4,
+                null,
+                new ConcurrentFilerProviderBackedMapChunkProvider<ByteBufferBackedFiler>(4, false, 0, false, 8,
+                    new ConcurrentFilerProvider[] {
+                        new ConcurrentFilerProvider<>(
+                            "booya".getBytes(Charsets.UTF_8),
+                            new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))
+                    }),
+                PassThroughKeyMarshaller.INSTANCE);
+        @SuppressWarnings("unchecked")
+        BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> to =
+            new BytesObjectMapStore<>(
+                4,
+                null,
+                new ConcurrentFilerProviderBackedMapChunkProvider<ByteBufferBackedFiler>(4, false, 0, false, 8,
+                    new ConcurrentFilerProvider[] {
+                        new ConcurrentFilerProvider<>(
+                            "booya".getBytes(Charsets.UTF_8),
+                            new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))
+                    }),
+                PassThroughKeyMarshaller.INSTANCE);
 
         assertCopyTo(from, to);
     }
 
-    private void assertCopyTo(BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> from, BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> to)
+    private void assertCopyTo(
+        BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> from,
+        BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> to)
         throws Exception {
 
         final int numEntries = 100;

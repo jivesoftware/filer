@@ -1,7 +1,7 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ConcurrentFiler;
-import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
+import com.jivesoftware.os.filer.io.ByteArrayFiler;
+import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.map.store.extractors.IndexStream;
 import java.io.IOException;
@@ -22,126 +22,102 @@ import java.util.Arrays;
  */
 public class SkipListSet {
 
-    static final MapStore map = MapStore.DEFAULT;
+    static final MapStore mapStore = MapStore.INSTANCE;
+
+    private static final int cColumKeySize = 4; // stores the int index of the key it points to !! could make dynamic to save space
 
     public SkipListSet() {
     }
 
-    private static final int cColumKeySize = 4; // stores the int index of the key it points to !! could make dynamic to save space
+    public SkipListSetPage open(Filer filer, SkipListComparator valueComparator, byte[] headKey) throws IOException {
+        MapContext chunk = mapStore.open(filer);
+        byte maxHeight = heightFit(chunk.capacity);
+        long headIndex = mapStore.get(filer, chunk, headKey);
+        if (headIndex == -1) {
+            throw new RuntimeException("SkipListSetPage:Invalid Page!");
+        }
+        return new SkipListSetPage(chunk, maxHeight, valueComparator, headIndex, headKey);
+    }
 
-    /**
-     * new
-     *
-     * @param mapStore
-     * @param _maxCount
-     * @param headKey
-     * @param _keySize
-     * @param _payloadSize
-     * @param _valueComparator
-     * @param provider
-     * @return
-     */
-    public <F extends ConcurrentFiler> SkipListSetPage<F> slallocate(MapStore mapStore,
+    public SkipListSetPage create(
         int _maxCount,
-        byte[] headKey,
-        int _keySize,
-        boolean variableKeySizes,
+        final byte[] headKey,
+        final int _keySize,
+        final boolean variableKeySizes,
         int _payloadSize,
-        boolean variablePayloadSizes,
-        SkipListComparator _valueComparator,
-        ConcurrentFilerProvider<F> provider) throws IOException {
+        final boolean variablePayloadSizes,
+        final SkipListComparator _valueComparator,
+        Filer filer) throws IOException {
 
         if (headKey.length != _keySize) {
             throw new RuntimeException("Expected that headKey.length == keySize");
         }
-        _maxCount += 2;
-        byte maxHeight = SkipListSetPage.heightFit(_maxCount);
-        int payloadSize = slpayloadSize(maxHeight) + _payloadSize;
 
-        int filerSize = map.computeFilerSize(_maxCount, _keySize, variableKeySizes, payloadSize, variablePayloadSizes);
-        F filer = provider.allocate(filerSize);
-        MapChunk<F> setPage = map.bootstrapAllocatedFiler(_maxCount, _keySize, variableKeySizes, payloadSize,
+        final int maxCount = _maxCount + 2;
+        final byte maxHeight = heightFit(_maxCount);
+        final int payloadSize = slpayloadSize(maxHeight) + _payloadSize;
+
+        MapContext setPage = mapStore.create(maxCount, _keySize, variableKeySizes, payloadSize,
             variablePayloadSizes, filer);
         byte[] headPayload = new byte[payloadSize];
         Arrays.fill(headPayload, Byte.MIN_VALUE);
-        map.add(setPage, (byte) 1, headKey, newColumn(headPayload, maxHeight, maxHeight));
+        mapStore.add(filer, setPage, (byte) 1, headKey, newColumn(headPayload, maxHeight, maxHeight));
         //stoSysOut(setPage);
-        SkipListSetPage<F> slsPage = new SkipListSetPage<>(setPage, headKey, _valueComparator);
-        slsPage.init(mapStore);
-        return slsPage;
+        return open(filer, _valueComparator, headKey);
     }
 
-    /**
-     * @param _maxCount
-     * @param _keySize
-     * @param _payloadSize
-     * @return
-     */
     public int slcost(int _maxCount, int _keySize, int _payloadSize) {
-        byte maxHeight = SkipListSetPage.heightFit(_maxCount);
-        return map.cost(_maxCount, _keySize, slpayloadSize(maxHeight) + _payloadSize);
+        byte maxHeight = heightFit(_maxCount);
+        return mapStore.cost(_maxCount, _keySize, slpayloadSize(maxHeight) + _payloadSize);
     }
 
-    /**
-     * @param maxHeight
-     * @return
-     */
     int slpayloadSize(byte maxHeight) {
         return 1 + (cColumKeySize * maxHeight);
     }
 
-    /**
-     * @param page
-     * @return
-     */
-    public long slgetCount(SkipListSetPage page) throws IOException {
-        return map.getCount(page.map) - 1; // -1 because of head
+    public long slgetCount(Filer filer, SkipListSetPage page) throws IOException {
+        return mapStore.getCount(filer) - 1; // -1 because of head
     }
 
-    /**
-     * @param page
-     * @param _key
-     * @param _payload
-     */
-    public void sladd(SkipListSetPage page, byte[] _key, byte[] _payload) throws IOException {
+    public void sladd(Filer filer, SkipListSetPage page, byte[] _key, byte[] _payload) throws IOException {
 
-        long index = map.get(page.map, _key);
+        long index = mapStore.get(filer, page.chunk, _key);
         if (index != -1) { // aready exists so just update payload
-            map.setPayloadAtIndex(page.map, index, startOfPayload(page.maxHeight), _payload, 0, _payload.length);
+            mapStore.setPayloadAtIndex(filer, page.chunk, index, startOfPayload(page.maxHeight), _payload, 0, _payload.length);
             return;
         }
-        int skeySize = page.map.keySize;
-        int spayloadSize = page.map.payloadSize;
+        int skeySize = page.chunk.keySize;
+        int spayloadSize = page.chunk.payloadSize;
         // create a new colum for a new key
         byte[] newColumn = newColumn(_payload, page.maxHeight, (byte) -1);
-        int insertsIndex = map.add(page.map, (byte) 1, _key, newColumn);
+        int insertsIndex = mapStore.add(filer, page.chunk, (byte) 1, _key, newColumn);
 
         int level = page.maxHeight - 1;
-        int ilevel = columnLength(page, insertsIndex);
+        int ilevel = columnLength(filer, page, insertsIndex);
         long atIndex = page.headIndex;
         while (level > 0) {
-            int nextIndex = rcolumnLevel(page, atIndex, level);
+            int nextIndex = rcolumnLevel(filer, page, atIndex, level);
             if (nextIndex == -1) {
                 if (level < ilevel) {
-                    wcolumnLevel(page, atIndex, level, insertsIndex);
+                    wcolumnLevel(filer, page, atIndex, level, insertsIndex);
                     if (level == 1) {
-                        wcolumnLevel(page, insertsIndex, 0, atIndex);
+                        wcolumnLevel(filer, page, insertsIndex, 0, atIndex);
                     }
                 }
                 level--;
             } else {
-                int compare = page.compare(map.startOfKey(nextIndex, page.map.entrySize), map.startOfKey(insertsIndex, page.map.entrySize));
+                int compare = compare(page, mapStore.startOfKey(nextIndex, page.chunk.entrySize), mapStore.startOfKey(insertsIndex, page.chunk.entrySize));
                 if (compare == 0) {
                     throw new RuntimeException("should be impossible");
                 } else if (compare < 0) { // keep looking forward
                     atIndex = nextIndex;
                 } else { // insert
                     if (level < ilevel) {
-                        wcolumnLevel(page, insertsIndex, level, nextIndex);
-                        wcolumnLevel(page, atIndex, level, insertsIndex);
+                        wcolumnLevel(filer, page, insertsIndex, level, nextIndex);
+                        wcolumnLevel(filer, page, atIndex, level, insertsIndex);
                         if (level == 1) {
-                            wcolumnLevel(page, insertsIndex, 0, atIndex);
-                            wcolumnLevel(page, nextIndex, 0, insertsIndex);
+                            wcolumnLevel(filer, page, insertsIndex, 0, atIndex);
+                            wcolumnLevel(filer, page, nextIndex, 0, insertsIndex);
                         }
                     }
                     level--;
@@ -157,27 +133,27 @@ public class SkipListSet {
      * @param _key
      * @return
      */
-    public byte[] slfindWouldInsertAfter(SkipListSetPage page, byte[] _key) throws IOException {
+    public byte[] slfindWouldInsertAfter(Filer filer, SkipListSetPage page, byte[] _key) throws IOException {
 
-        long index = map.get(page.map, _key);
+        long index = mapStore.get(filer, page.chunk, _key);
         if (index != -1) { // aready exists so return self
             return _key;
         }
-        int skeySize = page.map.keySize;
-        int spayloadSize = page.map.payloadSize;
+        int skeySize = page.chunk.keySize;
+        int spayloadSize = page.chunk.payloadSize;
         // create a new colum for a new key
 
         int level = page.maxHeight - 1;
         long atIndex = page.headIndex;
         while (level > 0) {
-            int nextIndex = rcolumnLevel(page, atIndex, level);
+            int nextIndex = rcolumnLevel(filer, page, atIndex, level);
             if (nextIndex == -1) {
                 if (level == 1) {
-                    return map.getKeyAtIndex(page.map, atIndex);
+                    return mapStore.getKeyAtIndex(filer, page.chunk, atIndex);
                 }
                 level--;
             } else {
-                int compare = page.compare(map.startOfKey(nextIndex, page.map.entrySize), _key);
+                int compare = compare(page, mapStore.startOfKey(nextIndex, page.chunk.entrySize), _key);
                 if (compare == 0) {
                     throw new RuntimeException("should be impossible");
                 } else if (compare < 0) { // keep looking forward
@@ -187,7 +163,7 @@ public class SkipListSet {
                         if (atIndex == page.headIndex) {
                             return null;
                         }
-                        return map.getKeyAtIndex(page.map, atIndex);
+                        return mapStore.getKeyAtIndex(filer, page.chunk, atIndex);
                     }
                     level--;
                 }
@@ -200,12 +176,12 @@ public class SkipListSet {
      * @param page
      * @return
      */
-    public byte[] slgetFirst(SkipListSetPage page) throws IOException {
-        int firstIndex = rcolumnLevel(page, page.headIndex, 1);
+    public byte[] slgetFirst(Filer filer, SkipListSetPage page) throws IOException {
+        int firstIndex = rcolumnLevel(filer, page, page.headIndex, 1);
         if (firstIndex == -1) {
             return null;
         } else {
-            return map.getKeyAtIndex(page.map, firstIndex);
+            return mapStore.getKeyAtIndex(filer, page.chunk, firstIndex);
         }
     }
 
@@ -213,31 +189,31 @@ public class SkipListSet {
      * @param page
      * @param _key
      */
-    public void slremove(SkipListSetPage page, byte[] _key) throws IOException {
+    public void slremove(Filer filer, SkipListSetPage page, byte[] _key) throws IOException {
         if (_key == null || _key.length == 0) {
             throw new RuntimeException("null not supported");
         }
-        long removeIndex = map.get(page.map, _key);
+        long removeIndex = mapStore.get(filer, page.chunk, _key);
         if (removeIndex == -1) { // doesn't exists so return
             return;
         }
-        int skeySize = page.map.keySize;
-        int spayloadSize = page.map.payloadSize;
+        int skeySize = page.chunk.keySize;
+        int spayloadSize = page.chunk.payloadSize;
 
         int level = page.maxHeight - 1;
         long atIndex = page.headIndex;
         while (level > 0) {
-            int nextIndex = rcolumnLevel(page, atIndex, level);
+            int nextIndex = rcolumnLevel(filer, page, atIndex, level);
             if (nextIndex == -1) {
                 level--;
             } else {
-                int compare = page.compare(map.startOfKey(nextIndex, page.map.entrySize), map.startOfKey(removeIndex, page.map.entrySize));
+                int compare = compare(page, mapStore.startOfKey(nextIndex, page.chunk.entrySize), mapStore.startOfKey(removeIndex, page.chunk.entrySize));
                 if (compare == 0) {
                     while (level > -1) {
-                        int removesNextIndex = rcolumnLevel(page, removeIndex, level);
-                        wcolumnLevel(page, atIndex, level, removesNextIndex);
+                        int removesNextIndex = rcolumnLevel(filer, page, removeIndex, level);
+                        wcolumnLevel(filer, page, atIndex, level, removesNextIndex);
                         if (level == 0) {
-                            wcolumnLevel(page, removesNextIndex, level, atIndex);
+                            wcolumnLevel(filer, page, removesNextIndex, level, atIndex);
                         }
                         level--;
                     }
@@ -249,7 +225,7 @@ public class SkipListSet {
                 }
             }
         }
-        map.remove(page.map, _key);
+        mapStore.remove(filer, page.chunk, _key);
     }
 
     /**
@@ -257,20 +233,20 @@ public class SkipListSet {
      * @param _key
      * @return
      */
-    public byte[] slgetPrior(SkipListSetPage page, byte[] _key) throws IOException {
+    public byte[] slgetPrior(Filer filer, SkipListSetPage page, byte[] _key) throws IOException {
         if (_key == null || _key.length == 0) {
             return null;
         }
-        long index = map.get(page.map, _key);
+        long index = mapStore.get(filer, page.chunk, _key);
         if (index == -1) {
             return null;
         } else {
-            int pi = rcolumnLevel(page, index, 0);
+            int pi = rcolumnLevel(filer, page, index, 0);
             if (pi == -1) {
                 return null;
             } else {
-                byte[] got = map.getKeyAtIndex(page.map, pi);
-                if (page.isHeadKey(got)) {
+                byte[] got = mapStore.getKeyAtIndex(filer, page.chunk, pi);
+                if (isHeadKey(page, got)) {
                     return null; // don't give out head key
                 }
                 return got;
@@ -283,19 +259,19 @@ public class SkipListSet {
      * @param _key
      * @return
      */
-    public byte[] slgetNext(SkipListSetPage page, byte[] _key) throws IOException {
+    public byte[] slgetNext(Filer filer, SkipListSetPage page, byte[] _key) throws IOException {
         if (_key == null || _key.length == 0) {
             return null;
         }
-        long index = map.get(page.map, _key);
+        long index = mapStore.get(filer, page.chunk, _key);
         if (index == -1) {
             return null;
         } else {
-            int nextIndex = rcolumnLevel(page, index, 1);
+            int nextIndex = rcolumnLevel(filer, page, index, 1);
             if (nextIndex == -1) {
                 return null;
             } else {
-                return map.getKeyAtIndex(page.map, nextIndex);
+                return mapStore.getKeyAtIndex(filer, page.chunk, nextIndex);
             }
         }
     }
@@ -305,15 +281,15 @@ public class SkipListSet {
      * @param _key
      * @return
      */
-    public byte[] slgetExisting(SkipListSetPage page, byte[] _key) throws IOException {
+    public byte[] slgetExisting(Filer filer, SkipListSetPage page, byte[] _key) throws IOException {
         if (_key == null || _key.length == 0) {
             throw new RuntimeException("null not supported");
         }
-        long index = map.get(page.map, _key);
+        long index = mapStore.get(filer, page.chunk, _key);
         if (index == -1) {
             return null;
         } else {
-            return getColumnPayload(page, index, page.maxHeight);
+            return getColumnPayload(filer, page, index, page.maxHeight);
         }
     }
 
@@ -322,16 +298,16 @@ public class SkipListSet {
      * @param key
      * @return
      */
-    public byte[] slgetAfterExisting(SkipListSetPage page, byte[] key) throws IOException {
+    public byte[] slgetAfterExisting(Filer filer, SkipListSetPage page, byte[] key) throws IOException {
         if (key == null || key.length == 0) {
             throw new RuntimeException("null not supported");
         }
-        long index = map.get(page.map, key);
+        long index = mapStore.get(filer, page.chunk, key);
         if (index == -1) {
             return null;
         }
-        int nextIndex = rcolumnLevel(page, index, 1);
-        return map.getKeyAtIndex(page.map, nextIndex);
+        int nextIndex = rcolumnLevel(filer, page, index, 1);
+        return mapStore.getKeyAtIndex(filer, page.chunk, nextIndex);
     }
 
     /**
@@ -344,18 +320,18 @@ public class SkipListSet {
      * @param _get
      * @throws Exception
      */
-    public void slgetSlice(SkipListSetPage page, byte[] from, byte[] to, int _max, IndexStream<Exception> _get) throws Exception {
+    public void slgetSlice(Filer filer, SkipListSetPage page, byte[] from, byte[] to, int _max, IndexStream<Exception> _get) throws Exception {
         long at;
         if (from != null && from.length > 0) {
-            at = map.get(page.map, from);
+            at = mapStore.get(filer, page.chunk, from);
             if (at == -1) {
-                byte[] found = slfindWouldInsertAfter(page, from);
+                byte[] found = slfindWouldInsertAfter(filer, page, from);
                 if (found == null) {
                     _get.stream(-1); // done because from doesn't exist
                     return;
                 }
-                at = map.get(page.map, found);
-                at = rcolumnLevel(page, at, 1); // move to next because we found the one before
+                at = mapStore.get(filer, page.chunk, found);
+                at = rcolumnLevel(filer, page, at, 1); // move to next because we found the one before
             }
 
         } else {
@@ -365,7 +341,7 @@ public class SkipListSet {
         done:
         while (at != -1) {
             if (to != null) {
-                int compare = page.compare(map.startOfKey(at, page.map.entrySize), to);
+                int compare = compare(page, mapStore.startOfKey(at, page.chunk.entrySize), to);
                 if (compare > 0) {
                     break;
                 }
@@ -373,7 +349,7 @@ public class SkipListSet {
             if (_get.stream(at)) {
                 break;
             }
-            at = rcolumnLevel(page, at, 1);
+            at = rcolumnLevel(filer, page, at, 1);
             if (at == -1) {
                 break;
             }
@@ -394,15 +370,15 @@ public class SkipListSet {
      * @param to
      * @throws Exception
      */
-    public void slcopyTo(final SkipListSetPage from, final SkipListSetPage to) throws Exception {
-        slgetSlice(from, null, null, -1, new IndexStream<Exception>() {
+    public void slcopyTo(final Filer fromFiler, final SkipListSetPage from, final Filer toFiler, final SkipListSetPage to) throws Exception {
+        slgetSlice(fromFiler, from, null, null, -1, new IndexStream<Exception>() {
 
             @Override
             public boolean stream(long ai) throws Exception {
                 if (ai != -1) {
-                    byte[] key = map.getKeyAtIndex(from.map, ai);
-                    byte[] payload = getColumnPayload(from, ai, from.maxHeight);
-                    sladd(to, key, payload);
+                    byte[] key = mapStore.getKeyAtIndex(fromFiler, from.chunk, ai);
+                    byte[] payload = getColumnPayload(fromFiler, from, ai, from.maxHeight);
+                    sladd(toFiler, to, key, payload);
                 }
 
                 return true;
@@ -436,42 +412,73 @@ public class SkipListSet {
         System.arraycopy(_key, 0, _column, 1 + (_h * cColumKeySize), cColumKeySize);
     }
 
-    private byte columnLength(SkipListSetPage page, long setIndex) throws IOException {
-        int keyLengthSize = page.map.keyLengthSize;
-        int keySize = page.map.keySize;
-        int entrySize = page.map.entrySize;
-        return page.map.read(map.startOfPayload(setIndex, entrySize, keyLengthSize, keySize));
+    private byte columnLength(Filer filer, SkipListSetPage page, long setIndex) throws IOException {
+        int keyLengthSize = page.chunk.keyLengthSize;
+        int keySize = page.chunk.keySize;
+        int entrySize = page.chunk.entrySize;
+        return mapStore.read(filer, mapStore.startOfPayload(setIndex, entrySize, keyLengthSize, keySize));
     }
 
-    private int rcolumnLevel(SkipListSetPage page, long setIndex, int level) throws IOException {
-        int keyLengthSize = page.map.keyLengthSize;
-        int keySize = page.map.keySize;
-        int entrySize = page.map.entrySize;
-        long offset = map.startOfPayload(setIndex, entrySize, keyLengthSize, keySize) + 1 + (level * cColumKeySize);
-        return page.map.readInt(offset);
+    private int rcolumnLevel(Filer filer, SkipListSetPage page, long setIndex, int level) throws IOException {
+        int keyLengthSize = page.chunk.keyLengthSize;
+        int keySize = page.chunk.keySize;
+        int entrySize = page.chunk.entrySize;
+        long offset = mapStore.startOfPayload(setIndex, entrySize, keyLengthSize, keySize) + 1 + (level * cColumKeySize);
+        return mapStore.readInt(filer, offset);
     }
 
-    private void wcolumnLevel(SkipListSetPage page, long setIndex, int level, long v) throws IOException {
-        int keyLengthSize = page.map.keyLengthSize;
-        int keySize = page.map.keySize;
-        int entrySize = page.map.entrySize;
-        long offset = map.startOfPayload(setIndex, entrySize, keyLengthSize, keySize) + 1 + (level * cColumKeySize);
-        page.map.writeInt(offset, (int) v);
+    private void wcolumnLevel(Filer filer, SkipListSetPage page, long setIndex, int level, long v) throws IOException {
+        int keyLengthSize = page.chunk.keyLengthSize;
+        int keySize = page.chunk.keySize;
+        int entrySize = page.chunk.entrySize;
+        long offset = mapStore.startOfPayload(setIndex, entrySize, keyLengthSize, keySize) + 1 + (level * cColumKeySize);
+        mapStore.writeInt(filer, offset, (int) v);
     }
 
     private int startOfPayload(int maxHeight) {
         return 1 + (cColumKeySize * maxHeight);
     }
 
-    private byte[] getColumnPayload(SkipListSetPage page, long setIndex, int maxHeight) throws IOException {
-        int keyLengthSize = page.map.keyLengthSize;
-        int keySize = page.map.keySize;
-        int entrySize = page.map.entrySize;
-        long startOfPayload = map.startOfPayload(setIndex, entrySize, keyLengthSize, keySize);
-        int size = (page.map.payloadLengthSize + page.map.payloadSize) - startOfPayload(maxHeight);
+    private byte[] getColumnPayload(Filer filer, SkipListSetPage page, long setIndex, int maxHeight) throws IOException {
+        int keyLengthSize = page.chunk.keyLengthSize;
+        int keySize = page.chunk.keySize;
+        int entrySize = page.chunk.entrySize;
+        long startOfPayload = mapStore.startOfPayload(setIndex, entrySize, keyLengthSize, keySize);
+        int size = (page.chunk.payloadLengthSize + page.chunk.payloadSize) - startOfPayload(maxHeight);
         byte[] payload = new byte[size];
-        page.map.read((int) (startOfPayload + 1 + (maxHeight * cColumKeySize)), payload, 0, size);
+        mapStore.read(filer, (int) (startOfPayload + 1 + (maxHeight * cColumKeySize)), payload, 0, size);
         return payload;
+    }
+
+    private boolean isHeadKey(SkipListSetPage page, byte[] bytes) {
+        if (bytes.length != page.headKey.length) {
+            return false;
+        }
+        for (int i = 0; i < bytes.length; i++) {
+            if (bytes[i] != page.headKey[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private int compare(SkipListSetPage page, int startOfAKey, int startOfBKey) throws IOException {
+        return page.valueComparator.compare(page.chunk, startOfAKey, page.chunk, startOfBKey, page.chunk.keySize);
+    }
+
+    private int compare(SkipListSetPage page, int startOfAKey, byte[] _key) throws IOException {
+        MapContext otherChunk = mapStore.open(new ByteArrayFiler(_key));
+        return page.valueComparator.compare(page.chunk, startOfAKey, otherChunk, 0, page.chunk.keySize);
+    }
+
+    public static byte heightFit(long _length) {
+        byte h = (byte) 1; // room for back links
+        for (byte i = 1; i < 65; i++) { // 2^64 == long so why go anyfuther
+            if (_length < Math.pow(2, i)) {
+                return (byte) (h + i);
+            }
+        }
+        return 64;
     }
 
     // debugging aids
@@ -480,14 +487,14 @@ public class SkipListSet {
      * @param page
      * @param keyToString
      */
-    public void sltoSysOut(SkipListSetPage page, BytesToString keyToString) throws IOException {
+    public void sltoSysOut(Filer filer, SkipListSetPage page, BytesToString keyToString) throws IOException {
         if (keyToString == null) {
             keyToString = new BytesToBytesString();
         }
         long atIndex = page.headIndex;
         while (atIndex != -1) {
-            toSysOut(page, atIndex, keyToString);
-            atIndex = rcolumnLevel(page, atIndex, 1);
+            toSysOut(filer, page, atIndex, keyToString);
+            atIndex = rcolumnLevel(filer, page, atIndex, 1);
         }
     }
 
@@ -533,21 +540,21 @@ public class SkipListSet {
         }
     }
 
-    private void toSysOut(SkipListSetPage page, long index, BytesToString keyToString) throws IOException {
-        byte[] key = map.getKeyAtIndex(page.map, index);
+    private void toSysOut(Filer filer, SkipListSetPage page, long index, BytesToString keyToString) throws IOException {
+        byte[] key = mapStore.getKeyAtIndex(filer, page.chunk, index);
         System.out.print("\t" + keyToString.bytesToString(key) + " - ");
-        int l = columnLength(page, index);
+        int l = columnLength(filer, page, index);
         for (int i = 0; i < l; i++) {
             if (i != 0) {
                 System.out.print(",");
 
             }
-            int ni = rcolumnLevel(page, index, i);
+            int ni = rcolumnLevel(filer, page, index, i);
             if (ni == -1) {
                 System.out.print("NULL");
 
             } else {
-                byte[] nkey = map.getKeyAtIndex(page.map, ni);
+                byte[] nkey = mapStore.getKeyAtIndex(filer, page.chunk, ni);
                 if (nkey == null) {
                     System.out.println("??");
                 } else {

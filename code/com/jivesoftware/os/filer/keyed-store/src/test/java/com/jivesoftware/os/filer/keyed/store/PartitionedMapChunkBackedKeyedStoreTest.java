@@ -11,14 +11,15 @@ package com.jivesoftware.os.filer.keyed.store;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStoreInitializer;
+import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
-import com.jivesoftware.os.filer.io.FilerTransaction;
-import com.jivesoftware.os.filer.io.RewriteFilerTransaction;
+import com.jivesoftware.os.filer.io.MonkeyFilerTransaction;
+import com.jivesoftware.os.filer.io.RewriteMonkeyFilerTransaction;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
-import com.jivesoftware.os.filer.map.store.FileBackedMapChunkFactory;
-import com.jivesoftware.os.filer.map.store.MapChunkFactory;
+import com.jivesoftware.os.filer.map.store.FileBackedMapChunkProvider;
+import com.jivesoftware.os.filer.map.store.MapChunkProvider;
 import java.io.IOException;
 import java.nio.file.Files;
 import org.testng.annotations.Test;
@@ -43,15 +44,15 @@ public class PartitionedMapChunkBackedKeyedStoreTest {
 
         ChunkStoreInitializer chunkStoreInitializer = new ChunkStoreInitializer();
         MultiChunkStore multiChunkStore = new MultiChunkStoreInitializer(chunkStoreInitializer)
-            .initializeMultiFileBacked(chunkDirs, "data", 4, 4096, true, 8, 64);
+            .initializeMultiFileBacked(chunkDirs, "data", 4, 4096, true, 8, new ByteArrayStripingLocksProvider(64));
         int newFilerInitialCapacity = 512;
 
-        MapChunkFactory<ByteBufferBackedFiler> mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
+        MapChunkProvider<ByteBufferBackedFiler> mapChunkProvider = new FileBackedMapChunkProvider(4, false, 8, false, 100, mapDirs);
         PartitionedMapChunkBackedKeyedStore<ByteBufferBackedFiler> partitionedMapChunkBackedKeyedStore = new PartitionedMapChunkBackedKeyedStore<>(
-            mapChunkFactory, multiChunkStore, new StripingLocksProvider<String>(16), 4);
+            mapChunkProvider, multiChunkStore, new StripingLocksProvider<String>(16), 4);
 
         byte[] key = FilerIO.intBytes(1010);
-        partitionedMapChunkBackedKeyedStore.execute(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+        partitionedMapChunkBackedKeyedStore.execute(key, newFilerInitialCapacity, new MonkeyFilerTransaction<Filer, Void>() {
             @Override
             public Void commit(Filer filer) throws IOException {
                 FilerIO.writeInt(filer, 10, "");
@@ -59,10 +60,10 @@ public class PartitionedMapChunkBackedKeyedStoreTest {
             }
         });
 
-        mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
-        partitionedMapChunkBackedKeyedStore = new PartitionedMapChunkBackedKeyedStore<>(mapChunkFactory, multiChunkStore,
+        mapChunkProvider = new FileBackedMapChunkProvider(4, false, 8, false, 100, mapDirs);
+        partitionedMapChunkBackedKeyedStore = new PartitionedMapChunkBackedKeyedStore<>(mapChunkProvider, multiChunkStore,
             new StripingLocksProvider<String>(16), 4);
-        partitionedMapChunkBackedKeyedStore.execute(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+        partitionedMapChunkBackedKeyedStore.execute(key, newFilerInitialCapacity, new MonkeyFilerTransaction<Filer, Void>() {
             @Override
             public Void commit(Filer filer) throws IOException {
                 filer.seek(0);
@@ -87,14 +88,14 @@ public class PartitionedMapChunkBackedKeyedStoreTest {
 
         ChunkStoreInitializer chunkStoreInitializer = new ChunkStoreInitializer();
         MultiChunkStore multChunkStore = new MultiChunkStoreInitializer(chunkStoreInitializer)
-            .initializeMultiFileBacked(chunkDirs, "data", 4, 4096, true, 8, 64);
+            .initializeMultiFileBacked(chunkDirs, "data", 4, 4096, true, 8, new ByteArrayStripingLocksProvider(64));
         int newFilerInitialCapacity = 512;
-        MapChunkFactory<ByteBufferBackedFiler> mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
+        MapChunkProvider<ByteBufferBackedFiler> mapChunkProvider = new FileBackedMapChunkProvider(4, false, 8, false, 100, mapDirs);
         PartitionedMapChunkBackedKeyedStore<ByteBufferBackedFiler> partitionedMapChunkBackedKeyedStore = new PartitionedMapChunkBackedKeyedStore<>(
-            mapChunkFactory, multChunkStore, new StripingLocksProvider<String>(16), 4);
+            mapChunkProvider, multChunkStore, new StripingLocksProvider<String>(16), 4);
 
         byte[] key = FilerIO.intBytes(1020);
-        partitionedMapChunkBackedKeyedStore.execute(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+        partitionedMapChunkBackedKeyedStore.execute(key, newFilerInitialCapacity, new MonkeyFilerTransaction<Filer, Void>() {
             @Override
             public Void commit(Filer filer) throws IOException {
                 filer.seek(0);
@@ -102,7 +103,7 @@ public class PartitionedMapChunkBackedKeyedStoreTest {
                 return null;
             }
         });
-        partitionedMapChunkBackedKeyedStore.executeRewrite(key, newFilerInitialCapacity, new RewriteFilerTransaction<Filer, Void>() {
+        partitionedMapChunkBackedKeyedStore.executeRewrite(key, newFilerInitialCapacity, new RewriteMonkeyFilerTransaction<Filer, Void>() {
             @Override
             public Void commit(Filer currentFiler, Filer newFiler) throws IOException {
                 currentFiler.seek(0);
@@ -115,10 +116,10 @@ public class PartitionedMapChunkBackedKeyedStoreTest {
             }
         });
 
-        mapChunkFactory = new FileBackedMapChunkFactory(4, false, 8, false, 100, mapDirs);
-        partitionedMapChunkBackedKeyedStore = new PartitionedMapChunkBackedKeyedStore<>(mapChunkFactory, multChunkStore,
+        mapChunkProvider = new FileBackedMapChunkProvider(4, false, 8, false, 100, mapDirs);
+        partitionedMapChunkBackedKeyedStore = new PartitionedMapChunkBackedKeyedStore<>(mapChunkProvider, multChunkStore,
             new StripingLocksProvider<String>(16), 4);
-        partitionedMapChunkBackedKeyedStore.execute(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+        partitionedMapChunkBackedKeyedStore.execute(key, newFilerInitialCapacity, new MonkeyFilerTransaction<Filer, Void>() {
             @Override
             public Void commit(Filer filer) throws IOException {
                 filer.seek(0);

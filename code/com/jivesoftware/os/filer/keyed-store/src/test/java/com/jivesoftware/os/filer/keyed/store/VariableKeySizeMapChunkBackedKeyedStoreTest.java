@@ -3,18 +3,17 @@ package com.jivesoftware.os.filer.keyed.store;
 import com.google.common.base.Charsets;
 import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
-import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStoreConcurrentFilerFactory;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStoreInitializer;
+import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FileBackedMemMappedByteBufferFactory;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
-import com.jivesoftware.os.filer.io.FilerTransaction;
-import com.jivesoftware.os.filer.io.StripingLocksProvider;
-import com.jivesoftware.os.filer.map.store.ConcurrentFilerProviderBackedMapChunkFactory;
-import com.jivesoftware.os.filer.map.store.FileBackedMapChunkFactory;
+import com.jivesoftware.os.filer.io.MonkeyFilerTransaction;
+import com.jivesoftware.os.filer.map.store.ConcurrentFilerProviderBackedMapChunkProvider;
+import com.jivesoftware.os.filer.map.store.FileBackedMapChunkProvider;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -55,22 +54,22 @@ public class VariableKeySizeMapChunkBackedKeyedStoreTest {
     public void testFilerAutoCreate() throws Exception {
         final int[] keySizeThresholds = new int[] { 4, 16, 64, 256, 1024 };
         int chunkStoreCapacityInBytes = 30 * 1024 * 1024;
-        MultiChunkStore multChunkStore = new MultiChunkStoreInitializer(new ChunkStoreInitializer()).initializeMultiFileBacked(
-            chunkDirectories, "data", 4, chunkStoreCapacityInBytes, false, 8, 64);
+        MultiChunkStoreConcurrentFilerFactory multiChunkStore = new MultiChunkStoreInitializer(new ChunkStoreInitializer()).initializeMultiFileBacked(
+            chunkDirectories, "data", 4, chunkStoreCapacityInBytes, false, 8, new ByteArrayStripingLocksProvider(64));
         long newFilerInitialCapacity = 512;
-        VariableKeySizeMapChunkBackedKeyedStore.Builder<ByteBufferBackedFiler> builder = new VariableKeySizeMapChunkBackedKeyedStore.Builder<>();
+        VariableKeySizeMapChunkBackedKeyedStore.Builder<ByteBufferBackedFiler> builder =
+            new VariableKeySizeMapChunkBackedKeyedStore.Builder<>();
 
         for (int keySize : keySizeThresholds) {
-            FileBackedMapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(keySize, true, 8, false, 512,
-                buildMapDirectories(mapDirectories, keySize));
-            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore<>(mapChunkFactory, multChunkStore,
-                new StripingLocksProvider<String>(16), 4));
+            FileBackedMapChunkProvider mapChunkFactory = new FileBackedMapChunkProvider(keySize, true, 8, false, 512,
+                buildMapDirectories(mapDirectories, keySize), 4);
+            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore<>(mapChunkFactory, multiChunkStore, concurrentFilerFactory));
         }
 
         VariableKeySizeMapChunkBackedKeyedStore keyedStore = builder.build();
 
         for (final int keySize : keySizeThresholds) {
-            keyedStore.execute(keyOfLength(keySize), newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+            keyedStore.execute(keyOfLength(keySize), newFilerInitialCapacity, new MonkeyFilerTransaction<Filer, Void>() {
                 @Override
                 public Void commit(Filer filer) throws IOException {
                     filer.seek(0);
@@ -81,7 +80,7 @@ public class VariableKeySizeMapChunkBackedKeyedStoreTest {
         }
 
         for (final int keySize : keySizeThresholds) {
-            keyedStore.execute(keyOfLength(keySize), -1, new FilerTransaction<Filer, Void>() {
+            keyedStore.execute(keyOfLength(keySize), -1, new MonkeyFilerTransaction<Filer, Void>() {
                 @Override
                 public Void commit(Filer filer) throws IOException {
                     filer.seek(0);
@@ -98,15 +97,15 @@ public class VariableKeySizeMapChunkBackedKeyedStoreTest {
         final int[] keySizeThresholds = new int[] { 4, 16 };
         int chunkStoreCapacityInBytes = 30 * 1024 * 1024;
         int newFilerInitialCapacity = 512;
-        MultiChunkStore multChunkStore = new MultiChunkStoreInitializer(new ChunkStoreInitializer()).initializeMultiFileBacked(
-            chunkDirectories, "data", 4, chunkStoreCapacityInBytes, false, 8, 64);
-        VariableKeySizeMapChunkBackedKeyedStore.Builder<ByteBufferBackedFiler> builder = new VariableKeySizeMapChunkBackedKeyedStore.Builder<>();
+        MultiChunkStoreConcurrentFilerFactory multiChunkStore = new MultiChunkStoreInitializer(new ChunkStoreInitializer()).initializeMultiFileBacked(
+            chunkDirectories, "data", 4, chunkStoreCapacityInBytes, false, 8, new ByteArrayStripingLocksProvider(64));
+        VariableKeySizeMapChunkBackedKeyedStore.Builder<ByteBufferBackedFiler> builder =
+            new VariableKeySizeMapChunkBackedKeyedStore.Builder<>();
 
         for (int keySize : keySizeThresholds) {
-            FileBackedMapChunkFactory mapChunkFactory = new FileBackedMapChunkFactory(keySize, true, 8, false, 512,
-                buildMapDirectories(mapDirectories, keySize));
-            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore<>(mapChunkFactory, multChunkStore,
-                new StripingLocksProvider<String>(16), 4));
+            FileBackedMapChunkProvider mapChunkFactory = new FileBackedMapChunkProvider(keySize, true, 8, false, 512,
+                buildMapDirectories(mapDirectories, keySize), 4);
+            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore<>(mapChunkFactory, multiChunkStore, concurrentFilerFactory));
         }
 
         VariableKeySizeMapChunkBackedKeyedStore keyedStore = builder.build();
@@ -117,7 +116,7 @@ public class VariableKeySizeMapChunkBackedKeyedStoreTest {
         final int totalNumberOfInts = numberOfIntsInActualCapacity * MathUtils.pow(2, numberOfTimesToGrow - 1);
 
         for (int keySize : keySizeThresholds) {
-            keyedStore.execute(keyOfLength(keySize), newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+            keyedStore.execute(keyOfLength(keySize), newFilerInitialCapacity, new MonkeyFilerTransaction<Filer, Void>() {
                 @Override
                 public Void commit(Filer filer) throws IOException {
                     filer.seek(0);
@@ -130,7 +129,7 @@ public class VariableKeySizeMapChunkBackedKeyedStoreTest {
         }
 
         for (int keySize : keySizeThresholds) {
-            keyedStore.execute(keyOfLength(keySize), newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+            keyedStore.execute(keyOfLength(keySize), newFilerInitialCapacity, new MonkeyFilerTransaction<Filer, Void>() {
                 @Override
                 public Void commit(Filer filer) throws IOException {
                     filer.seek(0);
@@ -150,27 +149,31 @@ public class VariableKeySizeMapChunkBackedKeyedStoreTest {
         int chunkStoreCapacityInBytes = 30 * 1024 * 1024;
 
         File mapDir = Files.createTempDirectory("map").toFile();
-        MultiChunkStoreInitializer mcsi = new MultiChunkStoreInitializer(new ChunkStoreInitializer());
         FileBackedMemMappedByteBufferFactory byteBufferFactory = new FileBackedMemMappedByteBufferFactory(mapDir);
-        MultiChunkStoreConcurrentFilerFactory store = mcsi.initializeMultiByteBufferBacked(
-            "boo", byteBufferFactory, 10, chunkStoreCapacityInBytes, true, 10, 10);
+        MultiChunkStoreConcurrentFilerFactory multiChunkStore = new MultiChunkStoreInitializer(new ChunkStoreInitializer())
+            .initializeMultiByteBufferBacked("boo", byteBufferFactory, 10, chunkStoreCapacityInBytes, true, 10, new ByteArrayStripingLocksProvider(10));
 
         long newFilerInitialCapacity = 512;
-        VariableKeySizeMapChunkBackedKeyedStore.Builder<ChunkFiler> builder = new VariableKeySizeMapChunkBackedKeyedStore.Builder<>();
+        VariableKeySizeMapChunkBackedKeyedStore.Builder<ChunkFiler> builder =
+            new VariableKeySizeMapChunkBackedKeyedStore.Builder<>();
 
         for (int keySize : keySizeThresholds) {
-            ConcurrentFilerProviderBackedMapChunkFactory<ChunkFiler> mapChunkFactory = new ConcurrentFilerProviderBackedMapChunkFactory<>(
+            @SuppressWarnings("unchecked")
+            ConcurrentFilerProvider<ChunkFiler>[] concurrentFilerProviders = new ConcurrentFilerProvider[] {
+                new ConcurrentFilerProvider<>(("booya-map-1-" + keySize).getBytes(), multiChunkStore),
+                new ConcurrentFilerProvider<>(("booya-map-2-" + keySize).getBytes(), multiChunkStore)
+            };
+            ConcurrentFilerProviderBackedMapChunkProvider<ChunkFiler> mapChunkFactory = new ConcurrentFilerProviderBackedMapChunkProvider<>(
                 keySize, true, 8, false, 512,
-                new ConcurrentFilerProvider<>(("booya-map-" + keySize).getBytes(), store));
+                concurrentFilerProviders);
 
-            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore<>(mapChunkFactory, store,
-                new StripingLocksProvider<String>(16), 4));
+            builder.add(keySize, new PartitionedMapChunkBackedKeyedStore<>(mapChunkFactory, multiChunkStore, concurrentFilerFactory));
         }
 
         VariableKeySizeMapChunkBackedKeyedStore<ChunkFiler> keyedStore = builder.build();
 
         for (final int keySize : keySizeThresholds) {
-            keyedStore.execute(keyOfLength(keySize), newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+            keyedStore.execute(keyOfLength(keySize), newFilerInitialCapacity, new MonkeyFilerTransaction<Filer, Void>() {
                 @Override
                 public Void commit(Filer filer) throws IOException {
                     filer.seek(0);
@@ -183,7 +186,7 @@ public class VariableKeySizeMapChunkBackedKeyedStoreTest {
         }
 
         for (final int keySize : keySizeThresholds) {
-            keyedStore.execute(keyOfLength(keySize), -1, new FilerTransaction<Filer, Void>() {
+            keyedStore.execute(keyOfLength(keySize), -1, new MonkeyFilerTransaction<Filer, Void>() {
                 @Override
                 public Void commit(Filer filer) throws IOException {
                     filer.seek(0);

@@ -3,13 +3,19 @@ package com.jivesoftware.os.filer.chunk.store;
 import com.google.common.base.Preconditions;
 import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.ConcurrentFilerFactory;
+import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
-import com.jivesoftware.os.filer.io.FilerTransaction;
-import com.jivesoftware.os.filer.map.store.MapChunk;
+import com.jivesoftware.os.filer.io.MonkeyFilerTransaction;
+import com.jivesoftware.os.filer.io.NoOpOpenFiler;
+import com.jivesoftware.os.filer.io.OpenFiler;
+import com.jivesoftware.os.filer.io.RewriteMonkeyFilerTransaction;
+import com.jivesoftware.os.filer.map.store.MapContext;
 import com.jivesoftware.os.filer.map.store.MapStore;
+import com.jivesoftware.os.filer.map.store.MapTransaction;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -21,10 +27,10 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
 
         private final ArrayList<ChunkStore> stores = new ArrayList<>();
 
-        private int stripingLevel = 1024;
+        private ByteArrayStripingLocksProvider locksProvider;
 
-        public Builder setStripingLevel(int stripingLevel) {
-            this.stripingLevel = stripingLevel;
+        public Builder setLocksProvider(ByteArrayStripingLocksProvider locksProvider) {
+            this.locksProvider = locksProvider;
             return this;
         }
 
@@ -34,26 +40,31 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
         }
 
         public MultiChunkStoreConcurrentFilerFactory build() throws IOException {
-            return new MultiChunkStoreConcurrentFilerFactory(stripingLevel, stores.toArray(new ChunkStore[stores.size()]));
+            Preconditions.checkArgument(!stores.isEmpty(), "Must add at least one ChunkStore");
+            return new MultiChunkStoreConcurrentFilerFactory(
+                Preconditions.checkNotNull(locksProvider, "Must set a LocksProvider"),
+                stores.toArray(new ChunkStore[stores.size()]));
         }
     }
 
     private static final long MAGIC_SKY_HOOK_NUMBER = 5583112375L;
-    private final long skyHookFP = 464; // I died a little bit doing this.
+    private static final NoOpOpenFiler<ChunkFiler> noOpOpenChunkFiler = new NoOpOpenFiler<>();
+
+    private static final long skyHookFP = 464; // I died a little bit doing this.
 
     final ChunkStore[] chunkStores;
     private final int maxKeySizePower = 16;
-    private final AtomicReference<MapChunk<ChunkFiler>>[][] chunkIndexes;
-    private final ByteArrayStripingLocksProvider[] locksProviders;
+    private final AtomicLong[][] chunkIndexes;
+    private final ByteArrayStripingLocksProvider locksProvider;
+    private final Object skyHookLock = new Object();
 
-    private MultiChunkStoreConcurrentFilerFactory(int stripingLevel, ChunkStore... chunkStores) throws IOException {
+    private MultiChunkStoreConcurrentFilerFactory(ByteArrayStripingLocksProvider locksProvider, ChunkStore... chunkStores) throws IOException {
+        this.locksProvider = locksProvider;
         this.chunkStores = chunkStores;
-        this.locksProviders = new ByteArrayStripingLocksProvider[chunkStores.length];
-        this.chunkIndexes = new AtomicReference[chunkStores.length][maxKeySizePower];
+        this.chunkIndexes = new AtomicLong[chunkStores.length][maxKeySizePower];
         for (int i = 0; i < chunkStores.length; i++) {
-            locksProviders[i] = new ByteArrayStripingLocksProvider(stripingLevel);
             for (int keyPower = 0; keyPower < maxKeySizePower; keyPower++) {
-                chunkIndexes[i][keyPower] = new AtomicReference<>();
+                chunkIndexes[i][keyPower] = new AtomicLong(-1);
             }
         }
         for (ChunkStore chunkStore : chunkStores) {
@@ -64,139 +75,250 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
     private void initializeIfNeeded(final ChunkStore chunkStore) throws IOException {
         long magic;
         try {
-            ChunkFiler filer = chunkStore.getFiler(skyHookFP, new Object());
-            filer.seek(0);
-            magic = FilerIO.readLong(filer, "magic");
+            magic = chunkStore.execute(skyHookFP, noOpOpenChunkFiler,
+                new ChunkTransaction<Void, Long>() {
+                    @Override
+                    public Long commit(Void monkey, ChunkFiler filer) throws IOException {
+                        filer.seek(0);
+                        return FilerIO.readLong(filer, "magic");
+                    }
+                }
+            );
         } catch (IOException x) {
             magic = MAGIC_SKY_HOOK_NUMBER;
-            long newSkyHookFP = chunkStore.newChunk(8 + (8 * maxKeySizePower));
-            if (newSkyHookFP != skyHookFP) {
-                throw new IOException("Its expected that the first ever allocated chunk will be at:" + skyHookFP + " but was at:" + newSkyHookFP);
-            }
-            try (ChunkFiler skyHookFiler = chunkStore.getFiler(newSkyHookFP, new Object())) {
-                synchronized (skyHookFiler.lock()) {
+            chunkStore.newChunk(8 + (8 * maxKeySizePower), new CreateFiler<Void, ChunkFiler>() {
+                @Override
+                public Void create(final ChunkFiler skyHookFiler) throws IOException {
+                    long newSkyHookFP = skyHookFiler.getChunkFP();
+
+                    if (newSkyHookFP != skyHookFP) {
+                        throw new IOException("Its expected that the first ever allocated chunk will be at:" + skyHookFP + " but was at:" + newSkyHookFP);
+                    }
+
                     skyHookFiler.seek(0);
                     FilerIO.writeLong(skyHookFiler, MAGIC_SKY_HOOK_NUMBER, "magic");
                     for (int i = 1, keySize = 1; i < maxKeySizePower; i++, keySize *= 2) {
-                        int filerSize = MapStore.DEFAULT.computeFilerSize(2, keySize, true, 8, false);
-                        long chunkFP = chunkStore.newChunk(filerSize);
-                        ChunkFiler mapStoresFiler = chunkStore.getFiler(chunkFP, new Object());
-                        MapStore.DEFAULT.bootstrapAllocatedFiler(2, keySize, true, 8, false, mapStoresFiler);
-                        MapChunk<ChunkFiler> mapChunk = new MapChunk<>(mapStoresFiler);
-                        mapChunk.init(MapStore.DEFAULT);
-                        FilerIO.writeLong(skyHookFiler, mapStoresFiler.getChunkFP(), "");
-                        //System.out.println("Wrote FP:" + mapStoresFiler.getChunkFP() + " for mapstore keySize:" + keySize);
+                        int filerSize = MapStore.INSTANCE.computeFilerSize(2, keySize, true, 8, false);
+                        final int _keySize = keySize;
+                        chunkStore.newChunk(filerSize, new CreateFiler<MapContext, ChunkFiler>() {
+                            @Override
+                            public MapContext create(ChunkFiler mapStoresFiler) throws IOException {
+                                MapContext chunk = MapStore.INSTANCE.create(2, _keySize, true, 8, false, mapStoresFiler);
+                                FilerIO.writeLong(skyHookFiler, mapStoresFiler.getChunkFP(), "");
+                                return chunk;
+                            }
+                        });
                     }
+                    return null;
                 }
-            }
+            });
+
         }
         if (magic != MAGIC_SKY_HOOK_NUMBER) {
             throw new IOException("Expected magic number:" + MAGIC_SKY_HOOK_NUMBER + " but found:" + magic);
         }
     }
 
-    private MapChunk<ChunkFiler> growMapChunkIfNeeded(AtomicReference<MapChunk<ChunkFiler>> atomicMapChunk,
-        int keyLength,
-        ChunkStore chunkStore) throws IOException {
+    private final OpenFiler<MapContext, ChunkFiler> openMapContext = new OpenFiler<MapContext, ChunkFiler>() {
+        @Override
+        public MapContext open(ChunkFiler filer) throws IOException {
+            return MapStore.INSTANCE.open(filer);
+        }
+    };
 
-        MapChunk<ChunkFiler> mapChunk = getMapChunkIndex(atomicMapChunk, chunkStore, keyLength);
-        try {
-            if (MapStore.DEFAULT.isFull(mapChunk)) {
-                int newSize = MapStore.DEFAULT.nextGrowSize(mapChunk);
-                int chunkPower = FilerIO.chunkPower(keyLength, 1);
+    /**
+     * Lock chunkIndex externally!
+     */
+    private <R> R updateChunkIndex(final AtomicLong chunkIndex,
+        final int keyLength,
+        final ChunkStore chunkStore,
+        final MapTransaction<ChunkFiler, R> filerTransaction) throws IOException {
 
-                int filerSize = MapStore.DEFAULT.computeFilerSize(newSize, chunkPower, true, 8, false);
-                long chunkFP = chunkStore.newChunk(filerSize);
-                ChunkFiler mapStoresFiler = chunkStore.getFiler(chunkFP, new Object());
-                MapChunk<ChunkFiler> newMapChunk = MapStore.DEFAULT.bootstrapAllocatedFiler(newSize, chunkPower, true, 8, false, mapStoresFiler);
-                MapStore.DEFAULT.copyTo(mapChunk, newMapChunk, null);
+        synchronized (chunkIndex) {
+            long fpChunkFP = getMapChunkFP(chunkIndex, chunkStore, keyLength);
+            try {
+                return chunkStore.execute(fpChunkFP,
+                    openMapContext,
+                    new ChunkTransaction<MapContext, R>() {
+                        @Override
+                        public R commit(final MapContext currentIndexChunk, final ChunkFiler currentIndexFiler) throws IOException {
+                            if (MapStore.INSTANCE.isFull(currentIndexFiler, currentIndexChunk)) {
+                                final int newSize = MapStore.INSTANCE.nextGrowSize(currentIndexChunk);
+                                final int chunkPower = FilerIO.chunkPower(keyLength, 1);
+                                int filerSize = MapStore.INSTANCE.computeFilerSize(newSize, chunkPower, true, 8, false);
 
-                long oldFP;
-                try (ChunkFiler skyHookFiler = chunkStore.getFiler(skyHookFP, new Object())) {
-                    synchronized (skyHookFiler.lock()) {
-                        skyHookFiler.seek(8 + (8 * chunkPower));
-                        oldFP = FilerIO.readLong(skyHookFiler, "");
-                        skyHookFiler.seek(8 + (8 * chunkPower));
-                        FilerIO.writeLong(skyHookFiler, mapStoresFiler.getChunkFP(), "");
-                        atomicMapChunk.set(newMapChunk);
-                    }
-                }
-                chunkStore.recycle(chunkStore.getFiler(oldFP, null));
-                return newMapChunk;
+                                final long chunkFP = chunkStore.newChunk(filerSize, new CreateFiler<MapContext, ChunkFiler>() {
+                                    @Override
+                                    public MapContext create(ChunkFiler newIndexFiler) throws IOException {
+                                        MapContext newIndexChunk = MapStore.INSTANCE.create(newSize, keyLength, true, 8, false, newIndexFiler);
+                                        MapStore.INSTANCE.copyTo(currentIndexFiler, currentIndexChunk, newIndexFiler, newIndexChunk, null);
+                                        return newIndexChunk;
+                                    }
+                                });
+
+                                long oldFP;
+                                synchronized (skyHookLock) {
+                                    oldFP = chunkStore.execute(skyHookFP, noOpOpenChunkFiler,
+                                        new ChunkTransaction<Void, Long>() {
+                                            @Override
+                                            public Long commit(Void monkey, ChunkFiler skyHookFiler) throws IOException {
+                                                skyHookFiler.seek(8 + (8 * chunkPower));
+                                                long oldFP = FilerIO.readLong(skyHookFiler, "");
+                                                skyHookFiler.seek(8 + (8 * chunkPower));
+                                                FilerIO.writeLong(skyHookFiler, chunkFP, "");
+                                                chunkIndex.set(chunkFP);
+                                                return oldFP;
+                                            }
+                                        });
+                                }
+
+                                chunkStore.remove(oldFP);
+
+                                return chunkStore.execute(chunkFP, openMapContext,
+                                    new ChunkTransaction<MapContext, R>() {
+                                        @Override
+                                        public R commit(MapContext chunk, ChunkFiler filer) throws IOException {
+                                            return filerTransaction.commit(chunk, filer);
+                                        }
+                                    });
+                            } else {
+                                return filerTransaction.commit(currentIndexChunk, currentIndexFiler);
+                            }
+                        }
+                    });
+            } catch (Exception e) {
+                throw new IOException("Error when expanding size of partition!", e);
             }
-            return mapChunk;
-        } catch (Exception e) {
-            throw new IOException("Error when expanding size of partition!", e);
         }
     }
 
-    private MapChunk<ChunkFiler> getMapChunkIndex(AtomicReference<MapChunk<ChunkFiler>> chunkIndex, ChunkStore chunkStore, int keyLength) throws IOException {
-
-        MapChunk<ChunkFiler> mapChunk = chunkIndex.get();
-        if (mapChunk == null) {
-            Object lock = new Object();
-            long fpIndexFP;
-            try (ChunkFiler chunkFiler = chunkStore.getFiler(skyHookFP, lock)) {
-                synchronized (chunkFiler.lock()) {
+    /**
+     * Lock chunkIndex externally!
+     */
+    private long getMapChunkFP(AtomicLong chunkIndex, final ChunkStore chunkStore, final int keyLength) throws IOException {
+        long fpIndexFP = chunkIndex.get();
+        if (fpIndexFP == -1) {
+            fpIndexFP = chunkStore.execute(skyHookFP, noOpOpenChunkFiler, new ChunkTransaction<Void, Long>() {
+                @Override
+                public Long commit(Void monkey, ChunkFiler chunkFiler) throws IOException {
                     chunkFiler.seek(8 + (FilerIO.chunkPower(keyLength, 0) * 8));
-                    fpIndexFP = FilerIO.readLong(chunkFiler, "mapIndexFP");
+                    return FilerIO.readLong(chunkFiler, "mapIndexFP");
                 }
-            }
-            ChunkFiler chunkIndexFiler = chunkStore.getFiler(fpIndexFP, lock);
-            mapChunk = new MapChunk<>(chunkIndexFiler);
-            mapChunk.init(MapStore.DEFAULT);
-            if (!chunkIndex.compareAndSet(null, mapChunk)) {
-                mapChunk = chunkIndex.get();
-            }
+            });
+            chunkIndex.set(fpIndexFP);
         }
-        return mapChunk;
+        return fpIndexFP;
     }
 
     @Override
-    public ChunkFiler get(byte[] key) throws IOException {
-        int i = getChunkIndexForKey(key);
-        AtomicReference<MapChunk<ChunkFiler>> chunkIndex = chunkIndexes[i][FilerIO.chunkPower(key.length, 0)];
-        MapChunk mapChunkIndex = getMapChunkIndex(chunkIndex, chunkStores[i], key.length);
-        long ai = MapStore.DEFAULT.get(mapChunkIndex, key);
-        if (ai >= 0) {
-            long chunkFP = FilerIO.bytesLong(MapStore.DEFAULT.getPayload(mapChunkIndex, ai));
-            if (chunkFP >= 0) {
-                return chunkStores[i].getFiler(chunkFP, locksProviders[i].lock(key));
-            }
-        }
-        return null;
-    }
+    public <M, R> R getOrAllocate(final byte[] key,
+        final long size,
+        final OpenFiler<M, ChunkFiler> openFiler,
+        final CreateFiler<M, ChunkFiler> createFiler,
+        final MonkeyFilerTransaction<M, ChunkFiler, R> filerTransaction)
+        throws IOException {
 
-    @Override
-    public ChunkFiler allocate(byte[] key, long size) throws IOException {
         Preconditions.checkArgument(size > 0, "Size must be positive");
         int i = getChunkIndexForKey(key);
-        AtomicReference<MapChunk<ChunkFiler>> chunkIndex = chunkIndexes[i][FilerIO.chunkPower(key.length, 0)];
-        MapChunk<ChunkFiler> mapChunk = getMapChunkIndex(chunkIndex, chunkStores[i], key.length);
-        long chunkFP = chunkStores[i].newChunk(size);
-        MapStore.DEFAULT.add(mapChunk, (byte) 1, key, FilerIO.longBytes(chunkFP));
-        return chunkStores[i].getFiler(chunkFP, locksProviders[i].lock(key));
+        AtomicLong chunkIndex = chunkIndexes[i][FilerIO.chunkPower(key.length, 0)];
+        Object lock = locksProvider.lock(key);
+        synchronized (lock) {
+            long chunkFP;
+            final ChunkStore chunkStore = chunkStores[i];
+            synchronized (chunkIndex) {
+                long fpChunkFP = getMapChunkFP(chunkIndex, chunkStore, key.length);
+                chunkFP = chunkStore.execute(fpChunkFP, openMapContext, new ChunkTransaction<MapContext, Long>() {
+                    @Override
+                    public Long commit(MapContext mapContext, ChunkFiler filer) throws IOException {
+                        long ai = MapStore.INSTANCE.get(filer, mapContext, key);
+                        if (ai >= 0) {
+                            return FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, mapContext, ai));
+                        } else if (size > 0) {
+                            long chunkFP = chunkStore.newChunk(size, createFiler);
+                            MapStore.INSTANCE.add(filer, mapContext, (byte) 1, key, FilerIO.longBytes(chunkFP));
+                            return chunkFP;
+                        } else {
+                            return -1L;
+                        }
+                    }
+                });
+            }
+            if (chunkFP >= 0) {
+                return chunkStore.execute(chunkFP, openFiler, new ChunkTransaction<M, R>() {
+                    @Override
+                    public R commit(M monkey, ChunkFiler filer) throws IOException {
+                        return filerTransaction.commit(monkey, filer);
+                    }
+                });
+            } else {
+                return filerTransaction.commit(null, null);
+            }
+        }
     }
 
     @Override
-    public <R> R reallocate(byte[] key, long newSize, FilerTransaction<ChunkFiler, R> reallocateFilerTransaction) throws IOException {
-        ChunkFiler oldFiler = get(key);
-        if (oldFiler == null) {
-            throw new IllegalStateException("Trying to reallocate an unallocated key of " + Arrays.toString(key));
+    public void delete(final byte[] key) throws IOException {
+        int i = getChunkIndexForKey(key);
+        ChunkStore chunkStore = chunkStores[i];
+        AtomicLong chunkIndex = chunkIndexes[i][FilerIO.chunkPower(key.length, 0)];
+        Object lock = locksProvider.lock(key);
+        synchronized (lock) {
+            synchronized (chunkIndex) {
+                long mapChunkFP = getMapChunkFP(chunkIndex, chunkStore, key.length);
+                long chunkFP = chunkStore.execute(mapChunkFP, openMapContext, new ChunkTransaction<MapContext, Long>() {
+                    @Override
+                    public Long commit(MapContext mapChunk, ChunkFiler filer) throws IOException {
+                        long ai = MapStore.INSTANCE.get(filer, mapChunk, key);
+                        long chunkFP = -1;
+                        if (ai >= 0) {
+                            chunkFP = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, mapChunk, ai));
+                            MapStore.INSTANCE.remove(filer, mapChunk, key);
+                        }
+                        return chunkFP;
+                    }
+                });
+                chunkStore.remove(chunkFP);
+            }
         }
+    }
 
-        ChunkFiler newFiler = allocate(key, newSize);
-        R result = reallocateFilerTransaction.commit(newFiler);
+    @Override
+    public <M, R> R grow(final byte[] key,
+        final long newSize,
+        final OpenFiler<M, ChunkFiler> openFiler,
+        final CreateFiler<M, ChunkFiler> createFiler,
+        final RewriteMonkeyFilerTransaction<M, ChunkFiler, R> filerTransaction) throws IOException {
 
         int i = getChunkIndexForKey(key);
-        AtomicReference<MapChunk<ChunkFiler>> chunkIndex = chunkIndexes[i][FilerIO.chunkPower(key.length, 0)];
-        //TODO MapChunk could be changing out from under us, need some locking behavior
-        MapChunk mapChunk = growMapChunkIfNeeded(chunkIndex, key.length, chunkStores[i]);
-        long chunkFP = newFiler.getChunkFP();
-        MapStore.DEFAULT.add(mapChunk, (byte) 1, key, FilerIO.longBytes(chunkFP));
+        final ChunkStore chunkStore = chunkStores[i];
+        final AtomicLong chunkIndex = chunkIndexes[i][FilerIO.chunkPower(key.length, 0)];
+        return getOrAllocate(key, -1, openFiler, createFiler, new MonkeyFilerTransaction<M, ChunkFiler, R>() {
+            @Override
+            public R commit(final M oldMonkey, final ChunkFiler oldFiler) throws IOException {
+                if (oldFiler == null) {
+                    throw new IllegalStateException("Trying to grow an unallocated key of " + Arrays.toString(key));
+                }
 
-        oldFiler.recycle();
-        return result;
+                final long newChunkFP = chunkStore.newChunk(newSize, createFiler);
+                return chunkStore.execute(newChunkFP, openFiler, new ChunkTransaction<M, R>() {
+                    @Override
+                    public R commit(M newMonkey, ChunkFiler newFiler) throws IOException {
+                        R result = filerTransaction.commit(oldMonkey, oldFiler, newMonkey, newFiler);
+
+                        updateChunkIndex(chunkIndex, key.length, chunkStore, new MapTransaction<ChunkFiler, Void>() {
+                            @Override
+                            public Void commit(MapContext mapContext, ChunkFiler filer) throws IOException {
+                                MapStore.INSTANCE.add(filer, mapContext, (byte) 1, key, FilerIO.longBytes(newChunkFP));
+                                return null;
+                            }
+                        });
+
+                        oldFiler.recycle();
+                        return result;
+                    }
+                });
+            }
+        });
     }
 
     @Override
@@ -211,30 +333,27 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
     }
 
     @Override
-    public long newChunk(byte[] key, long _capacity) throws IOException {
-        return chunkStores[getChunkIndexForKey(key)].newChunk(_capacity);
+    public <M> long newChunk(byte[] key, long _capacity, CreateFiler<M, ChunkFiler> createFiler) throws IOException {
+        return chunkStores[getChunkIndexForKey(key)].newChunk(_capacity, createFiler);
     }
 
     @Override
-    public <R> R execute(byte[] key, long _chunkFP, FilerTransaction<ChunkFiler, R> filerTransaction) throws IOException {
-        int i = getChunkIndexForKey(key);
-        Object lock = locksProviders[i].lock(key);
-        try (ChunkFiler filer = chunkStores[i].getFiler(_chunkFP, lock)) {
-            synchronized (filer.lock()) {
-                return filerTransaction.commit(filer);
-            }
-        }
+    public <M, R> R execute(byte[] key, long chunkFP, OpenFiler<M, ChunkFiler> openFiler, ChunkTransaction<M, R> chunkTransaction) throws IOException {
+        return chunkStores[getChunkIndexForKey(key)].execute(chunkFP, openFiler, chunkTransaction);
     }
 
     @Override
-    public ResizingChunkFilerProvider getChunkFilerProvider(final byte[] keyBytes, final ChunkFPProvider chunkFPProvider) {
+    public void remove(byte[] key, long _chunkFP) throws IOException {
+        chunkStores[getChunkIndexForKey(key)].remove(_chunkFP);
+    }
 
+    @Override
+    public ResizingChunkFilerProvider getChunkFilerProvider(final byte[] keyBytes, final ChunkFPProvider chunkFPProvider, final ChunkFiler chunkFiler) {
         int i = getChunkIndexForKey(keyBytes);
         final ChunkStore chunkStore = chunkStores[i];
-        final Object lock = locksProviders[i].lock(keyBytes);
+        final Object lock = locksProvider.lock(keyBytes);
+        final AtomicReference<ChunkFiler> filerReference = new AtomicReference<>(chunkFiler);
         return new ResizingChunkFilerProvider() {
-
-            private final AtomicReference<ChunkFiler> filerReference = new AtomicReference<>();
 
             @Override
             public Object lock() {
@@ -293,7 +412,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                 ChunkFiler currentFiler = filerReference.get();
                 if (capacity >= currentFiler.length()) {
                     long currentOffset = currentFiler.getFilePointer();
-                    long newChunkFP = chunkStore.newChunk(capacity);
+                    long newChunkFP = chunkStore.newChunk(capacity, lock, createChunk);
                     ChunkFiler newFiler = chunkStore.getFiler(newChunkFP, lock);
                     copy(currentFiler, newFiler, -1);
                     long oldChunkFP = chunkFPProvider.getAndSetChunkFP(keyBytes, newChunkFP);
@@ -315,7 +434,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
     public ResizingChunkFilerProvider getTemporaryFilerProvider(final byte[] keyBytes) {
         int i = getChunkIndexForKey(keyBytes);
         final ChunkStore chunkStore = chunkStores[i];
-        final Object lock = locksProviders[i].lock(keyBytes);
+        final Object lock = locksProvider.lock(keyBytes);
 
         return new ResizingChunkFilerProvider() {
 
@@ -398,11 +517,6 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                 return size;
             }
         }
-    }
-
-    @Override
-    public void remove(byte[] key, long _chunkFP) throws IOException {
-        chunkStores[getChunkIndexForKey(key)].remove(_chunkFP);
     }
 
     @Override

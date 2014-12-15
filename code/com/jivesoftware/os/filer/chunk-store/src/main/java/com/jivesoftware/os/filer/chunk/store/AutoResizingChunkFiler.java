@@ -1,4 +1,4 @@
-package com.jivesoftware.os.filer.keyed.store;
+package com.jivesoftware.os.filer.chunk.store;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;

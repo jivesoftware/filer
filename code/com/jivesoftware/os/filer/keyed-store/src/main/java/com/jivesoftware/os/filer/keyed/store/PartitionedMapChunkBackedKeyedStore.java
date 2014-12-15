@@ -1,42 +1,37 @@
 package com.jivesoftware.os.filer.keyed.store;
 
+import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
+import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
-import com.jivesoftware.os.filer.io.ConcurrentFiler;
-import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.io.IBA;
-import com.jivesoftware.os.filer.io.KeyPartitioner;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
+import com.jivesoftware.os.filer.io.NoOpCreateFiler;
+import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.io.RewriteFilerTransaction;
-import com.jivesoftware.os.filer.io.StripingLocksProvider;
-import com.jivesoftware.os.filer.map.store.MapChunkFactory;
+import com.jivesoftware.os.filer.map.store.MapChunkProvider;
 import com.jivesoftware.os.filer.map.store.PartitionedMapChunkBackedMapStore;
+import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
+import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Iterator;
 
 /**
  * @author jonathan
  */
-public class PartitionedMapChunkBackedKeyedStore<F extends ConcurrentFiler> implements KeyedFilerStore,
-    Copyable<PartitionedMapChunkBackedKeyedStore<F>>,
-    Iterable<KeyValueStore.Entry<IBA, Filer>> {
+public class PartitionedMapChunkBackedKeyedStore<F extends Filer> implements KeyedFilerStore {
 
     private final PartitionedMapChunkBackedMapStore<F, IBA, Long> mapStore;
     private final MultiChunkStore.ChunkFPProvider chunkFPProvider;
     private final MultiChunkStore multiChunkStore;
-    private final String[] partitions;
 
-    public PartitionedMapChunkBackedKeyedStore(MapChunkFactory<F> mapChunkFactory,
-        MultiChunkStore multiChunkStore,
-        StripingLocksProvider<String> keyLocksProvider,
-        int numPartitions)
+    public PartitionedMapChunkBackedKeyedStore(MapChunkProvider<F> mapChunkProvider,
+        MultiChunkStore multiChunkStore)
         throws Exception {
 
-        this.mapStore = initializeMapStore(mapChunkFactory, keyLocksProvider);
+        this.mapStore = initializeMapStore(mapChunkProvider);
         this.chunkFPProvider = new MultiChunkStore.ChunkFPProvider() {
             @Override
             public long getChunkFP(byte[] key) throws IOException {
@@ -58,31 +53,15 @@ public class PartitionedMapChunkBackedKeyedStore<F extends ConcurrentFiler> impl
             }
         };
         this.multiChunkStore = multiChunkStore;
-        this.partitions = new String[numPartitions];
-        for (int i = 0; i < numPartitions; i++) {
-            partitions[i] = String.valueOf(i).intern();
-        }
     }
 
-    private PartitionedMapChunkBackedMapStore<F, IBA, Long> initializeMapStore(MapChunkFactory<F> chunkFactory,
-        final StripingLocksProvider<String> keyLocksProvider)
+    private PartitionedMapChunkBackedMapStore<F, IBA, Long> initializeMapStore(MapChunkProvider<F> mapChunkProvider)
         throws Exception {
 
         // TODO push up factory!
-        return new PartitionedMapChunkBackedMapStore<>(chunkFactory,
-            keyLocksProvider,
+        return new PartitionedMapChunkBackedMapStore<>(
+            mapChunkProvider,
             null,
-            new KeyPartitioner<IBA>() {
-                @Override
-                public String keyPartition(IBA key) {
-                    return partitions[Math.abs(key.hashCode()) % partitions.length];
-                }
-
-                @Override
-                public Iterable<String> allPartitions() {
-                    return Arrays.asList(partitions);
-                }
-            },
             new KeyValueMarshaller<IBA, Long>() {
 
                 @Override
@@ -108,25 +87,68 @@ public class PartitionedMapChunkBackedKeyedStore<F extends ConcurrentFiler> impl
     }
 
     @Override
-    public <R> R execute(byte[] keyBytes, long newFilerInitialCapacity, FilerTransaction<Filer, R> transaction) throws IOException {
-        try (AutoResizingChunkFiler filer = new AutoResizingChunkFiler(multiChunkStore.getChunkFilerProvider(keyBytes, chunkFPProvider))) {
-            synchronized (filer.lock()) {
-                if (!filer.open()) {
-                    if (newFilerInitialCapacity > 0) {
-                        filer.init(newFilerInitialCapacity);
+    public <R> R execute(final byte[] keyBytes, final long newFilerInitialCapacity, final FilerTransaction<Filer, R> transaction) throws IOException {
+        boolean createIfAbsent = (newFilerInitialCapacity > 0);
+        return mapStore.execute(new IBA(keyBytes), createIfAbsent, new KeyValueTransaction<Long, R>() {
+            @Override
+            public R commit(KeyValueContext<Long> context) throws IOException {
+                if (context != null) {
+                    Long chunkFP = context.get();
+                    if (chunkFP == null && newFilerInitialCapacity > 0) {
+                        chunkFP = multiChunkStore.newChunk(keyBytes, newFilerInitialCapacity, new NoOpCreateFiler<ChunkFiler>());
+                        context.set(chunkFP);
+                    }
+                    if (chunkFP != null) {
+                        return multiChunkStore.execute(keyBytes, chunkFP, new NoOpOpenFiler<ChunkFiler>(), new ChunkTransaction<Void, R>() {
+                            @Override
+                            public R commit(Void monkey, ChunkFiler filer) throws IOException {
+                                return transaction.commit(filer);
+                                //TODO transaction.commit(new AutoResizingChunkFiler(multiChunkStore.getChunkFilerProvider(keyBytes, chunkFPProvider, filer)));
+                            }
+                        });
                     } else {
                         return transaction.commit(null);
                     }
                 }
-                return transaction.commit(filer);
+                return transaction.commit(null);
             }
-        }
+        });
     }
 
     @Override
-    public <R> R executeRewrite(byte[] keyBytes, long rewriteInitialCapacity, RewriteFilerTransaction<Filer, R> transaction) throws IOException {
-        MultiChunkStore.ResizingChunkFilerProvider currentFilerProvider = multiChunkStore.getChunkFilerProvider(keyBytes, chunkFPProvider);
-        try (AutoResizingChunkFiler filer = new AutoResizingChunkFiler(currentFilerProvider)) {
+    public <R> R executeRewrite(final byte[] keyBytes, final long rewriteInitialCapacity, final RewriteFilerTransaction<Filer, R> transaction)
+        throws IOException {
+
+        //TODO
+        return mapStore.execute(new IBA(keyBytes), true, new KeyValueTransaction<Long, R>() {
+            @Override
+            public R commit(KeyValueContext<Long> context) throws IOException {
+                if (context != null) {
+                    Long chunkFP = context.get();
+                    if (chunkFP == null) {
+                        chunkFP = multiChunkStore.newChunk(keyBytes, rewriteInitialCapacity, new NoOpCreateFiler<ChunkFiler>());
+                        context.set(chunkFP);
+                    }
+                    if (chunkFP != null) {
+                        return multiChunkStore.execute(keyBytes, chunkFP, new NoOpOpenFiler<ChunkFiler>(), new ChunkTransaction<Void, R>() {
+                            @Override
+                            public R commit(Void monkey, ChunkFiler filer) throws IOException {
+                                return transaction.commit(filer);
+                                //TODO transaction.commit(new AutoResizingChunkFiler(multiChunkStore.getChunkFilerProvider(keyBytes, chunkFPProvider, filer)));
+                            }
+                        });
+                    } else {
+                        return transaction.commit(null);
+                    }
+                }
+                return transaction.commit(null, null);
+            }
+        });
+
+        /*
+        MultiChunkStore.ResizingChunkFilerProvider currentFilerProvider = multiChunkStore.getChunkFilerProvider(keyBytes, chunkFPProvider,
+            chunkFiler);
+        try(AutoResizingChunkFiler filer = new AutoResizingChunkFiler(currentFilerProvider)) {
             synchronized (filer.lock()) {
                 Filer currentFiler = null;
                 if (filer.open()) {
@@ -143,58 +165,27 @@ public class PartitionedMapChunkBackedKeyedStore<F extends ConcurrentFiler> impl
                 return result;
             }
         }
+        */
     }
 
     @Override
-    public void copyTo(PartitionedMapChunkBackedKeyedStore<F> to) throws IOException {
-        mapStore.copyTo(to.mapStore);
-    }
-
-    @Override
-    public Iterator<KeyValueStore.Entry<IBA, Filer>> iterator() {
-        final Iterator<IBA> iterator = mapStore.keysIterator();
-        return new Iterator<KeyValueStore.Entry<IBA, Filer>>() {
-
+    public void stream(final KeyValueStore.EntryStream<IBA, Filer> stream) throws IOException {
+        mapStore.stream(new KeyValueStore.EntryStream<IBA, Long>() {
             @Override
-            public boolean hasNext() {
-                return iterator.hasNext();
-            }
-
-            @Override
-            public KeyValueStore.Entry<IBA, Filer> next() {
-                final IBA next = iterator.next();
-                return new KeyValueStore.Entry<IBA, Filer>() {
+            public boolean stream(final IBA key, Long chunkFP) throws IOException {
+                return multiChunkStore.execute(key.getBytes(), chunkFP, new NoOpOpenFiler<ChunkFiler>(), new ChunkTransaction<Void, Boolean>() {
                     @Override
-                    public IBA getKey() {
-                        return next;
+                    public Boolean commit(Void monkey, ChunkFiler filer) throws IOException {
+                        return stream.stream(key, filer);
                     }
-
-                    @Override
-                    public Filer getValue() {
-                        try {
-                            return execute(next.getBytes(), -1, new FilerTransaction<Filer, Filer>() {
-                                @Override
-                                public Filer commit(Filer filer) throws IOException {
-                                    return filer;
-                                }
-                            });
-                        } catch (Exception x) {
-                            throw new RuntimeException("Failed to get Filer for key:" + next, x);
-                        }
-                    }
-                };
+                });
             }
-
-            @Override
-            public void remove() {
-                throw new UnsupportedOperationException("Not supported.");
-            }
-        };
+        });
     }
 
     @Override
-    public Iterator<IBA> keysIterator() {
-        return mapStore.keysIterator();
+    public void streamKeys(KeyValueStore.KeyStream<IBA> stream) throws IOException {
+        mapStore.streamKeys(stream);
     }
 
     @Override

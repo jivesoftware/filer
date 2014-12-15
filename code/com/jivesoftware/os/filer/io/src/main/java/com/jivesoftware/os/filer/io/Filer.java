@@ -4,7 +4,6 @@ import java.io.IOException;
 
 /**
  *
- * @author Administrator
  */
 public interface Filer extends Readable, Writeable {
 

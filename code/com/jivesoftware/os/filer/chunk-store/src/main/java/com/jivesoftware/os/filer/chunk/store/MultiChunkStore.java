@@ -15,7 +15,8 @@
  */
 package com.jivesoftware.os.filer.chunk.store;
 
-import com.jivesoftware.os.filer.io.FilerTransaction;
+import com.jivesoftware.os.filer.io.CreateFiler;
+import com.jivesoftware.os.filer.io.OpenFiler;
 import java.io.IOException;
 
 /**
@@ -25,15 +26,16 @@ public interface MultiChunkStore {
 
     void allChunks(ChunkIdStream _chunks) throws IOException;
 
-    long newChunk(byte[] key, long _capacity) throws IOException;
+    <M> long newChunk(byte[] key, long _capacity, CreateFiler<M, ChunkFiler> createFiler) throws IOException;
 
-    <R> R execute(byte[] key, long _chunkFP, FilerTransaction<ChunkFiler, R> filerTransaction) throws IOException;
-
-    ResizingChunkFilerProvider getChunkFilerProvider(byte[] key, ChunkFPProvider chunkFPProvider);
-
-    ResizingChunkFilerProvider getTemporaryFilerProvider(byte[] keyBytes);
+    <M, R> R execute(byte[] key, final long chunkFP, final OpenFiler<M, ChunkFiler> openFiler, final ChunkTransaction<M, R> chunkTransaction)
+        throws IOException;
 
     void remove(byte[] key, long _chunkFP) throws IOException;
+
+    ResizingChunkFilerProvider getChunkFilerProvider(byte[] key, ChunkFPProvider chunkFPProvider, ChunkFiler chunkFiler);
+
+    ResizingChunkFilerProvider getTemporaryFilerProvider(byte[] keyBytes);
 
     /**
      * Destroys all the back chunk stores

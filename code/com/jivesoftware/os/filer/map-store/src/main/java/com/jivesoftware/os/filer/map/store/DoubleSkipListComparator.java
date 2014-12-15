@@ -26,7 +26,7 @@ public class DoubleSkipListComparator implements SkipListComparator {
     static final public DoubleSkipListComparator cSingleton = new DoubleSkipListComparator();
 
     @Override
-    public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) {
+    public int compare(MapContext a, int astart, MapContext b, int bstart, int length) {
         try {
         double ad = a.readDouble(astart);
         double bd = b.readDouble(bstart);

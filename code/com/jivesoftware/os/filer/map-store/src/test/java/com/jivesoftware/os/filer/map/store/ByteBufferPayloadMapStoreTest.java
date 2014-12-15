@@ -27,13 +27,17 @@ public class ByteBufferPayloadMapStoreTest {
             System.out.println("---------------------- " + i + " ----------------------");
 
             // bytebuffer mapstore setup
+            @SuppressWarnings("unchecked")
             BytesBytesMapStore<ByteBufferBackedFiler, Long, Integer> mapStore =
-                new BytesBytesMapStore<>("8",
+                new BytesBytesMapStore<>(
                     8,
                     null,
-                    new ConcurrentFilerProviderBackedMapChunkFactory<>(8, false, 4, false, 10,
-                        new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8),
-                            new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))),
+                    new ConcurrentFilerProviderBackedMapChunkProvider<ByteBufferBackedFiler>(
+                        8, false, 4, false, 10,
+                        new ConcurrentFilerProvider[] {
+                            new ConcurrentFilerProvider<>("booya".getBytes(Charsets.UTF_8),
+                                new ByteBufferBackedConcurrentFilerFactory(new HeapByteBufferFactory()))
+                        }),
                     new KeyValueMarshaller<Long, Integer>() {
 
                         @Override

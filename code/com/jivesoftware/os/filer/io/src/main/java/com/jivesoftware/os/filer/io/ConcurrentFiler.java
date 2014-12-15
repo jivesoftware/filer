@@ -15,25 +15,9 @@
  */
 package com.jivesoftware.os.filer.io;
 
-import java.io.IOException;
-
 /**
  *
  * @author jonathan.colt
  */
 public interface ConcurrentFiler extends Filer {
-
-    /**
-     *
-     * When a filer is backed by memory it is possible to concurrently modify non overlapping chunks of memory however when a filer is backed by disk you have
-     * only a single seek head. This method can return itself or a pointer to itself that is in effect like having multiple seek heads.
-     *
-     * @param suggestedLock
-     * @return @throws IOException
-     */
-    ConcurrentFiler asConcurrentReadWrite(Object suggestedLock) throws IOException;
-
-    long capacity() throws IOException;
-
-    void delete() throws IOException;
 }

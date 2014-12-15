@@ -26,7 +26,7 @@ public class LongSkipListComparator implements SkipListComparator {
     static final public LongSkipListComparator cSingleton = new LongSkipListComparator();
 
     @Override
-    public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) {
+    public int compare(MapContext a, int astart, MapContext b, int bstart, int length) {
         try {
             long al = a.readLong(astart);
             long bl = b.readLong(bstart);

@@ -1,251 +1,145 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.jivesoftware.os.filer.io.ConcurrentFiler;
-import com.jivesoftware.os.filer.io.Copyable;
-import com.jivesoftware.os.filer.io.KeyPartitioner;
+import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
-import com.jivesoftware.os.filer.io.StripingLocksProvider;
+import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
+import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentSkipListMap;
 
 /**
  * @param <K>
  * @param <V>
  * @author jonathan
  */
-public class PartitionedMapChunkBackedMapStore<F extends ConcurrentFiler, K, V> implements KeyValueStore<K, V>,
-    Copyable<PartitionedMapChunkBackedMapStore<F, K, V>> {
+public class PartitionedMapChunkBackedMapStore<F extends Filer, K, V> implements KeyValueStore<K, V> {
 
-    private static final MapStore mapStore = MapStore.DEFAULT;
+    private static final MapStore mapStore = MapStore.INSTANCE;
 
-    private final MapChunkFactory<F> chunkFactory;
-    private final StripingLocksProvider<String> keyLocksProvider;
-    private final Map<String, MapChunk<F>> indexPages;
+    private final MapChunkProvider<F> chunkProvider;
     private final V returnWhenGetReturnsNull;
-    private final KeyPartitioner<K> keyPartitioner;
     private final KeyValueMarshaller<K, V> keyValueMarshaller;
 
-    public PartitionedMapChunkBackedMapStore(MapChunkFactory<F> chunkFactory,
-        StripingLocksProvider<String> keyLocksProvider,
+    public PartitionedMapChunkBackedMapStore(MapChunkProvider<F> chunkProvider,
         V returnWhenGetReturnsNull,
-        KeyPartitioner<K> keyPartitioner,
         KeyValueMarshaller<K, V> keyValueMarshaller) {
 
-        this.chunkFactory = chunkFactory;
-        this.keyLocksProvider = keyLocksProvider;
+        this.chunkProvider = chunkProvider;
         this.returnWhenGetReturnsNull = returnWhenGetReturnsNull;
-        this.indexPages = new ConcurrentSkipListMap<>();
-        this.keyPartitioner = keyPartitioner;
         this.keyValueMarshaller = keyValueMarshaller;
     }
 
-    public Iterable<String> allPartitions() {
-        return keyPartitioner.allPartitions();
-    }
-
     @Override
-    public void add(K key, V value) throws IOException {
-        if (key == null || value == null) {
-            return;
-        }
-
-        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
-        byte[] valueBytes = keyValueMarshaller.valueBytes(value);
-        if (valueBytes == null) {
-            return;
-        }
-        String pageId = keyPartitioner.keyPartition(key);
-        synchronized (keyLocksProvider.lock(pageId)) {
-            MapChunk<F> chunk = index(pageId);
-            // grow the set if needed;
-            if (mapStore.isFull(chunk)) {
-                int newSize = mapStore.nextGrowSize(chunk);
-
-                chunk = chunkFactory.resize(mapStore, chunk, pageId, newSize, null);
-                indexPages.put(pageId, chunk);
-            }
-            mapStore.add(chunk, (byte) 1, keyBytes, valueBytes);
-        }
-
-    }
-
-    @Override
-    public void remove(K key) throws IOException {
+    public <R> R execute(final K key, boolean createIfAbsent, final KeyValueTransaction<V, R> keyValueTransaction) throws IOException {
         if (key == null) {
-            return;
+            return null;
         }
 
-        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
-        String pageId = keyPartitioner.keyPartition(key);
-        synchronized (keyLocksProvider.lock(pageId)) {
-            MapChunk<F> index = get(pageId, false);
-            if (index != null) {
-                mapStore.remove(index, keyBytes);
+        final byte[] keyBytes = keyValueMarshaller.keyBytes(key);
+        return index(keyBytes, createIfAbsent, new MapTransaction<F, R>() {
+            @Override
+            public R commit(final MapContext context, final F filer) throws IOException {
+                if (context == null || filer == null) {
+                    return keyValueTransaction.commit(null);
+                } else {
+                    return keyValueTransaction.commit(new KeyValueContext<V>() {
+                        @Override
+                        public void set(V value) throws IOException {
+                            if (value == null) {
+                                return;
+                            }
+                            final byte[] valueBytes = keyValueMarshaller.valueBytes(value);
+                            if (valueBytes == null) {
+                                return;
+                            }
+                            // grow the set if needed;
+                            if (mapStore.isFull(filer, context)) {
+                                int newSize = mapStore.nextGrowSize(context);
+
+                                chunkProvider.grow(keyBytes, mapStore, context, newSize, null, new MapTransaction<F, Void>() {
+                                    @Override
+                                    public Void commit(MapContext resizedContext, F filer) throws IOException {
+                                        mapStore.add(filer, resizedContext, (byte) 1, keyBytes, valueBytes);
+                                        return null;
+                                    }
+                                });
+                            } else {
+                                mapStore.add(filer, context, (byte) 1, keyBytes, valueBytes);
+                            }
+                        }
+
+                        @Override
+                        public void remove() throws IOException {
+                            mapStore.remove(filer, context, keyBytes);
+                        }
+
+                        @Override
+                        public V get() throws IOException {
+                            byte[] payload = mapStore.getPayload(filer, context, keyBytes);
+                            if (payload == null) {
+                                return returnWhenGetReturnsNull;
+                            }
+                            return keyValueMarshaller.bytesValue(key, payload, 0);
+                        }
+                    });
+                }
             }
+        });
+    }
+
+    private <R> R index(byte[] pageKey, boolean createIfAbsent, MapTransaction<F, R> chunkTransaction) throws IOException {
+        if (createIfAbsent) {
+            return chunkProvider.getOrCreate(pageKey, chunkTransaction);
+        } else {
+            return chunkProvider.get(pageKey, chunkTransaction);
         }
     }
 
-    @Override
-    public V getUnsafe(K key) throws IOException {
-        if (key == null) {
-            return returnWhenGetReturnsNull;
-        }
-        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
-        String pageId = keyPartitioner.keyPartition(key);
-        MapChunk<F> index = get(pageId, false);
-        byte[] payload = null;
-        if (index != null) {
-            payload = mapStore.getPayload(index.duplicate(), keyBytes);
-        }
-        if (payload == null) {
-            return returnWhenGetReturnsNull;
-        }
-        return keyValueMarshaller.bytesValue(key, payload, 0);
-    }
-
-    @Override
-    public V get(K key) throws IOException {
-        if (key == null) {
-            return returnWhenGetReturnsNull;
-        }
-        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
-        byte[] payload = null;
-        String pageId = keyPartitioner.keyPartition(key);
-        synchronized (keyLocksProvider.lock(pageId)) {
-            MapChunk<F> index = get(pageId, false);
-            if (index != null) {
-                payload = mapStore.getPayload(index, keyBytes);
-            }
-        }
-        if (payload == null) {
-            return returnWhenGetReturnsNull;
-        }
-        return keyValueMarshaller.bytesValue(key, payload, 0);
-    }
-
-    private MapChunk<F> index(String pageId) throws IOException {
-        return get(pageId, true);
-    }
-
-    private MapChunk<F> get(String pageId, boolean createIfAbsent) throws IOException {
-        MapChunk<F> got = indexPages.get(pageId);
-        if (got == null) {
-            synchronized (keyLocksProvider.lock(pageId)) {
-                got = indexPages.get(pageId);
-                if (got == null) {
-                    if (createIfAbsent) {
-                        got = chunkFactory.getOrCreate(mapStore, pageId);
-                    } else {
-                        got = chunkFactory.get(mapStore, pageId);
-                    }
+    public void stream(final EntryStream<K, V> stream) {
+        try {
+            chunkProvider.stream(mapStore, new MapTransaction<F, Boolean>() {
+                @Override
+                public Boolean commit(MapContext got, F filer) throws IOException {
                     if (got != null) {
-                        indexPages.put(pageId, got);
-                    }
-                }
-            }
-        }
-        return got;
-    }
-
-    @Override
-    public void copyTo(PartitionedMapChunkBackedMapStore<F, K, V> to) throws IOException {
-        for (String pageId : keyPartitioner.allPartitions()) {
-            synchronized (keyLocksProvider.lock(pageId)) {
-                MapChunk<F> got;
-                try {
-                    got = get(pageId, false);
-                } catch (Exception x) {
-                    throw new RuntimeException("Failed while loading pageId:" + pageId, x);
-                }
-
-                if (got != null) {
-                    to.copyFrom(pageId, got);
-                }
-            }
-        }
-    }
-
-    private void copyFrom(String pageId, MapChunk<F> got) throws IOException {
-        synchronized (keyLocksProvider.lock(pageId)) {
-            MapChunk<F> give = get(pageId, false);
-            if (give != null) {
-                // "resizes" the old chunk over the top of an existing chunk, using the old chunk's size
-                give = chunkFactory.resize(mapStore, got, pageId, got.maxCount, null);
-            } else {
-                // "copies" the old chunk into a new nonexistent chunk, using the old chunk's size
-                give = chunkFactory.copy(mapStore, got, pageId, got.maxCount);
-            }
-            indexPages.put(pageId, give);
-        }
-    }
-
-    @Override
-    public Iterator<Entry<K, V>> iterator() {
-        List<Iterator<Entry<K, V>>> iterators = Lists.newArrayList();
-        for (String pageId : keyPartitioner.allPartitions()) {
-            MapChunk<F> got;
-            try {
-                got = get(pageId, false);
-            } catch (Exception x) {
-                throw new RuntimeException("Failed while loading pageId:" + pageId, x);
-            }
-
-            if (got != null) {
-                iterators.add(Iterators.transform(mapStore.iterator(got), new Function<MapStore.Entry, Entry<K, V>>() {
-                    @Override
-                    public Entry<K, V> apply(final MapStore.Entry input) {
-                        final K key = keyValueMarshaller.bytesKey(input.key, 0);
-
-                        return new Entry<K, V>() {
-                            V value;
-
+                        return mapStore.stream(filer, got, new MapStore.EntryStream() {
                             @Override
-                            public K getKey() {
-                                return key;
+                            public boolean stream(MapStore.Entry entry) throws IOException {
+                                K key = keyValueMarshaller.bytesKey(entry.key, 0);
+                                V value = keyValueMarshaller.bytesValue(key, entry.payload, 0);
+                                return stream.stream(key, value);
                             }
-
-                            @Override
-                            public V getValue() {
-                                if (value == null) {
-                                    value = keyValueMarshaller.bytesValue(key, input.payload, 0);
-                                }
-                                return value;
-                            }
-                        };
+                        });
+                    } else {
+                        return true;
                     }
-                }));
-            }
+                }
+            });
+        } catch (IOException x) {
+            throw new RuntimeException("Failed while streaming entries", x);
         }
-        return Iterators.concat(iterators.iterator());
     }
 
     @Override
-    public Iterator<K> keysIterator() {
-        List<Iterator<K>> iterators = Lists.newArrayList();
-        for (String pageId : keyPartitioner.allPartitions()) {
-            MapChunk<F> got;
-            try {
-                got = get(pageId, false);
-            } catch (Exception x) {
-                throw new RuntimeException("Failed while loading pageId:" + pageId, x);
-            }
-
-            if (got != null) {
-                iterators.add(Iterators.transform(mapStore.keysIterator(got), new Function<byte[], K>() {
-                    @Override
-                    public K apply(byte[] input) {
-                        return keyValueMarshaller.bytesKey(input, 0);
+    public void streamKeys(final KeyStream<K> stream) throws IOException {
+        try {
+            chunkProvider.stream(mapStore, new MapTransaction<F, Boolean>() {
+                @Override
+                public Boolean commit(MapContext got, F filer) throws IOException {
+                    if (got != null) {
+                        return mapStore.streamKeys(filer, got, new MapStore.KeyStream() {
+                            @Override
+                            public boolean stream(byte[] keyBytes) {
+                                K key = keyValueMarshaller.bytesKey(keyBytes, 0);
+                                return stream.stream(key);
+                            }
+                        });
+                    } else {
+                        return true;
                     }
-                }));
-            }
+                }
+            });
+        } catch (IOException x) {
+            throw new RuntimeException("Failed while streaming keys", x);
         }
-        return Iterators.concat(iterators.iterator());
     }
 }

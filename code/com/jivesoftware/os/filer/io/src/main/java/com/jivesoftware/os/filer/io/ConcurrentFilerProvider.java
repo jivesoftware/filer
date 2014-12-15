@@ -7,7 +7,7 @@ import java.io.IOException;
  * @author jonathan.colt
  * @param <F>
  */
-public class ConcurrentFilerProvider<F extends ConcurrentFiler> {
+public class ConcurrentFilerProvider<F extends Filer> {
 
     private final byte[] key;
     private final ConcurrentFilerFactory<F> factory;
@@ -17,15 +17,17 @@ public class ConcurrentFilerProvider<F extends ConcurrentFiler> {
         this.factory = factory;
     }
 
-    public F get() throws IOException {
-        return factory.get(key);
+    public <M, R> R getOrAllocate(long size, OpenFiler<M, F> openFiler, CreateFiler<M, F> createFiler, MonkeyFilerTransaction<M, F, R> filerTransaction)
+        throws IOException {
+        return factory.getOrAllocate(key, size, openFiler, createFiler, filerTransaction);
     }
 
-    public F allocate(long size) throws IOException {
-        return factory.allocate(key, size);
+    public <M, R> R grow(long newSize, OpenFiler<M, F> openFiler, CreateFiler<M, F> createFiler, RewriteMonkeyFilerTransaction<M, F, R> filerTransaction)
+        throws IOException {
+        return factory.grow(key, newSize, openFiler, createFiler, filerTransaction);
     }
 
-    public <R> R reallocate(long newSize, FilerTransaction<F, R> reallocateFiler) throws IOException {
-        return factory.reallocate(key, newSize, reallocateFiler);
+    public void delete() throws IOException {
+        factory.delete(key);
     }
 }

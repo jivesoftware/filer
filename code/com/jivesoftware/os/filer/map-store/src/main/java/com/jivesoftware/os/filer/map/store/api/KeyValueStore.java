@@ -1,31 +1,25 @@
 package com.jivesoftware.os.filer.map.store.api;
 
-import com.jivesoftware.os.filer.map.store.api.KeyValueStore.Entry;
 import java.io.IOException;
-import java.util.Iterator;
 
 /**
- *
- * @author jonathan.colt
  * @param <K>
  * @param <V>
+ * @author jonathan.colt
  */
-public interface KeyValueStore<K, V> extends Iterable<Entry<K, V>> {
+public interface KeyValueStore<K, V> {
 
-    void add(K key, V value) throws IOException;
+    <R> R execute(K key, boolean createIfAbsent, KeyValueTransaction<V, R> keyValueTransaction) throws IOException;
 
-    void remove(K key) throws IOException;
+    void stream(EntryStream<K, V> stream) throws IOException;
 
-    V get(K key) throws IOException;
+    void streamKeys(KeyStream<K> stream) throws IOException;
 
-    V getUnsafe(K key) throws IOException;
+    interface EntryStream<K, V> {
+        boolean stream(K key, V value) throws IOException;
+    }
 
-    Iterator<K> keysIterator();
-
-    interface Entry<K, V> {
-
-        K getKey();
-
-        V getValue();
+    interface KeyStream<K> {
+        boolean stream(K key);
     }
 }

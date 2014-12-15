@@ -2,6 +2,7 @@ package com.jivesoftware.os.filer.chunk.store;
 
 import com.google.common.base.Charsets;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStoreConcurrentFilerFactory.Builder;
+import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.ByteBufferProvider;
 import com.jivesoftware.os.filer.io.ConcurrentFiler;
@@ -26,11 +27,11 @@ public class MultiChunkStoreInitializer<F extends ConcurrentFiler> {
         long chunkStoreCapacityInBytes,
         boolean autoResize,
         int concurrencyLevel,
-        int stripingLevel)
+        ByteArrayStripingLocksProvider locksProvider)
         throws Exception {
 
         Builder builder = new MultiChunkStoreConcurrentFilerFactory.Builder();
-        builder.setStripingLevel(stripingLevel);
+        builder.setLocksProvider(locksProvider);
 
         for (int index = 0; index < numberOfChunkStores; index++) {
             File chunkStoreFile = chunkStoreInitializer.getChunkStoreFile(chunkPaths, chunkPrefix, index);
@@ -50,11 +51,11 @@ public class MultiChunkStoreInitializer<F extends ConcurrentFiler> {
         long chunkStoreCapacityInBytes,
         boolean autoResize,
         int concurrencyLevel,
-        int stripingLevel)
+        ByteArrayStripingLocksProvider locksProvider)
         throws Exception {
 
         Builder builder = new MultiChunkStoreConcurrentFilerFactory.Builder();
-        builder.setStripingLevel(stripingLevel);
+        builder.setLocksProvider(locksProvider);
 
         for (int index = 0; index < numberOfChunkStores; index++) {
 
@@ -70,11 +71,11 @@ public class MultiChunkStoreInitializer<F extends ConcurrentFiler> {
         String chunkPrefix,
         boolean autoResize,
         int concurrencyLevel,
-        int stripingLevel)
+        ByteArrayStripingLocksProvider locksProvider)
         throws Exception {
 
         Builder builder = new MultiChunkStoreConcurrentFilerFactory.Builder();
-        builder.setStripingLevel(stripingLevel);
+        builder.setLocksProvider(locksProvider);
 
         for (int index = 0; index < from.chunkStores.length; index++) {
             File chunkStoreFile = chunkStoreInitializer.getChunkStoreFile(chunkPaths, chunkPrefix, index);

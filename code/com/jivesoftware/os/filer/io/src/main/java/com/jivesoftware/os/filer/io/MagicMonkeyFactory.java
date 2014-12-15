@@ -3,10 +3,11 @@ package com.jivesoftware.os.filer.io;
 import java.io.IOException;
 
 /**
- * @param <F>
+ * @param <F> the filer type
+ * @param <M> the monkey type
  * @author jonathan.colt
  */
-public interface ConcurrentFilerFactory<F extends Filer> {
+public interface MagicMonkeyFactory<F extends Filer, P, M, Z> {
 
     /**
      *
@@ -15,12 +16,11 @@ public interface ConcurrentFilerFactory<F extends Filer> {
      * @param openFiler to execute when opening existing filer
      * @param createFiler to execute when creating a new filer
      * @param filerTransaction the transaction to be executed, where the filer may be null if no filer exists and the initial size is negative
-     * @param <M> the monkey type
      * @param <R> the result type
      * @return the result
-     * @throws IOException
+     * @throws java.io.IOException
      */
-    <M, R> R getOrAllocate(final byte[] key,
+    <R> R getOrAllocate(final byte[] key,
         long size,
         OpenFiler<M, F> openFiler,
         CreateFiler<M, F> createFiler,
@@ -33,12 +33,11 @@ public interface ConcurrentFilerFactory<F extends Filer> {
      * @param openFiler to execute when opening existing filer
      * @param createFiler to execute when creating a new filer
      * @param filerTransaction the transaction
-     * @param <M> the monkey type
      * @param <R> the result type
      * @return the result
-     * @throws IOException
+     * @throws java.io.IOException
      */
-    <M, R> R grow(final byte[] key,
+    <R> R grow(final byte[] key,
         final long newSize,
         final OpenFiler<M, F> openFiler,
         final CreateFiler<M, F> createFiler,
@@ -46,7 +45,7 @@ public interface ConcurrentFilerFactory<F extends Filer> {
 
     /**
      * @param key the filer key
-     * @throws IOException
+     * @throws java.io.IOException
      */
     void delete(byte[] key) throws IOException;
 

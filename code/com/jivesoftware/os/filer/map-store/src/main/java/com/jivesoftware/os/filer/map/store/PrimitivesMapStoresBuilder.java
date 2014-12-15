@@ -10,18 +10,18 @@ import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
  */
 public class PrimitivesMapStoresBuilder<F extends ConcurrentFiler> {
 
-    private MapChunkFactory<F> mapChunkFactory;
+    private MapChunkProvider<F> mapChunkProvider;
 
     public PrimitivesMapStoresBuilder() {
     }
 
-    public PrimitivesMapStoresBuilder<F> setMapChunkFactory(MapChunkFactory<F> mapChunkFactory) {
-        this.mapChunkFactory = mapChunkFactory;
+    public PrimitivesMapStoresBuilder<F> setMapChunkProvider(MapChunkProvider<F> mapChunkProvider) {
+        this.mapChunkProvider = mapChunkProvider;
         return this;
     }
 
     public KeyValueStore<Long, Long> buildLongLong() {
-        return new BytesBytesMapStore<>("8", 8, null, mapChunkFactory, new KeyValueMarshaller<Long, Long>() {
+        return new BytesBytesMapStore<>(8, null, mapChunkProvider, new KeyValueMarshaller<Long, Long>() {
 
             @Override
             public byte[] keyBytes(Long key) {
@@ -46,7 +46,7 @@ public class PrimitivesMapStoresBuilder<F extends ConcurrentFiler> {
     }
 
     public KeyValueStore<Long, Integer> buildLongInt() {
-        return new BytesBytesMapStore<>("8", 8, null, mapChunkFactory, new KeyValueMarshaller<Long, Integer>() {
+        return new BytesBytesMapStore<>(8, null, mapChunkProvider, new KeyValueMarshaller<Long, Integer>() {
 
             @Override
             public byte[] keyBytes(Long key) {

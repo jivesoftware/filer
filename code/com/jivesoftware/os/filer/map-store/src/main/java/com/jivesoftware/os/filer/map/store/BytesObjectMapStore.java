@@ -4,7 +4,6 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.ConcurrentFiler;
-import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.KeyMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import java.io.IOException;
@@ -15,76 +14,78 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Bytes key to index, index to object array.
  */
-public class BytesObjectMapStore<F extends ConcurrentFiler, K, V> implements KeyValueStore<K, V>, Copyable<BytesObjectMapStore<F, K, V>> {
+public class BytesObjectMapStore<F extends ConcurrentFiler, K, V> implements KeyValueStore<K, V> {
 
     private static final byte[] EMPTY_PAYLOAD = new byte[0];
 
-    private final String pageId;
     private final V returnWhenGetReturnsNull;
-    private final MapChunkFactory<F> mapChunkFactory;
+    private final MapChunkProvider<F> mapChunkProvider;
     private final KeyMarshaller<K> keyMarshaller;
 
     public final int keySize;
 
-    private final MapStore mapStore = MapStore.DEFAULT;
-    private final AtomicReference<Index<F>> indexRef = new AtomicReference<>();
+    private final MapStore mapStore = MapStore.INSTANCE;
+    private final AtomicReference<Object[]> payloadsRef = new AtomicReference<>();
 
-    public BytesObjectMapStore(String pageId,
-        int keySize,
+    public BytesObjectMapStore(int keySize,
         V returnWhenGetReturnsNull,
-        MapChunkFactory<F> mapChunkFactory,
+        MapChunkProvider<F> mapChunkProvider,
         KeyMarshaller<K> keyMarshaller) {
-        this.pageId = pageId;
         this.keySize = keySize;
         this.returnWhenGetReturnsNull = returnWhenGetReturnsNull;
-        this.mapChunkFactory = mapChunkFactory;
+        this.mapChunkProvider = mapChunkProvider;
         this.keyMarshaller = keyMarshaller;
     }
 
     @Override
-    public void add(K key, V value) throws IOException {
+    public void add(K key, final V value) throws IOException {
         if (key == null || value == null) {
             return;
         }
 
-        byte[] keyBytes = keyMarshaller.keyBytes(key);
-        byte[] payload = EMPTY_PAYLOAD;
-        synchronized (indexRef) {
-            Index<F> index = index(true);
+        final byte[] keyBytes = keyMarshaller.keyBytes(key);
+        index(keyBytes, true, new MapTransaction<F, Void>() {
+            @Override
+            public Void commit(MapContext<F> chunk) throws IOException {
+                final Object[] payloads = getPayloads(chunk);
 
-            index = ensureCapacity(index);
+                // grow the set if needed;
+                if (mapStore.isFull(chunk)) {
+                    int newSize = mapStore.nextGrowSize(chunk);
 
-            int payloadIndex = mapStore.add(index.chunk, (byte) 1, keyBytes, payload);
-            /*
-            System.out.println(String.format("Add key=%s value=%s index=%s capacity=%s maxCount=%s count=%s buffer=%s thread=%s",
-                new String(keyBytes), System.identityHashCode(value), payloadIndex, index.chunk.capacity, index.chunk.maxCount, mapStore.getCount(index.chunk),
-                System.identityHashCode(index.chunk.array), Thread.currentThread().getName()));
-            */
-            index.payloads[payloadIndex] = value;
-        }
+                    final Object[] newPayloads = new Object[mapStore.calculateCapacity(newSize)];
+                    payloadsRef.set(newPayloads);
+                    mapChunkProvider.grow(keyBytes, mapStore, chunk, newSize,
+                        new MapStore.CopyToStream() {
+                            @Override
+                            public void copied(int fromIndex, int toIndex) {
+                                newPayloads[toIndex] = payloads[fromIndex];
+                            }
+                        },
+                        new MapTransaction<F, Void>() {
+                            @Override
+                            public Void commit(MapContext<F> chunk) throws IOException {
+                                int payloadIndex = mapStore.add(chunk, (byte) 1, keyBytes, EMPTY_PAYLOAD);
+                                newPayloads[payloadIndex] = value;
+                                return null;
+                            }
+                        });
+                } else {
+                    int payloadIndex = mapStore.add(chunk, (byte) 1, keyBytes, EMPTY_PAYLOAD);
+                    payloads[payloadIndex] = value;
+                }
+                return null;
+            }
+        });
     }
 
-    /*
-     Must be called while holding synchronized (indexRef) lock.
-     */
-    private Index<F> ensureCapacity(Index<F> index) throws IOException {
-        // grow the set if needed;
-        if (mapStore.isFull(index.chunk)) {
-            int newSize = mapStore.nextGrowSize(index.chunk);
-
-            final Index<F> oldIndex = index;
-            final Object[] payloads = new Object[mapStore.calculateCapacity(newSize)];
-            MapChunk<F> newChunk = mapChunkFactory.resize(mapStore, index.chunk, pageId, newSize, new MapStore.CopyToStream() {
-                @Override
-                public void copied(int fromIndex, int toIndex) {
-                    payloads[toIndex] = oldIndex.payloads[fromIndex];
-                }
-            });
-
-            index = new Index<>(newChunk, payloads);
-            indexRef.set(index);
+    private Object[] getPayloads(MapContext<F> chunk) throws IOException {
+        Object[] payloads = payloadsRef.get();
+        if (payloads == null) {
+            payloads = new Object[mapStore.getCapacity(chunk)];
+            payloadsRef.set(payloads);
         }
-        return index;
+        return payloads;
     }
 
     @Override
@@ -93,14 +94,18 @@ public class BytesObjectMapStore<F extends ConcurrentFiler, K, V> implements Key
             return;
         }
 
-        byte[] keyBytes = keyMarshaller.keyBytes(key);
-        synchronized (indexRef) {
-            Index<F> index = index(false);
-            if (index != null) {
-                int payloadIndex = mapStore.remove(index.chunk, keyBytes);
-                index.payloads[payloadIndex] = null;
+        final byte[] keyBytes = keyMarshaller.keyBytes(key);
+        index(keyBytes, false, new MapTransaction<F, Void>() {
+            @Override
+            public Void commit(MapContext<F> chunk) throws IOException {
+                if (chunk != null) {
+                    Object[] payloads = getPayloads(chunk);
+                    int payloadIndex = mapStore.remove(chunk, keyBytes);
+                    payloads[payloadIndex] = null;
+                }
+                return null;
             }
-        }
+        });
     }
 
     @Override
@@ -109,148 +114,95 @@ public class BytesObjectMapStore<F extends ConcurrentFiler, K, V> implements Key
         if (key == null) {
             return returnWhenGetReturnsNull;
         }
-        byte[] keyBytes = keyMarshaller.keyBytes(key);
-        long payloadIndex = -1;
-        synchronized (indexRef) {
-            Index<F> index = index(false);
-            if (index != null) {
-                payloadIndex = mapStore.get(index.chunk, keyBytes);
+        final byte[] keyBytes = keyMarshaller.keyBytes(key);
+        return index(keyBytes, false, new MapTransaction<F, V>() {
+            @Override
+            public V commit(MapContext<F> chunk) throws IOException {
+                long payloadIndex = -1;
+                if (chunk != null) {
+                    payloadIndex = mapStore.get(chunk, keyBytes);
+                }
+                if (payloadIndex < 0) {
+                    return returnWhenGetReturnsNull;
+                }
+                Object[] payloads = getPayloads(chunk);
+                return (V) payloads[(int) payloadIndex];
             }
-            if (index == null || payloadIndex < 0) {
-                return returnWhenGetReturnsNull;
-            }
-            return (V) index.payloads[(int) payloadIndex];
+        });
+    }
+
+    private <R> R index(byte[] pageKey, boolean createIfAbsent, MapTransaction<F, R> chunkTransaction) throws IOException {
+        if (createIfAbsent) {
+            return mapChunkProvider.getOrCreate(pageKey, chunkTransaction);
+        } else {
+            return mapChunkProvider.get(pageKey, chunkTransaction);
         }
     }
 
-    @SuppressWarnings("unchecked")
-    @Override
-    public V getUnsafe(K key) throws IOException {
-        if (key == null) {
-            return returnWhenGetReturnsNull;
-        }
-        byte[] keyBytes = keyMarshaller.keyBytes(key);
-        Index<F> index = index(false);
-        long payloadIndex = -1;
-        if (index != null) {
-            payloadIndex = mapStore.get(index.chunk.duplicate(), keyBytes);
-        }
-        if (index == null || payloadIndex < 0) {
-            return returnWhenGetReturnsNull;
-        }
-        return (V) index.payloads[(int) payloadIndex];
-    }
-
-    private Index<F> index(boolean createIfAbsent) throws IOException {
-        Index<F> got = indexRef.get();
-        if (got != null) {
-            return got;
-        }
-
-        synchronized (indexRef) {
-            got = indexRef.get();
-            if (got != null) {
-                return got;
-            }
-
-            mapChunkFactory.delete(pageId);
-            MapChunk<F> mapChunk;
-            if (createIfAbsent) {
-                mapChunk = mapChunkFactory.getOrCreate(mapStore, pageId);
-            } else {
-                mapChunk = mapChunkFactory.get(mapStore, pageId);
-            }
-            if (mapChunk != null) {
-                got = new Index<>(mapChunk, new Object[mapStore.getCapacity(mapChunk)]);
-                indexRef.set(got);
-            }
-        }
-        return got;
-    }
-
-    @Override
-    public void copyTo(BytesObjectMapStore<F, K, V> to) throws IOException {
-        synchronized (indexRef) {
-            Index<F> got = indexRef.get();
-            if (got != null) {
-                to.copyFrom(got);
-            }
-        }
-    }
-
-    private void copyFrom(Index<F> fromIndex) throws IOException {
-        synchronized (indexRef) {
-            MapChunk<F> from = fromIndex.chunk;
-            // safe just to borrow the existing payloads because indexes should be in alignment
-            MapChunk<F> to = mapChunkFactory.copy(mapStore, from, pageId, from.maxCount);
-            indexRef.set(new Index<>(to, fromIndex.payloads));
-        }
+    public void copyTo(final BytesObjectMapStore<F, K, V> to) throws IOException {
+        mapChunkProvider.copyTo(mapStore, to.mapChunkProvider);
     }
 
     @Override
     public Iterator<Entry<K, V>> iterator() {
-        List<Iterator<Entry<K, V>>> iterators = Lists.newArrayList();
-        final Index<F> index;
+        final List<Iterator<Entry<K, V>>> iterators = Lists.newArrayList();
         try {
-            index = index(false);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        if (index != null) {
-            MapChunk<F> got = index.chunk;
-            iterators.add(Iterators.transform(mapStore.iterator(got), new Function<MapStore.Entry, Entry<K, V>>() {
+            mapChunkProvider.stream(mapStore, new MapTransaction<F, Void>() {
                 @Override
-                @SuppressWarnings("unchecked")
-                public Entry<K, V> apply(final MapStore.Entry input) {
-                    final K key = keyMarshaller.bytesKey(input.key, 0);
-                    final V value = (V) index.payloads[input.payloadIndex];
+                public Void commit(MapContext<F> chunk) throws IOException {
+                    if (chunk != null) {
+                        final Object[] payloads = getPayloads(chunk);
+                        iterators.add(Iterators.transform(mapStore.iterator(chunk), new Function<MapStore.Entry, Entry<K, V>>() {
+                            @Override
+                            @SuppressWarnings("unchecked")
+                            public Entry<K, V> apply(final MapStore.Entry input) {
+                                final K key = keyMarshaller.bytesKey(input.key, 0);
+                                final V value = (V) payloads[input.payloadIndex];
 
-                    return new Entry<K, V>() {
-                        @Override
-                        public K getKey() {
-                            return key;
-                        }
+                                return new Entry<K, V>() {
+                                    @Override
+                                    public K getKey() {
+                                        return key;
+                                    }
 
-                        @Override
-                        public V getValue() {
-                            return value;
-                        }
-                    };
+                                    @Override
+                                    public V getValue() {
+                                        return value;
+                                    }
+                                };
+                            }
+                        }));
+                    }
+                    return null;
                 }
-            }));
+            });
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
         return Iterators.concat(iterators.iterator());
     }
 
     @Override
     public Iterator<K> keysIterator() {
-        List<Iterator<K>> iterators = Lists.newArrayList();
-        final Index<F> index;
+        final List<Iterator<K>> iterators = Lists.newArrayList();
         try {
-            index = index(false);
-        } catch (Exception e) {
+            mapChunkProvider.stream(mapStore, new MapTransaction<F, Void>() {
+                @Override
+                public Void commit(MapContext<F> chunk) throws IOException {
+                    if (chunk != null) {
+                        iterators.add(Iterators.transform(mapStore.keysIterator(chunk), new Function<byte[], K>() {
+                            @Override
+                            public K apply(byte[] input) {
+                                return keyMarshaller.bytesKey(input, 0);
+                            }
+                        }));
+                    }
+                    return null;
+                }
+            });
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        if (index != null) {
-            MapChunk<F> got = index.chunk;
-            iterators.add(Iterators.transform(mapStore.keysIterator(got), new Function<byte[], K>() {
-                @Override
-                public K apply(byte[] input) {
-                    return keyMarshaller.bytesKey(input, 0);
-                }
-            }));
-        }
         return Iterators.concat(iterators.iterator());
-    }
-
-    private static class Index<F extends ConcurrentFiler> {
-
-        public final MapChunk<F> chunk;
-        public final Object[] payloads;
-
-        private Index(MapChunk<F> chunk, Object[] payloads) {
-            this.chunk = chunk;
-            this.payloads = payloads;
-        }
     }
 }

@@ -1,8 +1,10 @@
 package com.jivesoftware.os.filer.keyed.store;
 
+import com.jivesoftware.os.filer.chunk.store.AutoResizingChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStoreInitializer;
+import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
@@ -25,7 +27,7 @@ public class AutoResizingChunkFilerTest {
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
 
         final MultiChunkStore multiChunkStore = new MultiChunkStoreInitializer(new ChunkStoreInitializer())
-            .initializeMultiByteBufferBacked("test", byteBufferFactory, 1, 512, true, 8, 64);
+            .initializeMultiByteBufferBacked("test", byteBufferFactory, 1, 512, true, 8, new ByteArrayStripingLocksProvider(64));
 
         int numFilers = 20;
         final AutoResizingChunkFiler[] filers = new AutoResizingChunkFiler[numFilers];

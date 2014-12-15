@@ -19,7 +19,7 @@ public interface SkipListComparator {
      * @return
      * @throws java.io.IOException
      */
-    public int compare(MapChunk a, int astart, MapChunk b, int bstart, int length) throws IOException;
+    public int compare(MapContext a, int astart, MapContext b, int bstart, int length) throws IOException;
 
     /**
      * Should return the maximum number of items between a and b.
