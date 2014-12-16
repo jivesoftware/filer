@@ -28,22 +28,18 @@ public class ByteBufferBackedConcurrentFilerFactory implements ConcurrentFilerFa
         IBA iba = new IBA(key);
         ByteBufferBackedFiler filer = bufferCache.get(iba);
         if (filer != null) {
-            return filerTransaction.commit(null, filer);
+            return filerTransaction.commit(openFiler.open(filer), filer);
         } else if (size > 0) {
-            return allocate(key, size, filerTransaction);
+            ByteBuffer bb = byteBufferFactory.allocate(key, size);
+            filer = new ByteBufferBackedFiler(new Object(), bb);
+            ByteBufferBackedFiler had = bufferCache.putIfAbsent(new IBA(key), filer);
+            if (had != null) {
+                return filerTransaction.commit(createFiler.create(had), had);
+            } else {
+                return filerTransaction.commit(createFiler.create(filer), filer);
+            }
         } else {
             return filerTransaction.commit(null, null);
-        }
-    }
-
-    private <M, R> R allocate(byte[] key, long size, MonkeyFilerTransaction<M, ByteBufferBackedFiler, R> filerTransaction) throws IOException {
-        ByteBuffer bb = byteBufferFactory.allocate(key, size);
-        ByteBufferBackedFiler filer = new ByteBufferBackedFiler(new Object(), bb);
-        ByteBufferBackedFiler had = bufferCache.putIfAbsent(new IBA(key), filer);
-        if (had != null) {
-            return filerTransaction.commit(null, had);
-        } else {
-            return filerTransaction.commit(null, filer);
         }
     }
 
@@ -70,7 +66,7 @@ public class ByteBufferBackedConcurrentFilerFactory implements ConcurrentFilerFa
             }
         }
 
-        return filerTransaction.commit(null, oldFiler, null, filer);
+        return filerTransaction.commit(openFiler.open(oldFiler), oldFiler, createFiler.create(filer), filer);
     }
 
     @Override

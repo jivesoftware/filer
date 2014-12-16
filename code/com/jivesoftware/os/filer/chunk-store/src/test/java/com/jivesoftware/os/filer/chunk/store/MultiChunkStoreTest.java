@@ -36,6 +36,7 @@ import java.util.Random;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 
 /**
  * @author jonathan.colt
@@ -96,7 +97,9 @@ public class MultiChunkStoreTest {
             mapStore.execute((long) i, true, new KeyValueTransaction<Integer, Void>() {
                 @Override
                 public Void commit(KeyValueContext<Integer> context) throws IOException {
-                    assertEquals(context.get().intValue(), _i);
+                    Integer value = context.get();
+                    assertNotNull(value, "Null at " + _i);
+                    assertEquals(value.intValue(), _i);
                     return null;
                 }
             });
@@ -128,7 +131,9 @@ public class MultiChunkStoreTest {
             mapStore.execute((long) i, true, new KeyValueTransaction<Integer, Void>() {
                 @Override
                 public Void commit(KeyValueContext<Integer> context) throws IOException {
-                    assertEquals(context.get().intValue(), _i);
+                    Integer value = context.get();
+                    assertNotNull(value, "Null at " + _i);
+                    assertEquals(value.intValue(), _i);
                     return null;
                 }
             });

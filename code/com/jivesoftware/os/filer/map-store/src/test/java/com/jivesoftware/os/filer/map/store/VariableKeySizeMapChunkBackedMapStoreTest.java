@@ -133,19 +133,19 @@ public class VariableKeySizeMapChunkBackedMapStoreTest {
             });
         }
 
-        final AtomicInteger keyLength = new AtomicInteger(1);
+        final AtomicInteger numEntries = new AtomicInteger(0);
         mapStore.stream(new KeyValueStore.EntryStream<String, Long>() {
             @Override
             public boolean stream(String key, Long value) throws IOException {
                 System.out.println("key=" + key + " size=" + key.length());
                 System.out.println("value=" + value);
-                int _keyLength = keyLength.get();
+                int _keyLength = value.intValue();
                 assertEquals(key, keyspace.substring(0, _keyLength));
-                assertEquals(value.longValue(), (long) _keyLength);
-                keyLength.incrementAndGet();
+                numEntries.incrementAndGet();
                 return true;
             }
         });
+        assertEquals(numEntries.get(), 16);
     }
 
     @Test
@@ -166,17 +166,18 @@ public class VariableKeySizeMapChunkBackedMapStoreTest {
             });
         }
 
-        final AtomicInteger keyLength = new AtomicInteger(1);
+        final AtomicInteger numKeys = new AtomicInteger(0);
         mapStore.streamKeys(new KeyValueStore.KeyStream<String>() {
             @Override
             public boolean stream(String key) throws IOException {
                 System.out.println("key=" + key + " size=" + key.length());
-                int _keyLength = keyLength.get();
+                int _keyLength = key.length();
                 assertEquals(key, keyspace.substring(0, _keyLength));
-                keyLength.incrementAndGet();
+                numKeys.incrementAndGet();
                 return true;
             }
         });
+        assertEquals(numKeys.get(), 16);
     }
 
     private String keyOfLength(int length) {

@@ -116,9 +116,11 @@ public class ResizableByteBuffer {
                 // after the following commit() we would need to call sharedByteBuffer.get() again.
                 SharedByteBufferBackedFiler filer = new SharedByteBufferBackedFiler(null, buffer.duplicate());
                 threadLocalBufferStack.filers.add(filer);
-                R result = filerTransaction.commit(filer);
-                threadLocalBufferStack.filers.remove(filer);
-                return result;
+                try {
+                    return filerTransaction.commit(filer);
+                } finally {
+                    threadLocalBufferStack.filers.remove(filer);
+                }
             } finally {
                 if (semaphores > 0) {
                     release(semaphores);

@@ -220,7 +220,7 @@ public class FileBackedMapChunkProvider implements MapChunkProvider<ByteBufferBa
                 new MonkeyFilerTransaction<Void, ByteBufferBackedFiler, MapChunk>() {
                     @Override
                     public MapChunk commit(Void monkey, ByteBufferBackedFiler filer) throws IOException {
-                        return new MapChunk(mapStore.create(initialPageCapacity, keySize, variableKeySizes, payloadSize, variablePayloadSizes, filer), filer);
+                        return new MapChunk(mapStore.create(maxCapacity, keySize, variableKeySizes, payloadSize, variablePayloadSizes, filer), filer);
                     }
                 });
         }

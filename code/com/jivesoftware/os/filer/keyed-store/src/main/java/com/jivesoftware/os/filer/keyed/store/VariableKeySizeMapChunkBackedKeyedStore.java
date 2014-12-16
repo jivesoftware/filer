@@ -36,7 +36,7 @@ public class VariableKeySizeMapChunkBackedKeyedStore<F extends Filer> implements
 
     @Override
     public <R> R executeRewrite(byte[] keyBytes, long newFilerInitialCapacity, RewriteFilerTransaction<Filer, R> transaction) throws IOException {
-        return null;
+        return get(keyBytes).store.executeRewrite(keyBytes, newFilerInitialCapacity, transaction);
     }
 
     @Override

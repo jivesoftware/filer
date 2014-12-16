@@ -1,7 +1,5 @@
 package com.jivesoftware.os.filer.io;
 
-import java.io.IOException;
-
 /**
  *
  */

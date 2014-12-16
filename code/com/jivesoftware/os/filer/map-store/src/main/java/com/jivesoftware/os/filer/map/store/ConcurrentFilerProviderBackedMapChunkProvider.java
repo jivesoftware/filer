@@ -23,8 +23,8 @@ import java.io.IOException;
 import java.util.Arrays;
 
 /**
- * @author jonathan.colt
  * @param <F>
+ * @author jonathan.colt
  */
 public class ConcurrentFilerProviderBackedMapChunkProvider<F extends Filer> implements MapChunkProvider<F> {
 
@@ -84,13 +84,21 @@ public class ConcurrentFilerProviderBackedMapChunkProvider<F extends Filer> impl
         final MapTransaction<F, R> chunkTransaction) throws IOException {
 
         long filerSize = mapStore.computeFilerSize(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes);
-        return concurrentFilerProviders[getPageIndex(pageKey)].grow(filerSize, openFiler, createFiler, new RewriteMapChunkTransaction<F, R>() {
-            @Override
-            public R commit(MapContext currentContext, F currentFiler, MapContext newContext, F newFiler) throws IOException {
-                mapStore.copyTo(currentFiler, currentContext, newFiler, newContext, copyToStream);
-                return chunkTransaction.commit(newContext, newFiler);
-            }
-        });
+        return concurrentFilerProviders[getPageIndex(pageKey)].grow(filerSize,
+            openFiler,
+            new CreateFiler<MapContext, F>() {
+                @Override
+                public MapContext create(F filer) throws IOException {
+                    return mapStore.create(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes, filer);
+                }
+            },
+            new RewriteMapChunkTransaction<F, R>() {
+                @Override
+                public R commit(MapContext currentContext, F currentFiler, MapContext newContext, F newFiler) throws IOException {
+                    mapStore.copyTo(currentFiler, currentContext, newFiler, newContext, copyToStream);
+                    return chunkTransaction.commit(newContext, newFiler);
+                }
+            });
     }
 
     @Override

@@ -188,7 +188,8 @@ public class SkipListSet_Test {
         return n + 1;
     }
 
-    private static boolean test(final int _iterations, final int _keySize, final int _maxSize, ConcurrentFilerProvider<ByteBufferBackedFiler> provider) throws IOException {
+    private static boolean test(final int _iterations, final int _keySize, final int _maxSize, ConcurrentFilerProvider<ByteBufferBackedFiler> provider)
+        throws IOException {
         final int payloadSize = 4;
         final MapStore pset = MapStore.INSTANCE;
         int filerSize = pset.computeFilerSize(_maxSize, _keySize, false, payloadSize, false);
@@ -238,7 +239,8 @@ public class SkipListSet_Test {
                     for (int i = 0; i < _iterations; i++) {
                         sls.sladd(filer, slsp, TestUtils.randomLowerCaseAlphaBytes(random, _keySize), FilerIO.intBytes(i));
                     }
-                    System.out.println("ByteSL add(" + _iterations + ") took " + (System.currentTimeMillis() - t) + " Size:" + sls.slgetCount(filer, slsp));
+                    System.out.println("ByteSL add(" + _iterations + ") took " + (System.currentTimeMillis() - t) +
+                        " Size:" + sls.slgetCount(filer, slsp));
 
                     random = new Random(seed);
                     t = System.currentTimeMillis();
@@ -252,7 +254,8 @@ public class SkipListSet_Test {
                     for (int i = 0; i < _iterations; i++) {
                         jsl.add(new String(TestUtils.randomLowerCaseAlphaBytes(random, _keySize)));
                     }
-                    System.out.println("Java ConcurrentSkipListSet add(" + _iterations + ") took " + (System.currentTimeMillis() - t) + " Size:" + jsl.size());
+                    System.out.println("Java ConcurrentSkipListSet add(" + _iterations + ") took " + (System.currentTimeMillis() - t) +
+                        " Size:" + jsl.size());
 
                     random = new Random(seed);
                     t = System.currentTimeMillis();
@@ -345,14 +348,16 @@ public class SkipListSet_Test {
                     for (int i = 0; i < _maxSize; i++) {
                         jsl.contains(new String(TestUtils.randomLowerCaseAlphaBytes(random, _keySize)));
                     }
-                    System.out.println("Java ConcurrentSkipListSet  contains (" + _maxSize + ") took " + (System.currentTimeMillis() - t) + " Size:" + jsl.size());
+                    System.out.println("Java ConcurrentSkipListSet  contains (" + _maxSize + ") took " + (System.currentTimeMillis() - t) +
+                        " Size:" + jsl.size());
 
                     System.out.println("\ncontains:");
                     random = new Random(seed);
                     for (int i = 0; i < _maxSize; i++) {
                         jtree.contains(new String(TestUtils.randomLowerCaseAlphaBytes(random, _keySize)));
                     }
-                    System.out.println("Java TreeSet  contains (" + _maxSize + ") took " + (System.currentTimeMillis() - t) + " Size:" + jtree.size());
+                    System.out.println("Java TreeSet  contains (" + _maxSize + ") took " + (System.currentTimeMillis() - t) +
+                        " Size:" + jtree.size());
 
                     sls.sltoSysOut(filer, slsp, null);
 
@@ -397,7 +402,8 @@ public class SkipListSet_Test {
         }
     }
 
-    private static void stats(final int keySize, final int payloadSize, final int _maxSize, ConcurrentFilerProvider<ByteBufferBackedFiler> provider) throws IOException {
+    private static void stats(final int keySize, final int payloadSize, final int _maxSize, ConcurrentFilerProvider<ByteBufferBackedFiler> provider)
+        throws IOException {
         final MapStore pset = MapStore.INSTANCE;
 
         int filerSize = pset.computeFilerSize(_maxSize, keySize, false, payloadSize, false);

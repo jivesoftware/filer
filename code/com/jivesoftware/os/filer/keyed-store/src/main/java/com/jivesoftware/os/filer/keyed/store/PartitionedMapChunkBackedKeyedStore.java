@@ -1,6 +1,5 @@
 package com.jivesoftware.os.filer.keyed.store;
 
-import com.jivesoftware.os.filer.chunk.store.AutoResizingChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
@@ -87,7 +86,8 @@ public class PartitionedMapChunkBackedKeyedStore<F extends Filer> implements Key
                         return multiChunkStore.execute(keyBytes, chunkFP, openFiler, new ChunkTransaction<Void, R>() {
                             @Override
                             public R commit(Void monkey, ChunkFiler filer) throws IOException {
-                                return transaction.commit(new AutoResizingChunkFiler(multiChunkStore.getChunkFilerProvider(keyBytes, filer, context)));
+                                return transaction.commit(filer);
+                                //new AutoResizingChunkFiler(multiChunkStore.getChunkFilerProvider(keyBytes, filer, context)));
                             }
                         });
                     } else {

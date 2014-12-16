@@ -1,7 +1,5 @@
 package com.jivesoftware.os.filer.chunk.store;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
-import com.jivesoftware.os.filer.chunk.store.MultiChunkStore;
 import com.jivesoftware.os.filer.io.Filer;
 import java.io.IOException;
 

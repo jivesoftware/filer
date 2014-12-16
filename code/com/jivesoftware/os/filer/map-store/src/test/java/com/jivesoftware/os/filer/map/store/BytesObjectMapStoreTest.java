@@ -18,7 +18,7 @@ import static org.testng.Assert.assertSame;
 
 public class BytesObjectMapStoreTest {
 
-    @Test(expectedExceptions = UnsupportedOperationException.class, description = "Out of scope")
+    @Test//(expectedExceptions = UnsupportedOperationException.class, description = "Out of scope")
     public void testCopyTo_bufferToFile() throws Exception {
         @SuppressWarnings("unchecked")
         BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> from =
@@ -49,7 +49,7 @@ public class BytesObjectMapStoreTest {
         assertCopyTo(from, to);
     }
 
-    @Test(expectedExceptions = UnsupportedOperationException.class, description = "Out of scope")
+    @Test//(expectedExceptions = UnsupportedOperationException.class, description = "Out of scope")
     public void testCopyTo_fileToFile() throws Exception {
         @SuppressWarnings("unchecked")
         BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> from =
@@ -79,7 +79,7 @@ public class BytesObjectMapStoreTest {
         assertCopyTo(from, to);
     }
 
-    @Test(expectedExceptions = UnsupportedOperationException.class, description = "Out of scope")
+    @Test//(expectedExceptions = UnsupportedOperationException.class, description = "Out of scope")
     public void testCopyTo_bufferToBuffer() throws Exception {
         @SuppressWarnings("unchecked")
         BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> from =
@@ -170,7 +170,7 @@ public class BytesObjectMapStoreTest {
 
         for (int i = 0; i < numEntries; i++) {
             final Object value = objects[numEntries + i];
-            to.execute(FilerIO.intBytes(i), true, new KeyValueTransaction<Object, Void>() {
+            to.execute(FilerIO.intBytes(numEntries + i), true, new KeyValueTransaction<Object, Void>() {
                 @Override
                 public Void commit(KeyValueContext<Object> context) throws IOException {
                     context.set(value);

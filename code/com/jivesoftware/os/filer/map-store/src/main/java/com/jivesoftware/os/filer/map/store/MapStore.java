@@ -90,8 +90,8 @@ public class MapStore {
             keyLengthSize,
             payloadSize,
             payloadLengthSize,
-            getMaxCount(filer),
             getCapacity(filer),
+            getMaxCount(filer),
             keyLengthSize + keySize + payloadLengthSize + payloadSize);
     }
 
@@ -126,8 +126,8 @@ public class MapStore {
             keyLengthSize,
             payloadSize,
             payloadLengthSize,
-            maxCount,
             maxCapacity,
+            maxCount,
             keyLengthSize + keySize + payloadLengthSize + payloadSize);
     }
 

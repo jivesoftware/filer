@@ -57,14 +57,21 @@ public class BytesObjectMapStore<F extends Filer, K, V> implements KeyValueStore
                                 int newSize = mapStore.nextGrowSize(context);
                                 final Object[] newPayloads = new Object[mapStore.calculateCapacity(newSize)];
                                 payloadsRef.set(newPayloads);
-                                chunkProvider.grow(keyBytes, newSize, null, new MapTransaction<F, Void>() {
-                                    @Override
-                                    public Void commit(MapContext resizedContext, F resizedFiler) throws IOException {
-                                        int payloadIndex = mapStore.add(resizedFiler, resizedContext, (byte) 1, keyBytes, EMPTY_PAYLOAD);
-                                        newPayloads[payloadIndex] = value;
-                                        return null;
-                                    }
-                                });
+                                chunkProvider.grow(keyBytes, newSize,
+                                    new MapStore.CopyToStream() {
+                                        @Override
+                                        public void copied(int fromIndex, int toIndex) {
+                                            newPayloads[toIndex] = payloads[fromIndex];
+                                        }
+                                    },
+                                    new MapTransaction<F, Void>() {
+                                        @Override
+                                        public Void commit(MapContext resizedContext, F resizedFiler) throws IOException {
+                                            int payloadIndex = mapStore.add(resizedFiler, resizedContext, (byte) 1, keyBytes, EMPTY_PAYLOAD);
+                                            newPayloads[payloadIndex] = value;
+                                            return null;
+                                        }
+                                    });
                             } else {
                                 int payloadIndex = mapStore.add(filer, context, (byte) 1, keyBytes, EMPTY_PAYLOAD);
                                 payloads[payloadIndex] = value;
