@@ -4,7 +4,10 @@ import com.google.common.collect.Sets;
 import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
+import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
+import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Set;
 import org.testng.annotations.Test;
@@ -55,20 +58,30 @@ public class FileBackMapStoreTest {
         Set<Long> expectedPayloads = Sets.newTreeSet();
 
         for (int i = 0; i < numEntries; i++) {
-            long payload = (long) i * numEntries;
-            fileBackMapStore.add(i, payload);
+            final long payload = (long) i * numEntries;
+            fileBackMapStore.execute(i, true, new KeyValueTransaction<Long, Void>() {
+                @Override
+                public Void commit(KeyValueContext<Long> context) throws IOException {
+                    context.set(payload);
+                    return null;
+                }
+            });
 
             expectedKeys.add(i);
             expectedPayloads.add(payload);
         }
 
-        Set<Integer> actualKeys = Sets.newTreeSet();
-        Set<Long> actualPayloads = Sets.newTreeSet();
+        final Set<Integer> actualKeys = Sets.newTreeSet();
+        final Set<Long> actualPayloads = Sets.newTreeSet();
 
-        for (KeyValueStore.Entry<Integer, Long> entry : fileBackMapStore) {
-            actualKeys.add(entry.getKey());
-            actualPayloads.add(entry.getValue());
-        }
+        fileBackMapStore.stream(new KeyValueStore.EntryStream<Integer, Long>() {
+            @Override
+            public boolean stream(Integer key, Long value) throws IOException {
+                actualKeys.add(key);
+                actualPayloads.add(value);
+                return true;
+            }
+        });
 
         assertEquals(actualKeys, expectedKeys);
         assertEquals(actualPayloads, expectedPayloads);

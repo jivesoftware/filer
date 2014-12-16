@@ -15,7 +15,6 @@
  */
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.Filer;
 import java.io.IOException;
 
@@ -28,15 +27,15 @@ public interface MapChunkProvider<F extends Filer> {
 
     <R> R getOrCreate(byte[] pageKey, MapTransaction<F, R> chunkTransaction) throws IOException;
 
-    <R> R grow(byte[] pageKey, MapStore mapStore, MapContext chunk, int newSize, MapStore.CopyToStream copyToStream,
+    <R> R grow(byte[] pageKey, int newSize, MapStore.CopyToStream copyToStream,
         MapTransaction<F, R> chunkTransaction) throws IOException;
 
-    <R> R copy(byte[] pageKey, MapStore mapStore, MapContext chunk, MapTransaction<F, R> chunkTransaction) throws IOException;
+    <R> R copy(byte[] pageKey, MapContext fromContext, F fromFiler, MapTransaction<F, R> chunkTransaction) throws IOException;
 
     void delete(byte[] pageKey) throws IOException;
 
-    void stream(MapStore mapStore, MapTransaction<F, Boolean> chunkTransaction) throws IOException;
+    boolean stream(MapTransaction<F, Boolean> chunkTransaction) throws IOException;
 
-    <F2 extends ConcurrentFiler> void copyTo(MapStore mapStore, MapChunkProvider<F2> toProvider) throws IOException;
+    <F2 extends Filer> void copyTo(MapChunkProvider<F2> toProvider) throws IOException;
 
 }

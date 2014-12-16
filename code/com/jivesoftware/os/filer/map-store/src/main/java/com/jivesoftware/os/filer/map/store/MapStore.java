@@ -641,7 +641,7 @@ public class MapStore {
     }
 
     public interface KeyStream {
-        boolean stream(byte[] key);
+        boolean stream(byte[] key) throws IOException;
     }
 
     public static class Entry {

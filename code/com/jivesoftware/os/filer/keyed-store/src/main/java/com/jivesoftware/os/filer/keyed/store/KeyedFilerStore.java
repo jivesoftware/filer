@@ -16,9 +16,9 @@ public interface KeyedFilerStore {
 
     <R> R executeRewrite(byte[] keyBytes, long newFilerInitialCapacity, RewriteFilerTransaction<Filer, R> transaction) throws IOException;
 
-    void stream(KeyValueStore.EntryStream<IBA, Filer> stream) throws IOException;
+    boolean stream(KeyValueStore.EntryStream<IBA, Filer> stream) throws IOException;
 
-    void streamKeys(KeyValueStore.KeyStream<IBA> stream) throws IOException;
+    boolean streamKeys(KeyValueStore.KeyStream<IBA> stream) throws IOException;
 
     void close();
 }

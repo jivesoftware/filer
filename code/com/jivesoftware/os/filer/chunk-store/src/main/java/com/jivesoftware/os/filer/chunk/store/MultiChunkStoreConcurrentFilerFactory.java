@@ -6,12 +6,14 @@ import com.jivesoftware.os.filer.io.ConcurrentFilerFactory;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.MonkeyFilerTransaction;
+import com.jivesoftware.os.filer.io.NoOpCreateFiler;
 import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.io.RewriteMonkeyFilerTransaction;
 import com.jivesoftware.os.filer.map.store.MapContext;
 import com.jivesoftware.os.filer.map.store.MapStore;
 import com.jivesoftware.os.filer.map.store.MapTransaction;
+import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,6 +51,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
 
     private static final long MAGIC_SKY_HOOK_NUMBER = 5583112375L;
     private static final NoOpOpenFiler<ChunkFiler> noOpOpenChunkFiler = new NoOpOpenFiler<>();
+    private static final NoOpCreateFiler<ChunkFiler> noOpCreateChunkFiler = new NoOpCreateFiler<>();
 
     private static final long skyHookFP = 464; // I died a little bit doing this.
 
@@ -73,19 +76,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
     }
 
     private void initializeIfNeeded(final ChunkStore chunkStore) throws IOException {
-        long magic;
-        try {
-            magic = chunkStore.execute(skyHookFP, noOpOpenChunkFiler,
-                new ChunkTransaction<Void, Long>() {
-                    @Override
-                    public Long commit(Void monkey, ChunkFiler filer) throws IOException {
-                        filer.seek(0);
-                        return FilerIO.readLong(filer, "magic");
-                    }
-                }
-            );
-        } catch (IOException x) {
-            magic = MAGIC_SKY_HOOK_NUMBER;
+        if (!chunkStore.isUsed(skyHookFP)) {
             chunkStore.newChunk(8 + (8 * maxKeySizePower), new CreateFiler<Void, ChunkFiler>() {
                 @Override
                 public Void create(final ChunkFiler skyHookFiler) throws IOException {
@@ -104,6 +95,8 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                             @Override
                             public MapContext create(ChunkFiler mapStoresFiler) throws IOException {
                                 MapContext chunk = MapStore.INSTANCE.create(2, _keySize, true, 8, false, mapStoresFiler);
+                                System.out.println("Wrote " + chunkStore + " keyLength=" + _keySize + " at=" + skyHookFiler.getFilePointer() +
+                                    " value=" + mapStoresFiler.getChunkFP());
                                 FilerIO.writeLong(skyHookFiler, mapStoresFiler.getChunkFP(), "");
                                 return chunk;
                             }
@@ -112,10 +105,6 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                     return null;
                 }
             });
-
-        }
-        if (magic != MAGIC_SKY_HOOK_NUMBER) {
-            throw new IOException("Expected magic number:" + MAGIC_SKY_HOOK_NUMBER + " but found:" + magic);
         }
     }
 
@@ -163,6 +152,8 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                                             @Override
                                             public Long commit(Void monkey, ChunkFiler skyHookFiler) throws IOException {
                                                 skyHookFiler.seek(8 + (8 * chunkPower));
+                                                System.out.println("Rewrite " + chunkStore + " keyLength=" + keyLength +
+                                                    " at=" + skyHookFiler.getFilePointer() + " value=" + chunkFP);
                                                 long oldFP = FilerIO.readLong(skyHookFiler, "");
                                                 skyHookFiler.seek(8 + (8 * chunkPower));
                                                 FilerIO.writeLong(skyHookFiler, chunkFP, "");
@@ -202,7 +193,10 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                 @Override
                 public Long commit(Void monkey, ChunkFiler chunkFiler) throws IOException {
                     chunkFiler.seek(8 + (FilerIO.chunkPower(keyLength, 0) * 8));
-                    return FilerIO.readLong(chunkFiler, "mapIndexFP");
+                    long mapIndexFP = FilerIO.readLong(chunkFiler, "mapIndexFP");
+                    System.out.println("Checked " + chunkStore + " keyLength=" + keyLength + " at=" + (chunkFiler.getFilePointer() - 8) +
+                        " value=" + mapIndexFP);
+                    return mapIndexFP;
                 }
             });
             chunkIndex.set(fpIndexFP);
@@ -218,7 +212,6 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
         final MonkeyFilerTransaction<M, ChunkFiler, R> filerTransaction)
         throws IOException {
 
-        Preconditions.checkArgument(size > 0, "Size must be positive");
         int i = getChunkIndexForKey(key);
         AtomicLong chunkIndex = chunkIndexes[i][FilerIO.chunkPower(key.length, 0)];
         Object lock = locksProvider.lock(key);
@@ -348,7 +341,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
     }
 
     @Override
-    public ResizingChunkFilerProvider getChunkFilerProvider(final byte[] keyBytes, final ChunkFPProvider chunkFPProvider, final ChunkFiler chunkFiler) {
+    public ResizingChunkFilerProvider getChunkFilerProvider(final byte[] keyBytes, final ChunkFiler chunkFiler, final KeyValueContext<Long> keyValueContext) {
         int i = getChunkIndexForKey(keyBytes);
         final ChunkStore chunkStore = chunkStores[i];
         final Object lock = locksProvider.lock(keyBytes);
@@ -362,8 +355,9 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
 
             @Override
             public void init(long initialChunkSize) throws IOException {
+                /*
                 Preconditions.checkArgument(initialChunkSize > 0);
-                long chunkFP = chunkFPProvider.getChunkFP(keyBytes);
+                long chunkFP = keyValueContext.get();
                 ChunkFiler filer = null;
                 if (chunkFP >= 0) {
                     filer = chunkStore.getFiler(chunkFP, lock);
@@ -374,10 +368,13 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                     filer = chunkStore.getFiler(chunkFP, lock);
                 }
                 filerReference.set(filer);
+                */
             }
 
             @Override
             public boolean open() throws IOException {
+                return false;
+                /*
                 ChunkFiler filer;
                 long chunkFP = chunkFPProvider.getChunkFP(keyBytes);
                 if (chunkFP >= 0) {
@@ -387,6 +384,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                 }
                 filerReference.set(filer);
                 return filer != null;
+                */
             }
 
             @Override
@@ -401,18 +399,21 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
 
             @Override
             public void set(long newChunkFP) throws IOException {
-                long oldChunkFP = chunkFPProvider.getAndSetChunkFP(keyBytes, newChunkFP);
-                if (oldChunkFP >= 0) {
+                Long oldChunkFP = keyValueContext.get();
+                keyValueContext.set(newChunkFP);
+                if (oldChunkFP != null) {
                     chunkStore.remove(oldChunkFP);
                 }
             }
 
             @Override
             public ChunkFiler grow(long capacity) throws IOException {
+                return null;
+                /*
                 ChunkFiler currentFiler = filerReference.get();
                 if (capacity >= currentFiler.length()) {
                     long currentOffset = currentFiler.getFilePointer();
-                    long newChunkFP = chunkStore.newChunk(capacity, lock, createChunk);
+                    long newChunkFP = chunkStore.newChunk(capacity, new NoOpCreateFiler<ChunkFiler>());
                     ChunkFiler newFiler = chunkStore.getFiler(newChunkFP, lock);
                     copy(currentFiler, newFiler, -1);
                     long oldChunkFP = chunkFPProvider.getAndSetChunkFP(keyBytes, newChunkFP);
@@ -426,6 +427,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                 } else {
                     return currentFiler;
                 }
+                */
             }
         };
     }
@@ -447,10 +449,12 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
 
             @Override
             public void init(long initialChunkSize) throws IOException {
+                /*
                 Preconditions.checkArgument(initialChunkSize > 0);
-                long chunkFP = newChunk(keyBytes, initialChunkSize);
+                long chunkFP = newChunk(keyBytes, initialChunkSize, noOpCreateChunkFiler);
                 ChunkFiler filer = chunkStore.getFiler(chunkFP, lock);
                 filerReference.set(filer);
+                */
             }
 
             @Override
@@ -476,6 +480,8 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
 
             @Override
             public ChunkFiler grow(long capacity) throws IOException {
+                return null;
+                /*
                 ChunkFiler currentFiler = filerReference.get();
                 if (capacity >= currentFiler.length()) {
                     long currentOffset = currentFiler.getFilePointer();
@@ -492,6 +498,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                 } else {
                     return currentFiler;
                 }
+                */
             }
 
         };

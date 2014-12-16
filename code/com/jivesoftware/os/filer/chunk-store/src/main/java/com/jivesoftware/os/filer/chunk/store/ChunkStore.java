@@ -236,6 +236,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
                 long startOfFP = filer.getFilePointer();
                 long endOfFP = startOfFP + FilerIO.chunkLength(chunkPower);
                 ChunkFiler chunkFiler = new ChunkFiler(ChunkStore.this, filer, _chunkFP, startOfFP, endOfFP);
+                chunkFiler.seek(0);
                 //TODO if this throws an IOException we should free up the chunkFP
                 M monkey = createFiler.create(chunkFiler);
                 Chunk<M> chunk = new Chunk<>(monkey, _chunkFP, startOfFP, endOfFP);
@@ -282,6 +283,17 @@ public class ChunkStore implements Copyable<ChunkStore> {
         FilerIO.writeLong(filer, _nextFreeFP, "chunkNexFreeChunkFP");
     }
 
+    public boolean isUsed(final long chunkFP) throws IOException {
+        return resizableByteBuffer.execute(-1, false, new FilerTransaction<Filer, Boolean>() {
+            @Override
+            public Boolean commit(Filer filer) throws IOException {
+                filer.seek(chunkFP);
+                long magicNumber = FilerIO.readLong(filer, "magicNumber");
+                return (magicNumber == cMagicNumber);
+            }
+        });
+    }
+
     public <M, R> R execute(final long chunkFP, final OpenFiler<M, ChunkFiler> openFiler, final ChunkTransaction<M, R> chunkTransaction) throws IOException {
 
         @SuppressWarnings("unchecked")
@@ -302,6 +314,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
                     long startOfFP = filer.getFilePointer();
                     long endOfFP = startOfFP + FilerIO.chunkLength(chunkPower);
                     ChunkFiler chunkFiler = new ChunkFiler(ChunkStore.this, filer, chunkFP, startOfFP, endOfFP);
+                    chunkFiler.seek(0);
 
                     Chunk<M> chunk = new Chunk<>(openFiler.open(chunkFiler), chunkFP, startOfFP, endOfFP);
                     openChunks.put(chunkFP, chunk);

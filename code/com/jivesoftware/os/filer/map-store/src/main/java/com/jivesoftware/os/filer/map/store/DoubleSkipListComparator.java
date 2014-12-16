@@ -15,6 +15,7 @@
  */
 package com.jivesoftware.os.filer.map.store;
 
+import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 
 /**
@@ -26,10 +27,10 @@ public class DoubleSkipListComparator implements SkipListComparator {
     static final public DoubleSkipListComparator cSingleton = new DoubleSkipListComparator();
 
     @Override
-    public int compare(MapContext a, int astart, MapContext b, int bstart, int length) {
+    public int compare(Filer a, int astart, Filer b, int bstart, int length) {
         try {
-        double ad = a.readDouble(astart);
-        double bd = b.readDouble(bstart);
+        double ad = MapStore.INSTANCE.readDouble(a, astart);
+        double bd = MapStore.INSTANCE.readDouble(b, bstart);
         return Double.compare(ad, bd);
         } catch (Exception x) {
             throw new RuntimeException("failed reading double while trying to compare.", x);

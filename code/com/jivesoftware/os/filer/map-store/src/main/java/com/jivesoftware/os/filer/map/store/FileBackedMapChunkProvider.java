@@ -18,11 +18,13 @@ package com.jivesoftware.os.filer.map.store;
 import com.google.common.base.Charsets;
 import com.jivesoftware.os.filer.io.ByteBufferBackedConcurrentFilerFactory;
 import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
-import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FileBackedMemMappedByteBufferFactory;
+import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.MonkeyFilerTransaction;
+import com.jivesoftware.os.filer.io.NoOpCreateFiler;
+import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import java.io.File;
 import java.io.IOException;
 import java.nio.MappedByteBuffer;
@@ -36,6 +38,8 @@ import org.apache.commons.io.FileUtils;
  */
 public class FileBackedMapChunkProvider implements MapChunkProvider<ByteBufferBackedFiler> {
 
+    private static final MapStore mapStore = MapStore.INSTANCE;
+
     private final int keySize;
     private final boolean variableKeySizes;
     private final int payloadSize;
@@ -43,7 +47,10 @@ public class FileBackedMapChunkProvider implements MapChunkProvider<ByteBufferBa
     private final int initialPageCapacity;
     private final String[] pathsToPartitions;
     private final String[] pageIds;
-    private final ConcurrentHashMap<String, MapContext<ByteBufferBackedFiler>> pageChunks = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, MapChunk> pageChunks = new ConcurrentHashMap<>();
+
+    private final NoOpOpenFiler<ByteBufferBackedFiler> openFiler = new NoOpOpenFiler<>();
+    private final NoOpCreateFiler<ByteBufferBackedFiler> createFiler = new NoOpCreateFiler<>();
 
     public FileBackedMapChunkProvider(int keySize,
         boolean variableKeySizes,
@@ -69,8 +76,8 @@ public class FileBackedMapChunkProvider implements MapChunkProvider<ByteBufferBa
     public <R> R get(byte[] pageKey, MapTransaction<ByteBufferBackedFiler, R> chunkTransaction) throws IOException {
         String pageId = pageId(pageKey);
         synchronized (pageId) {
-            MapContext<ByteBufferBackedFiler> chunk = getMapChunk(mapStore, pageId, false);
-            return chunkTransaction.commit(chunk);
+            MapChunk chunk = getMapChunk(pageId, false);
+            return chunkTransaction.commit(chunk.context, chunk.filer);
         }
     }
 
@@ -78,91 +85,97 @@ public class FileBackedMapChunkProvider implements MapChunkProvider<ByteBufferBa
     public <R> R getOrCreate(byte[] pageKey, MapTransaction<ByteBufferBackedFiler, R> chunkTransaction) throws IOException {
         String pageId = pageId(pageKey);
         synchronized (pageId) {
-            MapContext<ByteBufferBackedFiler> chunk = getMapChunk(mapStore, pageId, true);
-            return chunkTransaction.commit(chunk);
+            MapChunk chunk = getMapChunk(pageId, true);
+            return chunkTransaction.commit(chunk.context, chunk.filer);
         }
     }
 
     @Override
-    public <R> R grow(byte[] pageKey, MapStore mapStore, MapContext<ByteBufferBackedFiler> oldChunk, int newSize, MapStore.CopyToStream copyToStream,
-        MapTransaction<ByteBufferBackedFiler, R> chunkTransaction) throws IOException {
+    public <R> R grow(byte[] pageKey,
+        int newSize,
+        MapStore.CopyToStream copyToStream,
+        MapTransaction<ByteBufferBackedFiler, R> chunkTransaction)
+        throws IOException {
 
         String pageId = pageId(pageKey);
         synchronized (pageId) {
             File temporaryNewKeyIndexPartition = createIndexTempFile(pageId);
-            MapContext<ByteBufferBackedFiler> newChunk = mmap(mapStore, temporaryNewKeyIndexPartition, newSize);
-            mapStore.copyTo(oldChunk, newChunk, copyToStream);
+            MapChunk oldChunk = getMapChunk(pageId, true);
+            MapChunk newChunk = mmap(temporaryNewKeyIndexPartition, newSize);
+            mapStore.copyTo(oldChunk.filer, oldChunk.context, newChunk.filer, newChunk.context, copyToStream);
             File createIndexSetFile = createIndexSetFile(pageId);
             FileUtils.forceDelete(createIndexSetFile);
             FileUtils.copyFile(temporaryNewKeyIndexPartition, createIndexSetFile);
             FileUtils.forceDelete(temporaryNewKeyIndexPartition);
 
-            newChunk =  mmap(mapStore, createIndexSetFile, newSize);
+            newChunk = mmap(createIndexSetFile, newSize);
             pageChunks.put(pageId, newChunk);
 
-            return chunkTransaction.commit(newChunk);
+            return chunkTransaction.commit(newChunk.context, newChunk.filer);
         }
     }
 
     @Override
     public <R> R copy(byte[] pageKey,
-        final MapStore mapStore,
-        final MapContext<ByteBufferBackedFiler> oldChunk,
+        final MapContext fromContext,
+        final ByteBufferBackedFiler fromFiler,
         final MapTransaction<ByteBufferBackedFiler, R> chunkTransaction)
         throws IOException {
 
         final String pageId = pageId(pageKey);
         synchronized (pageId) {
             final File temporaryNewKeyIndexPartition = createIndexTempFile(pageId);
-            final int newSize = oldChunk.capacity;
+            final int newSize = fromContext.capacity;
             int filerSize = mapStore.computeFilerSize(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes);
-            return getPageProvider(temporaryNewKeyIndexPartition).getOrAllocate(filerSize, openFiler, createFiler, new MonkeyFilerTransaction<ByteBufferBackedFiler, R>() {
-                @Override
-                public R commit(ByteBufferBackedFiler newFiler, boolean isNew) throws IOException {
-                    oldChunk.filer.seek(0);
-                    newFiler.seek(0);
-                    FilerIO.copy(oldChunk.filer, newFiler, -1); // TODO add copy to onto Filer interface
-                    File createIndexSetFile = createIndexSetFile(pageId);
-                    FileUtils.copyFile(temporaryNewKeyIndexPartition, createIndexSetFile);
-                    FileUtils.forceDelete(temporaryNewKeyIndexPartition);
+            return getPageProvider(temporaryNewKeyIndexPartition).getOrAllocate(filerSize, openFiler, createFiler,
+                new MonkeyFilerTransaction<Void, ByteBufferBackedFiler, R>() {
+                    @Override
+                    public R commit(Void monkey, ByteBufferBackedFiler newFiler) throws IOException {
+                        fromFiler.seek(0);
+                        newFiler.seek(0);
+                        FilerIO.copy(fromFiler, newFiler, -1); // TODO add copy to onto Filer interface
+                        File createIndexSetFile = createIndexSetFile(pageId);
+                        FileUtils.copyFile(temporaryNewKeyIndexPartition, createIndexSetFile);
+                        FileUtils.forceDelete(temporaryNewKeyIndexPartition);
 
-                    MapContext<ByteBufferBackedFiler> newChunk = mmap(mapStore, createIndexSetFile, newSize);
-                    pageChunks.put(pageId, newChunk);
+                        MapChunk newChunk = mmap(createIndexSetFile, newSize);
+                        pageChunks.put(pageId, newChunk);
 
-                    return chunkTransaction.commit(newChunk);
-                }
-            });
+                        return chunkTransaction.commit(newChunk.context, newChunk.filer);
+                    }
+                });
         }
     }
 
     @Override
-    public void stream(MapStore mapStore, MapTransaction<ByteBufferBackedFiler, Void> chunkTransaction) throws IOException {
+    public boolean stream(MapTransaction<ByteBufferBackedFiler, Boolean> chunkTransaction) throws IOException {
         for (String pageId : pageIds) {
             synchronized (pageId) {
-                MapContext<ByteBufferBackedFiler> chunk = getMapChunk(mapStore, pageId, false);
-                chunkTransaction.commit(chunk);
+                MapChunk chunk = getMapChunk(pageId, false);
+                if (!chunkTransaction.commit(chunk.context, chunk.filer)) {
+                    return false;
+                }
             }
         }
-
-        chunkTransaction.commit(null);
+        return true;
     }
 
-    private MapContext<ByteBufferBackedFiler> getMapChunk(MapStore mapStore, String pageId,  boolean createIfAbsent) throws IOException {
-        MapContext<ByteBufferBackedFiler> chunk = pageChunks.get(pageId);
+    private MapChunk getMapChunk(String pageId, boolean createIfAbsent) throws IOException {
+        MapChunk chunk = pageChunks.get(pageId);
         if (chunk == null) {
             File file = createIndexSetFile(pageId);
             if (file.exists()) {
-                chunk = mmap(mapStore, file, initialPageCapacity);
+                chunk = mmap(file, initialPageCapacity);
                 pageChunks.put(pageId, chunk);
             } else if (createIfAbsent) {
                 // initializing in a temporary file prevents accidental corruption if the thread dies during mmap
                 File temporaryNewKeyIndexPartition = createIndexTempFile(pageId);
-                mmap(mapStore, temporaryNewKeyIndexPartition, initialPageCapacity);
+                mmap(temporaryNewKeyIndexPartition, initialPageCapacity);
 
                 File createIndexSetFile = createIndexSetFile(pageId);
                 FileUtils.copyFile(temporaryNewKeyIndexPartition, createIndexSetFile);
                 FileUtils.forceDelete(temporaryNewKeyIndexPartition);
-                chunk = mmap(mapStore, file, initialPageCapacity);
+                chunk = mmap(file, initialPageCapacity);
                 pageChunks.put(pageId, chunk);
             }
         }
@@ -170,7 +183,7 @@ public class FileBackedMapChunkProvider implements MapChunkProvider<ByteBufferBa
     }
 
     @Override
-    public <F2 extends ConcurrentFiler> void copyTo(final MapStore mapStore, MapChunkProvider<F2> toProvider) throws IOException {
+    public <F2 extends Filer> void copyTo(MapChunkProvider<F2> toProvider) throws IOException {
         throw new UnsupportedOperationException("Out of scope");
     }
 
@@ -195,25 +208,21 @@ public class FileBackedMapChunkProvider implements MapChunkProvider<ByteBufferBa
         return new ConcurrentFilerProvider<>(file.getName().getBytes(Charsets.UTF_8), new ByteBufferBackedConcurrentFilerFactory(getPageFactory(file)));
     }
 
-    private MapContext<ByteBufferBackedFiler> mmap(final MapStore mapStore, final File file, final int maxCapacity) throws IOException {
+    private MapChunk mmap(final File file, final int maxCapacity) throws IOException {
         if (file.exists()) {
             MappedByteBuffer buffer = getPageFactory(file).open(file.getName());
             ByteBufferBackedFiler filer = new ByteBufferBackedFiler(file, buffer);
-            MapContext<ByteBufferBackedFiler> page = new MapContext<>(filer);
-            page.init(mapStore);
-            return page;
+            return new MapChunk(mapStore.open(filer), filer);
         } else {
             ConcurrentFilerProvider<ByteBufferBackedFiler> concurrentFilerProvider = getPageProvider(file);
             int filerSize = mapStore.computeFilerSize(maxCapacity, keySize, variableKeySizes, payloadSize, variablePayloadSizes);
-            return concurrentFilerProvider.getOrAllocate(filerSize, openFiler, createFiler, new MonkeyFilerTransaction<ByteBufferBackedFiler, MapContext<ByteBufferBackedFiler>>() {
-                @Override
-                public MapContext<ByteBufferBackedFiler> commit(ByteBufferBackedFiler filer, boolean isNew) throws IOException {
-                    MapContext<ByteBufferBackedFiler> page = new MapContext<>(filer);
-                    mapStore.create(maxCapacity, keySize, variableKeySizes, payloadSize, variablePayloadSizes, filer);
-                    page.init(mapStore);
-                    return page;
-                }
-            });
+            return concurrentFilerProvider.getOrAllocate(filerSize, openFiler, createFiler,
+                new MonkeyFilerTransaction<Void, ByteBufferBackedFiler, MapChunk>() {
+                    @Override
+                    public MapChunk commit(Void monkey, ByteBufferBackedFiler filer) throws IOException {
+                        return new MapChunk(mapStore.create(initialPageCapacity, keySize, variableKeySizes, payloadSize, variablePayloadSizes, filer), filer);
+                    }
+                });
         }
     }
 
@@ -235,4 +244,13 @@ public class FileBackedMapChunkProvider implements MapChunkProvider<ByteBufferBa
         return new File(pathToPartitions, newIndexFilename);
     }
 
+    private static class MapChunk {
+        private final MapContext context;
+        private final ByteBufferBackedFiler filer;
+
+        private MapChunk(MapContext context, ByteBufferBackedFiler filer) {
+            this.context = context;
+            this.filer = filer;
+        }
+    }
 }

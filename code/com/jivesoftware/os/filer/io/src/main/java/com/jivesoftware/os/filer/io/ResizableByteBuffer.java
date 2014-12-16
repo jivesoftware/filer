@@ -21,6 +21,7 @@ public class ResizableByteBuffer {
 
     private final ByteBufferProvider byteBufferProvider;
     private final AtomicReference<ByteBuffer> sharedByteBuffer;
+    private final boolean autoResize;
     private final Semaphore semaphore;
     private final int semaphorePermits;
     private final ThreadLocal<AtomicInteger> reentrant = new ThreadLocal<AtomicInteger>() {
@@ -32,9 +33,10 @@ public class ResizableByteBuffer {
 
     public ResizableByteBuffer(long initialSize,
         ByteBufferProvider byteBufferProvider,
-        Semaphore semaphore,
+        boolean autoResize, Semaphore semaphore,
         int semaphorePermits) {
         this.byteBufferProvider = byteBufferProvider;
+        this.autoResize = autoResize;
         ByteBuffer rootBuffer = byteBufferProvider.allocate(initialSize);
         this.sharedByteBuffer = new AtomicReference<>(rootBuffer);
         this.semaphore = semaphore;
@@ -69,6 +71,10 @@ public class ResizableByteBuffer {
                 }
                 int currentCapacity = buffer.capacity();
                 if (currentCapacity < size) {
+                    if (!autoResize) {
+                        throw new IOException("Filer is at capacity");
+                    }
+
                     release(semaphoresToAcquire);
                     semaphores = 0;
 

@@ -7,13 +7,14 @@ import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.MonkeyFilerTransaction;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
+import com.jivesoftware.os.filer.io.NoOpCreateFiler;
+import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Random;
 import org.testng.annotations.Test;
 
 /**
- *
  * @author jonathan
  */
 public class MapStoreTest {
@@ -24,7 +25,6 @@ public class MapStoreTest {
     }
 
     /**
-     *
      * @param _args
      */
     public static void main(final String[] _args) {
@@ -62,127 +62,128 @@ public class MapStoreTest {
         ConcurrentFilerProvider<ByteBufferBackedFiler> provider)
         throws IOException {
 
-        final MapStore pset = MapStore.INSTANCE;
+        final MapStore mapStore = MapStore.INSTANCE;
         final int payloadSize = 4;
 
-        System.out.println("Upper Bound Max Count = " + pset.absoluteMaxCount(keySize, payloadSize));
-        int filerSize = pset.computeFilerSize(_maxSize, keySize, false, payloadSize, false);
-        return provider.getOrAllocate(filerSize, openFiler, createFiler, new MonkeyFilerTransaction<ByteBufferBackedFiler, Boolean>() {
-            @Override
-            public Boolean commit(ByteBufferBackedFiler filer, boolean isNew) throws IOException {
-                MapContext set = pset.create(_maxSize, keySize, false, payloadSize, false, filer);
-                long seed = System.currentTimeMillis();
-                int maxCapacity = pset.getCapacity(set);
+        System.out.println("Upper Bound Max Count = " + mapStore.absoluteMaxCount(keySize, payloadSize));
+        int filerSize = mapStore.computeFilerSize(_maxSize, keySize, false, payloadSize, false);
+        return provider.getOrAllocate(filerSize, new NoOpOpenFiler<ByteBufferBackedFiler>(), new NoOpCreateFiler<ByteBufferBackedFiler>(),
+            new MonkeyFilerTransaction<Void, ByteBufferBackedFiler, Boolean>() {
+                @Override
+                public Boolean commit(Void monkey, ByteBufferBackedFiler filer) throws IOException {
+                    MapContext set = mapStore.create(_maxSize, keySize, false, payloadSize, false, filer);
+                    long seed = System.currentTimeMillis();
+                    int maxCapacity = mapStore.getCapacity(filer);
 
-                Random random = new Random(seed);
-                long t = System.currentTimeMillis();
-                for (int i = 0; i < _iterations; i++) {
-                    try {
-                        pset.add(set, (byte) 1, TestUtils.randomLowerCaseAlphaBytes(random, keySize), FilerIO.intBytes(i));
-                    } catch (OverCapacityException x) {
-                        break;
+                    Random random = new Random(seed);
+                    long t = System.currentTimeMillis();
+                    for (int i = 0; i < _iterations; i++) {
+                        try {
+                            mapStore.add(filer, set, (byte) 1, TestUtils.randomLowerCaseAlphaBytes(random, keySize), FilerIO.intBytes(i));
+                        } catch (OverCapacityException x) {
+                            break;
+                        }
                     }
-                }
-                long elapse = System.currentTimeMillis() - t;
-                System.out.println("ByteSet add(" + _iterations + ") took " + elapse + " " + pset.getCount(set));
+                    long elapse = System.currentTimeMillis() - t;
+                    System.out.println("ByteSet add(" + _iterations + ") took " + elapse + " " + mapStore.getCount(filer));
 
-                random = new Random(seed);
-                t = System.currentTimeMillis();
-                HashSet<String> jset = new HashSet<>(maxCapacity);
-                for (int i = 0; i < _iterations; i++) {
-                    jset.add(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
-                }
-                elapse = System.currentTimeMillis() - t;
-                System.out.println("JavaHashSet add(" + _iterations + ") took " + elapse);
-
-                random = new Random(seed);
-                for (int i = 0; i < pset.getCount(set); i++) {
-                    byte[] got = pset.getPayload(set, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
-                    assert got != null : "shouldn't be null";
-                    //int v = UIO.bytesInt(got);
-                    //assert v == i : "should be the same";
-                }
-
-                random = new Random(seed);
-                t = System.currentTimeMillis();
-                for (int i = 0; i < _iterations; i++) {
-                    try {
-                        pset.remove(set, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
-                    } catch (Exception x) {
-                        x.printStackTrace();
-                        break;
-                    }
-                }
-                elapse = System.currentTimeMillis() - t;
-                System.out.println("ByteSet remove(" + _iterations + ") took " + elapse + " " + pset.getCount(set));
-
-                random = new Random(seed);
-                t = System.currentTimeMillis();
-                for (int i = 0; i < _iterations; i++) {
-                    try {
-                        jset.remove(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
-                    } catch (Exception x) {
-                        x.printStackTrace();
-                        break;
-                    }
-                }
-                elapse = System.currentTimeMillis() - t;
-                System.out.println("JavaHashSet remove(" + _iterations + ") took " + elapse);
-
-                random = new Random(seed);
-                t = System.currentTimeMillis();
-                for (int i = 0; i < _maxSize; i++) {
-                    if (i % 2 == 0) {
-                        pset.remove(set, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
-                    } else {
-                        pset.add(set, (byte) 1, TestUtils.randomLowerCaseAlphaBytes(random, keySize), FilerIO.intBytes(i));
-                    }
-                }
-                elapse = System.currentTimeMillis() - t;
-                System.out.println("ByteSet add and remove (" + _maxSize + ") took " + elapse + " " + pset.getCount(set));
-
-                random = new Random(seed);
-                t = System.currentTimeMillis();
-                for (int i = 0; i < _maxSize; i++) {
-                    if (i % 2 == 0) {
-                        jset.remove(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
-                    } else {
+                    random = new Random(seed);
+                    t = System.currentTimeMillis();
+                    HashSet<String> jset = new HashSet<>(maxCapacity);
+                    for (int i = 0; i < _iterations; i++) {
                         jset.add(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
                     }
-                }
-                elapse = System.currentTimeMillis() - t;
-                System.out.println("JavaHashSet add and remove (" + _maxSize + ") took " + elapse);
+                    elapse = System.currentTimeMillis() - t;
+                    System.out.println("JavaHashSet add(" + _iterations + ") took " + elapse);
 
-                random = new Random(seed);
-                t = System.currentTimeMillis();
-                for (int i = 0; i < _maxSize; i++) {
-                    pset.contains(set, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
-                }
-                elapse = System.currentTimeMillis() - t;
-                System.out.println("ByteSet contains (" + _maxSize + ") took " + elapse + " " + pset.getCount(set));
-
-                random = new Random(seed);
-                t = System.currentTimeMillis();
-                for (int i = 0; i < _maxSize; i++) {
-                    jset.contains(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
-                }
-                elapse = System.currentTimeMillis() - t;
-                System.out.println("JavaHashSet contains (" + _maxSize + ") took " + elapse);
-
-                random = new Random(seed);
-                for (int i = 0; i < _maxSize; i++) {
-                    if (i % 2 == 0) {
-                        TestUtils.randomLowerCaseAlphaBytes(random, keySize);
-                    } else {
-                        pset.getPayload(set, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
-                        //assert got == i;
+                    random = new Random(seed);
+                    for (int i = 0; i < mapStore.getCount(filer); i++) {
+                        byte[] got = mapStore.getPayload(filer, set, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
+                        assert got != null : "shouldn't be null";
+                        //int v = UIO.bytesInt(got);
+                        //assert v == i : "should be the same";
                     }
-                }
-                System.out.println("count " + pset.getCount(set));
 
-                return true;
-            }
-        });
+                    random = new Random(seed);
+                    t = System.currentTimeMillis();
+                    for (int i = 0; i < _iterations; i++) {
+                        try {
+                            mapStore.remove(filer, set, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
+                        } catch (Exception x) {
+                            x.printStackTrace();
+                            break;
+                        }
+                    }
+                    elapse = System.currentTimeMillis() - t;
+                    System.out.println("ByteSet remove(" + _iterations + ") took " + elapse + " " + mapStore.getCount(filer));
+
+                    random = new Random(seed);
+                    t = System.currentTimeMillis();
+                    for (int i = 0; i < _iterations; i++) {
+                        try {
+                            jset.remove(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
+                        } catch (Exception x) {
+                            x.printStackTrace();
+                            break;
+                        }
+                    }
+                    elapse = System.currentTimeMillis() - t;
+                    System.out.println("JavaHashSet remove(" + _iterations + ") took " + elapse);
+
+                    random = new Random(seed);
+                    t = System.currentTimeMillis();
+                    for (int i = 0; i < _maxSize; i++) {
+                        if (i % 2 == 0) {
+                            mapStore.remove(filer, set, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
+                        } else {
+                            mapStore.add(filer, set, (byte) 1, TestUtils.randomLowerCaseAlphaBytes(random, keySize), FilerIO.intBytes(i));
+                        }
+                    }
+                    elapse = System.currentTimeMillis() - t;
+                    System.out.println("ByteSet add and remove (" + _maxSize + ") took " + elapse + " " + mapStore.getCount(filer));
+
+                    random = new Random(seed);
+                    t = System.currentTimeMillis();
+                    for (int i = 0; i < _maxSize; i++) {
+                        if (i % 2 == 0) {
+                            jset.remove(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
+                        } else {
+                            jset.add(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
+                        }
+                    }
+                    elapse = System.currentTimeMillis() - t;
+                    System.out.println("JavaHashSet add and remove (" + _maxSize + ") took " + elapse);
+
+                    random = new Random(seed);
+                    t = System.currentTimeMillis();
+                    for (int i = 0; i < _maxSize; i++) {
+                        mapStore.contains(filer, set, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
+                    }
+                    elapse = System.currentTimeMillis() - t;
+                    System.out.println("ByteSet contains (" + _maxSize + ") took " + elapse + " " + mapStore.getCount(filer));
+
+                    random = new Random(seed);
+                    t = System.currentTimeMillis();
+                    for (int i = 0; i < _maxSize; i++) {
+                        jset.contains(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
+                    }
+                    elapse = System.currentTimeMillis() - t;
+                    System.out.println("JavaHashSet contains (" + _maxSize + ") took " + elapse);
+
+                    random = new Random(seed);
+                    for (int i = 0; i < _maxSize; i++) {
+                        if (i % 2 == 0) {
+                            TestUtils.randomLowerCaseAlphaBytes(random, keySize);
+                        } else {
+                            mapStore.getPayload(filer, set, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
+                            //assert got == i;
+                        }
+                    }
+                    System.out.println("count " + mapStore.getCount(filer));
+
+                    return true;
+                }
+            });
     }
 
 }

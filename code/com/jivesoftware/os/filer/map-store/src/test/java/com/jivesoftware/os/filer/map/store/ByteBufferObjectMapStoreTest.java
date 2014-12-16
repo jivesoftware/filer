@@ -7,9 +7,12 @@ import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.KeyMarshaller;
+import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
+import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
+import java.io.IOException;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertSame;
 
 public class ByteBufferObjectMapStoreTest {
 
@@ -55,7 +58,14 @@ public class ByteBufferObjectMapStoreTest {
             for (int fieldId = 0; fieldId < numFields; fieldId++) {
                 for (int termId = 0; termId < numTerms; termId++) {
                     long key = (long) termId << 32 | fieldId & 0xFFFF_FFFFL;
-                    byteBufferObjectMapStore.add(key, obj[fieldId * numFields + termId]);
+                    final Object value = obj[fieldId * numFields + termId];
+                    byteBufferObjectMapStore.execute(key, true, new KeyValueTransaction<Object, Void>() {
+                        @Override
+                        public Void commit(KeyValueContext<Object> context) throws IOException {
+                            context.set(value);
+                            return null;
+                        }
+                    });
                 }
             }
 
@@ -63,10 +73,19 @@ public class ByteBufferObjectMapStoreTest {
             // bytebuffer mapstore retrieve
             start = System.currentTimeMillis();
             for (int fieldId = 0; fieldId < numFields; fieldId++) {
+                final int _fieldId = fieldId;
                 for (int termId = 0; termId < numTerms; termId++) {
+                    final int _termId = termId;
                     long key = (long) termId << 32 | fieldId & 0xFFFF_FFFFL;
-                    Object retrieved = byteBufferObjectMapStore.get(key);
-                    assertTrue(retrieved == obj[fieldId * numFields + termId], "Failed at " + fieldId + ", " + termId);
+                    final Object expected = obj[fieldId * numFields + termId];
+                    byteBufferObjectMapStore.execute(key, true, new KeyValueTransaction<Object, Void>() {
+                        @Override
+                        public Void commit(KeyValueContext<Object> context) throws IOException {
+                            Object retrieved = context.get();
+                            assertSame(retrieved, expected, "Failed at " + _fieldId + ", " + _termId);
+                            return null;
+                        }
+                    });
                 }
             }
 

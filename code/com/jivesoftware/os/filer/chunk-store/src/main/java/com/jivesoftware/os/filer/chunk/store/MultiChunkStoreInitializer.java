@@ -5,14 +5,13 @@ import com.jivesoftware.os.filer.chunk.store.MultiChunkStoreConcurrentFilerFacto
 import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.ByteBufferProvider;
-import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.FileBackedMemMappedByteBufferFactory;
 import java.io.File;
 
 /**
  *
  */
-public class MultiChunkStoreInitializer<F extends ConcurrentFiler> {
+public class MultiChunkStoreInitializer {
 
     private final ChunkStoreInitializer chunkStoreInitializer;
 
@@ -59,7 +58,7 @@ public class MultiChunkStoreInitializer<F extends ConcurrentFiler> {
 
         for (int index = 0; index < numberOfChunkStores; index++) {
 
-            builder.addChunkStore(chunkStoreInitializer.create(new Object(),
+            builder.addChunkStore(chunkStoreInitializer.create(
                 new ByteBufferProvider((keyPrefix + "-" + index).getBytes(Charsets.UTF_8), byteBufferFactory),
                 chunkStoreCapacityInBytes, autoResize, concurrencyLevel));
         }

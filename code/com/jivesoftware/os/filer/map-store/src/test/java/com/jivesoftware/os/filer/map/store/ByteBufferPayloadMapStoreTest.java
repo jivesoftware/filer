@@ -7,6 +7,9 @@ import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
+import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
+import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
+import java.io.IOException;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertTrue;
@@ -66,17 +69,33 @@ public class ByteBufferPayloadMapStoreTest {
             for (int fieldId = 0; fieldId < numFields; fieldId++) {
                 for (int termId = 0; termId < numTerms; termId++) {
                     long key = (long) termId << 32 | fieldId & 0xFFFF_FFFFL;
-                    mapStore.add(key, values[fieldId * numFields + termId]);
+                    final int value = values[fieldId * numFields + termId];
+                    mapStore.execute(key, true, new KeyValueTransaction<Integer, Void>() {
+                        @Override
+                        public Void commit(KeyValueContext<Integer> context) throws IOException {
+                            context.set(value);
+                            return null;
+                        }
+                    });
                 }
             }
 
             // bytebuffer mapstore retrieve
             start = System.currentTimeMillis();
             for (int fieldId = 0; fieldId < numFields; fieldId++) {
+                final int _fieldId = fieldId;
                 for (int termId = 0; termId < numTerms; termId++) {
+                    final int _termId = termId;
                     long key = (long) termId << 32 | fieldId & 0xFFFF_FFFFL;
-                    Integer retrieved = mapStore.get(key);
-                    assertTrue(retrieved == values[fieldId * numFields + termId], "Failed at " + fieldId + ", " + termId);
+                    final int expected = values[fieldId * numFields + termId];
+                    mapStore.execute(key, true, new KeyValueTransaction<Integer, Void>() {
+                        @Override
+                        public Void commit(KeyValueContext<Integer> context) throws IOException {
+                            Integer retrieved = context.get();
+                            assertTrue(retrieved == expected, "Failed at " + _fieldId + ", " + _termId);
+                            return null;
+                        }
+                    });
                 }
             }
 

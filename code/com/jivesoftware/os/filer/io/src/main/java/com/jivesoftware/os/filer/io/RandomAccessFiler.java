@@ -3,13 +3,12 @@ package com.jivesoftware.os.filer.io;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import org.apache.commons.io.FileUtils;
 
 /**
  *
  * @author jonathan.colt
  */
-public class RandomAccessFiler extends RandomAccessFile implements ConcurrentFiler {
+public class RandomAccessFiler extends RandomAccessFile implements Filer {
 
     public static long totalFilesOpenCount;
     public static long totalReadByteCount;
@@ -142,18 +141,4 @@ public class RandomAccessFiler extends RandomAccessFile implements ConcurrentFil
     public void flush() throws IOException {
     }
 
-    @Override
-    public ConcurrentFiler asConcurrentReadWrite(Object suggestedLock) throws IOException {
-        return this;
-    }
-
-    @Override
-    public void delete() throws IOException {
-        FileUtils.forceDelete(new File(fileName));
-    }
-
-    @Override
-    public long capacity() {
-        return Long.MAX_VALUE;
-    }
 }

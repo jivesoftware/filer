@@ -8,10 +8,13 @@
  */
 package com.jivesoftware.os.filer.chunk.store;
 
-import com.jivesoftware.os.filer.io.Filer;
+import com.jivesoftware.os.filer.io.ByteBufferProvider;
+import com.jivesoftware.os.filer.io.FileBackedMemMappedByteBufferFactory;
 import com.jivesoftware.os.filer.io.FilerIO;
-import com.jivesoftware.os.filer.io.RandomAccessFiler;
+import com.jivesoftware.os.filer.io.NoOpCreateFiler;
+import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,6 +32,9 @@ import static org.testng.Assert.assertEquals;
  */
 public class ChunkStoreTest {
 
+    private final NoOpOpenFiler<ChunkFiler> openFiler = new NoOpOpenFiler<>();
+    private final NoOpCreateFiler<ChunkFiler> createFiler = new NoOpCreateFiler<>();
+
     @Test(enabled = false)
     public void testChunkStorePerformance() throws Exception {
         final File chunkFile = File.createTempFile("chunk", "test");
@@ -43,12 +49,13 @@ public class ChunkStoreTest {
         for (int loop = 0; loop < numLoops; loop++) {
             chunkFile.createNewFile();
 
-            /*
-            ChunkStore chunkStore = new ChunkStore(new SubsetableFiler(
-                new ByteBufferBackedFiler(new Object(), ByteBuffer.allocate((int) filerSize)),
-                0, filerSize, filerSize));
-            */
-            final ChunkStore chunkStore = new ChunkStore(new RandomAccessFiler(chunkFile, "rw"));
+            final ChunkStore chunkStore = new ChunkStoreInitializer().create(
+                new ByteBufferProvider(
+                    chunkFile.getName().getBytes(),
+                    new FileBackedMemMappedByteBufferFactory(chunkFile.getParentFile())),
+                filerSize,
+                true,
+                8);
 
             long start = System.currentTimeMillis();
             List<Future<?>> futures = new ArrayList<>(numThreads);
@@ -57,7 +64,7 @@ public class ChunkStoreTest {
                     @Override
                     public Void call() throws Exception {
                         for (int i = 0; i < numIterations / numThreads; i++) {
-                            long chunkFP = chunkStore.newChunk(chunkLength);
+                            long chunkFP = chunkStore.newChunk(chunkLength, createFiler);
                         }
                         return null;
                     }
@@ -80,20 +87,33 @@ public class ChunkStoreTest {
         String chunkPath = Files.createTempDirectory("testNewChunkStore").toFile().getAbsolutePath();
         ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", size, false, 8);
 
-        long chunk10 = chunkStore.newChunk(10);
+        long chunk10 = chunkStore.newChunk(10, createFiler);
         System.out.println("chunkId:" + chunk10);
-        Filer filer = chunkStore.getFiler(chunk10, chunkStore);
-        synchronized (filer.lock()) {
-            FilerIO.writeInt(filer, 10, "");
-        }
+        writeIntToChunk(chunkStore, chunk10, 10);
+        assertIntInChunk(chunkStore, chunk10, 10);
+    }
 
-        filer = chunkStore.getFiler(chunk10, chunkStore);
-        synchronized (filer.lock()) {
-            filer.seek(0);
-            int ten = FilerIO.readInt(filer, "");
-            System.out.println("ten:" + ten);
-            assertEquals(ten, 10);
-        }
+    private void writeIntToChunk(ChunkStore chunkStore, long chunkFP, final int value) throws IOException {
+        chunkStore.execute(chunkFP, openFiler, new ChunkTransaction<Void, Void>() {
+            @Override
+            public Void commit(Void monkey, ChunkFiler filer) throws IOException {
+                FilerIO.writeInt(filer, value, "");
+                return null;
+            }
+        });
+    }
+
+    private void assertIntInChunk(ChunkStore chunkStore, long chunk10, final int expected) throws IOException {
+        chunkStore.execute(chunk10, openFiler, new ChunkTransaction<Void, Void>() {
+            @Override
+            public Void commit(Void monkey, ChunkFiler filer) throws IOException {
+                filer.seek(0);
+                int value = FilerIO.readInt(filer, "");
+                System.out.println("expected:" + value);
+                assertEquals(value, expected);
+                return null;
+            }
+        });
     }
 
     @Test
@@ -102,52 +122,46 @@ public class ChunkStoreTest {
         String chunkPath = Files.createTempDirectory("testExistingChunkStore").toFile().getAbsolutePath();
         ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", size, false, 8);
 
-        long chunk10 = chunkStore.newChunk(10);
-        System.out.println("chunkId:" + chunk10);
-        Filer filer = chunkStore.getFiler(chunk10, chunkStore);
-        synchronized (filer.lock()) {
-            FilerIO.writeInt(filer, 10, "");
-        }
-        filer.close();
+        long chunk10 = chunkStore.newChunk(10, createFiler);
+        writeIntToChunk(chunkStore, chunk10, 10);
 
         long expectedReferenceNumber = chunkStore.getReferenceNumber();
 
         chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", size, false, 8);
         assertEquals(chunkStore.getReferenceNumber(), expectedReferenceNumber);
 
-        filer = chunkStore.getFiler(chunk10, chunkStore);
-        synchronized (filer.lock()) {
-            filer.seek(0);
-            int ten = FilerIO.readInt(filer, "");
-            System.out.println("ten:" + ten);
-            assertEquals(ten, 10);
-        }
+        assertIntInChunk(chunkStore, chunk10, 10);
     }
 
     @Test
     public void testResizingChunkStore() throws Exception {
-        int size = 512;
+        final int size = 512;
         String chunkPath = Files.createTempDirectory("testResizingChunkStore").toFile().getAbsolutePath();
         ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", size, true, 8);
 
-        long chunk10 = chunkStore.newChunk(size * 4);
-        System.out.println("chunkId:" + chunk10);
-        Filer filer = chunkStore.getFiler(chunk10, chunkStore);
-        synchronized (filer.lock()) {
-            byte[] bytes = new byte[size * 4];
-            bytes[0] = 1;
-            bytes[bytes.length - 1] = 1;
-            FilerIO.write(filer, bytes);
-        }
+        long chunk10 = chunkStore.newChunk(size * 4, createFiler);
+        chunkStore.execute(chunk10, openFiler, new ChunkTransaction<Void, Void>() {
+            @Override
+            public Void commit(Void monkey, ChunkFiler filer) throws IOException {
+                byte[] bytes = new byte[size * 4];
+                bytes[0] = 1;
+                bytes[bytes.length - 1] = 1;
+                FilerIO.write(filer, bytes);
+                return null;
+            }
+        });
 
-        filer = chunkStore.getFiler(chunk10, chunkStore);
-        synchronized (filer.lock()) {
-            filer.seek(0);
-            byte[] bytes = new byte[size * 4];
-            FilerIO.read(filer, bytes);
-            assertEquals(bytes[0], 1);
-            assertEquals(bytes[bytes.length - 1], 1);
-        }
+        chunkStore.execute(chunk10, openFiler, new ChunkTransaction<Void, Void>() {
+            @Override
+            public Void commit(Void monkey, ChunkFiler filer) throws IOException {
+                filer.seek(0);
+                byte[] bytes = new byte[size * 4];
+                FilerIO.read(filer, bytes);
+                assertEquals(bytes[0], 1);
+                assertEquals(bytes[bytes.length - 1], 1);
+                return null;
+            }
+        });
     }
 
     @Test
@@ -157,7 +171,7 @@ public class ChunkStoreTest {
 
         List<Long> fps1 = new ArrayList<>();
         for (int i = 0; i < 2; i++) {
-            fps1.add(chunkStore.newChunk(1024));
+            fps1.add(chunkStore.newChunk(1024, createFiler));
         }
 
         for (long fp : fps1) {
@@ -166,7 +180,7 @@ public class ChunkStoreTest {
 
         List<Long> fps2 = new ArrayList<>();
         for (int i = 0; i < 2; i++) {
-            fps2.add(chunkStore.newChunk(1024));
+            fps2.add(chunkStore.newChunk(1024, createFiler));
         }
 
         System.out.println(fps1);

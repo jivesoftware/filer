@@ -20,11 +20,15 @@ import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FileBackedMemMappedByteBufferFactory;
 import com.jivesoftware.os.filer.io.FilerIO;
-import com.jivesoftware.os.filer.io.MonkeyFilerTransaction;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
+import com.jivesoftware.os.filer.io.MonkeyFilerTransaction;
+import com.jivesoftware.os.filer.io.NoOpCreateFiler;
+import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.map.store.ConcurrentFilerProviderBackedMapChunkProvider;
 import com.jivesoftware.os.filer.map.store.PartitionedMapChunkBackedMapStore;
+import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
+import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -38,17 +42,19 @@ import static org.testng.Assert.assertEquals;
  */
 public class MultiChunkStoreTest {
 
+    private final NoOpOpenFiler<ChunkFiler> noOpOpenFiler = new NoOpOpenFiler<>();
+    private final NoOpCreateFiler<ChunkFiler> noOpCreateFiler = new NoOpCreateFiler<>();
+
     @Test
     public void testAllocateAndGet_heap() throws Exception {
 
-        //Files.createTempDirectory("map").toFile().getAbsolutePath()
         MultiChunkStoreInitializer mcsi = new MultiChunkStoreInitializer(new ChunkStoreInitializer());
-        MultiChunkStoreConcurrentFilerFactory store = mcsi.initializeMultiByteBufferBacked(
+        MultiChunkStoreConcurrentFilerFactory multiChunkStore = mcsi.initializeMultiByteBufferBacked(
             "boo", new HeapByteBufferFactory(), 10, 512, true, 10, new ByteArrayStripingLocksProvider(10));
 
         long seed = 12345;
-        writeRandom(store, seed);
-        readAndAssertRandom(store, seed);
+        writeRandom(multiChunkStore, seed);
+        readAndAssertRandom(multiChunkStore, seed);
     }
 
     @Test
@@ -75,11 +81,25 @@ public class MultiChunkStoreTest {
         PartitionedMapChunkBackedMapStore<ChunkFiler, Long, Integer> mapStore = buildMapStore(new HeapByteBufferFactory());
 
         for (int i = 0; i < 1_000; i++) {
-            mapStore.add((long) i, i);
+            final int _i = i;
+            mapStore.execute((long) i, true, new KeyValueTransaction<Integer, Void>() {
+                @Override
+                public Void commit(KeyValueContext<Integer> context) throws IOException {
+                    context.set(_i);
+                    return null;
+                }
+            });
         }
 
         for (int i = 0; i < 1_000; i++) {
-            assertEquals(mapStore.get((long) i).intValue(), i);
+            final int _i = i;
+            mapStore.execute((long) i, true, new KeyValueTransaction<Integer, Void>() {
+                @Override
+                public Void commit(KeyValueContext<Integer> context) throws IOException {
+                    assertEquals(context.get().intValue(), _i);
+                    return null;
+                }
+            });
         }
     }
 
@@ -91,13 +111,27 @@ public class MultiChunkStoreTest {
         PartitionedMapChunkBackedMapStore<ChunkFiler, Long, Integer> mapStore = buildMapStore(byteBufferFactory);
 
         for (int i = 0; i < 1_000; i++) {
-            mapStore.add((long) i, i);
+            final int _i = i;
+            mapStore.execute((long) i, true, new KeyValueTransaction<Integer, Void>() {
+                @Override
+                public Void commit(KeyValueContext<Integer> context) throws IOException {
+                    context.set(_i);
+                    return null;
+                }
+            });
         }
 
         mapStore = buildMapStore(byteBufferFactory);
 
         for (int i = 0; i < 1_000; i++) {
-            assertEquals(mapStore.get((long) i).intValue(), i);
+            final int _i = i;
+            mapStore.execute((long) i, true, new KeyValueTransaction<Integer, Void>() {
+                @Override
+                public Void commit(KeyValueContext<Integer> context) throws IOException {
+                    assertEquals(context.get().intValue(), _i);
+                    return null;
+                }
+            });
         }
     }
 
@@ -122,9 +156,9 @@ public class MultiChunkStoreTest {
         for (int i = 1; i < 1024; i = i * 2) {
             byte[] key = new byte[i];
             rand.nextBytes(key);
-            store.getOrAllocate(key, 8, new MonkeyFilerTransaction<ChunkFiler, Void>() {
+            store.getOrAllocate(key, 8, noOpOpenFiler, noOpCreateFiler, new MonkeyFilerTransaction<Void, ChunkFiler, Void>() {
                 @Override
-                public Void commit(ChunkFiler chunkFiler, boolean isNew) throws IOException {
+                public Void commit(Void monkey, ChunkFiler chunkFiler) throws IOException {
                     chunkFiler.seek(0);
                     FilerIO.writeLong(chunkFiler, rand.nextLong(), "noise");
                     return null;
@@ -138,9 +172,9 @@ public class MultiChunkStoreTest {
         for (int i = 1; i < 1024; i = i * 2) {
             byte[] key = new byte[i];
             rand.nextBytes(key);
-            store.getOrAllocate(key, -1, new MonkeyFilerTransaction<ChunkFiler, Void>() {
+            store.getOrAllocate(key, -1, noOpOpenFiler, noOpCreateFiler, new MonkeyFilerTransaction<Void, ChunkFiler, Void>() {
                 @Override
-                public Void commit(ChunkFiler chunkFiler, boolean isNew) throws IOException {
+                public Void commit(Void monkey, ChunkFiler chunkFiler) throws IOException {
                     chunkFiler.seek(0);
                     assertEquals(FilerIO.readLong(chunkFiler, "noise"), rand.nextLong());
                     return null;

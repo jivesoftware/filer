@@ -1,6 +1,5 @@
 package com.jivesoftware.os.filer.io;
 
-import com.jivesoftware.os.filer.io.Filer;
 import java.io.IOException;
 
 /**

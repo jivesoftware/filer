@@ -4,8 +4,12 @@ import com.google.common.base.Charsets;
 import com.jivesoftware.os.filer.io.ByteBufferBackedConcurrentFilerFactory;
 import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
+import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
+import com.jivesoftware.os.filer.io.MonkeyFilerTransaction;
+import com.jivesoftware.os.filer.io.NoOpCreateFiler;
+import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.map.store.extractors.IndexStream;
 import java.io.IOException;
 import java.util.Arrays;
@@ -33,306 +37,328 @@ public class SkipListSet_Test {
         test(it, 2, it, provider);
         System.exit(0);
 
-        long seed = System.currentTimeMillis();
-        int keySize = 1;
-        int payloadSize = 2;
+        final long seed = System.currentTimeMillis();
+        final int keySize = 1;
+        final int payloadSize = 2;
         it = 150;
 
-        SkipListSet sls = new SkipListSet();
-        byte[] headKey = new byte[]{Byte.MIN_VALUE};
+        final MapStore pset = MapStore.INSTANCE;
 
-        MapStore pset = MapStore.INSTANCE;
+        final int _it = it;
+        int filerSize = pset.computeFilerSize(_it, keySize, false, payloadSize, false);
+        provider.getOrAllocate(filerSize, new NoOpOpenFiler<ByteBufferBackedFiler>(), new NoOpCreateFiler<ByteBufferBackedFiler>(),
+            new MonkeyFilerTransaction<Void, ByteBufferBackedFiler, Void>() {
+                @Override
+                public Void commit(Void monkey, ByteBufferBackedFiler filer) throws IOException {
+                    SkipListSet sls = new SkipListSet();
+                    byte[] headKey = new byte[]{Byte.MIN_VALUE};
 
-        SkipListSetPage slsp = sls.slallocate(pset, it, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
+                    SkipListSetPage slsp = sls.create(_it, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
 
-            @Override
-            public int compare(MapContext a, int astart, MapContext b, int bstart, int length) throws IOException {
-                for (int i = 0; i < length; i++) {
-                    byte av = a.read(astart + i);
-                    byte bv = a.read(bstart + i);
+                        @Override
+                        public int compare(Filer a, int astart, Filer b, int bstart, int length) throws IOException {
+                            for (int i = 0; i < length; i++) {
+                                byte av = pset.read(a, astart + i);
+                                byte bv = pset.read(b, bstart + i);
 
-                    if (av == bv) {
-                        continue;
-                    }
-                    if (av < bv) {
-                        return -1;
-                    }
-                    for (int j = i; j < length; j++) {
-                        if (av < bv) {
-                            return -1;
+                                if (av == bv) {
+                                    continue;
+                                }
+                                if (av < bv) {
+                                    return -1;
+                                }
+                                for (int j = i; j < length; j++) {
+                                    if (av < bv) {
+                                        return -1;
+                                    }
+                                }
+                                return 1;
+                            }
+                            return 0;
+                        }
+
+                        @Override
+                        public long range(byte[] a, byte[] b) {
+                            throw new UnsupportedOperationException("Not supported yet.");
+                        }
+                    }, filer);
+
+                    Random random = new Random(1_234);
+                    byte[] a = new byte[]{65}; //URandom.randomLowerCaseAlphaBytes(keySize);
+                    byte[] b = new byte[]{66}; //URandom.randomLowerCaseAlphaBytes(keySize);
+                    byte[] c = new byte[]{67}; //URandom.randomLowerCaseAlphaBytes(keySize);
+                    byte[] k4 = new byte[]{68}; //URandom.randomLowerCaseAlphaBytes(keySize);
+                    byte[] payload1 = TestUtils.randomLowerCaseAlphaBytes(random, payloadSize);
+
+                    int n = 1;
+                    n = p(n, c, sls, filer, slsp, payload1);
+                    n = p(n, a, sls, filer, slsp, payload1);
+                    n = p(n, b, sls, filer, slsp, payload1);
+
+                    //System.exit(0);
+                    //for(int i=0;i<1000;i++) {
+                    n = p(n, c, sls, filer, slsp, payload1);
+                    n = p(n, a, sls, filer, slsp, payload1);
+                    //n = m(n,b,sls);
+                    n = p(n, b, sls, filer, slsp, payload1);
+                    n = m(n, b, sls, filer, slsp);
+                    n = p(n, a, sls, filer, slsp, payload1);
+                    n = p(n, b, sls, filer, slsp, payload1);
+
+                    //}
+                    //System.exit(0);
+                    Object[] keys = new Object[]{a, b, c};
+                    for (int i = 0; i < 100_000; i++) {
+                        if (Math.random() < 0.5d) {
+                            byte[] ak = (byte[]) keys[random.nextInt(keys.length)];
+                            System.out.println("+" + new String(ak) + " " + sls.slgetCount(filer, slsp));
+                            sls.sladd(filer, slsp, ak, payload1);
+                        } else {
+                            byte[] rk = (byte[]) keys[random.nextInt(keys.length)];
+                            System.out.println("-" + new String(rk) + " " + sls.slgetCount(filer, slsp));
+                            sls.slremove(filer, slsp, rk);
                         }
                     }
-                    return 1;
-                }
-                return 0;
-            }
 
-            @Override
-            public long range(byte[] a, byte[] b) {
-                throw new UnsupportedOperationException("Not supported yet.");
-            }
-        }, provider);
-
-        Random random = new Random(1_234);
-        byte[] a = new byte[]{65}; //URandom.randomLowerCaseAlphaBytes(keySize);
-        byte[] b = new byte[]{66}; //URandom.randomLowerCaseAlphaBytes(keySize);
-        byte[] c = new byte[]{67}; //URandom.randomLowerCaseAlphaBytes(keySize);
-        byte[] k4 = new byte[]{68}; //URandom.randomLowerCaseAlphaBytes(keySize);
-        byte[] payload1 = TestUtils.randomLowerCaseAlphaBytes(random, payloadSize);
-
-        int n = 1;
-        n = p(n, c, sls, slsp, payload1);
-        n = p(n, a, sls, slsp, payload1);
-        n = p(n, b, sls, slsp, payload1);
-
-        //System.exit(0);
-        //for(int i=0;i<1000;i++) {
-        n = p(n, c, sls, slsp, payload1);
-        n = p(n, a, sls, slsp, payload1);
-        //n = m(n,b,sls);
-        n = p(n, b, sls, slsp, payload1);
-        n = m(n, b, sls, slsp);
-        n = p(n, a, sls, slsp, payload1);
-        n = p(n, b, sls, slsp, payload1);
-
-        //}
-        //System.exit(0);
-        Object[] keys = new Object[]{a, b, c};
-        for (int i = 0; i < 100_000; i++) {
-            if (Math.random() < 0.5d) {
-                byte[] ak = (byte[]) keys[random.nextInt(keys.length)];
-                System.out.println("+" + new String(ak) + " " + sls.slgetCount(slsp));
-                sls.sladd(slsp, ak, payload1);
-            } else {
-                byte[] rk = (byte[]) keys[random.nextInt(keys.length)];
-                System.out.println("-" + new String(rk) + " " + sls.slgetCount(slsp));
-                sls.slremove(slsp, rk);
-            }
-        }
-
-        //System.exit(0);
-        random = new Random(seed);
-        for (int i = 0; i < it; i++) {
-            byte[] key = TestUtils.randomLowerCaseAlphaBytes(random, keySize);
-            byte[] payload = TestUtils.randomLowerCaseAlphaBytes(random, payloadSize);
-            //System.out.println("adding:"+new String(key));
-            sls.sladd(slsp, key, payload);
-        }
-        sls.sltoSysOut(slsp, null);
-        System.out.println("count:" + sls.slgetCount(slsp));
-
-        random = new Random(seed);
-        for (int i = 0; i < it; i++) {
-            byte[] key = TestUtils.randomLowerCaseAlphaBytes(random, keySize);
-            byte[] payload = TestUtils.randomLowerCaseAlphaBytes(random, payloadSize); // burns through random at the same rate as add
-            //System.out.println("removing:"+new String(key));
-            sls.slremove(slsp, key);
-            //sls.toSysOut();
-        }
-        //sls.toSysOut();
-        if (sls.slgetCount(slsp) != 0) {
-            sls.mapStore.get(slsp.chunk, new IndexStream<Exception>() {
-
-                @Override
-                public boolean stream(long v) throws Exception {
-                    if (v != -1) {
-                        System.out.println(v);
+                    //System.exit(0);
+                    random = new Random(seed);
+                    for (int i = 0; i < _it; i++) {
+                        byte[] key = TestUtils.randomLowerCaseAlphaBytes(random, keySize);
+                        byte[] payload = TestUtils.randomLowerCaseAlphaBytes(random, payloadSize);
+                        //System.out.println("adding:"+new String(key));
+                        sls.sladd(filer, slsp, key, payload);
                     }
+                    sls.sltoSysOut(filer, slsp, null);
+                    System.out.println("count:" + sls.slgetCount(filer, slsp));
+
+                    random = new Random(seed);
+                    for (int i = 0; i < _it; i++) {
+                        byte[] key = TestUtils.randomLowerCaseAlphaBytes(random, keySize);
+                        byte[] payload = TestUtils.randomLowerCaseAlphaBytes(random, payloadSize); // burns through random at the same rate as add
+                        //System.out.println("removing:"+new String(key));
+                        sls.slremove(filer, slsp, key);
+                        //sls.toSysOut();
+                    }
+                    //sls.toSysOut();
+                    if (sls.slgetCount(filer, slsp) != 0) {
+                        pset.get(filer, slsp.chunk, new IndexStream<Exception>() {
+
+                            @Override
+                            public boolean stream(long v) throws Exception {
+                                if (v != -1) {
+                                    System.out.println(v);
+                                }
+                                return true;
+                            }
+                        });
+                    }
+                    //sls.toSysOut();
+                    System.out.println("count:" + sls.slgetCount(filer, slsp));
+                    random = new Random(seed);
+                    for (int i = 0; i < _it; i++) {
+                        byte[] key = TestUtils.randomLowerCaseAlphaBytes(random, keySize);
+                        byte[] payload = TestUtils.randomLowerCaseAlphaBytes(random, payloadSize); // burns through random at the same rate as add
+                        //System.out.println("removing:"+new String(key));
+                        if (i % 2 == 0) {
+                            //System.out.println("-"+sls.getCount());
+                            sls.slremove(filer, slsp, key);
+                        } else {
+                            //System.out.println("+"+sls.getCount());
+                            sls.sladd(filer, slsp, key, payload);
+                        }
+                        //sls.toSysOut();
+                    }
+                    System.out.println("count:" + sls.slgetCount(filer, slsp));
+                    return null;
+                }
+            });
+    }
+
+    private static int p(int n, byte[] v, SkipListSet sls, Filer filer, SkipListSetPage slsp, byte[] p) throws IOException {
+        System.out.println(n + ": add " + new String(v) + " " + sls.slgetCount(filer, slsp));
+        sls.sladd(filer, slsp, v, p);
+        sls.sltoSysOut(filer, slsp, null);
+        return n + 1;
+    }
+
+    private static int m(int n, byte[] v, SkipListSet sls, Filer filer, SkipListSetPage slsp) throws IOException {
+        System.out.println(n + ": remove " + new String(v) + " " + sls.slgetCount(filer, slsp));
+        sls.slremove(filer, slsp, v);
+        sls.sltoSysOut(filer, slsp, null);
+        return n + 1;
+    }
+
+    private static boolean test(final int _iterations, final int _keySize, final int _maxSize, ConcurrentFilerProvider<ByteBufferBackedFiler> provider) throws IOException {
+        final int payloadSize = 4;
+        final MapStore pset = MapStore.INSTANCE;
+        int filerSize = pset.computeFilerSize(_maxSize, _keySize, false, payloadSize, false);
+        return provider.getOrAllocate(filerSize, new NoOpOpenFiler<ByteBufferBackedFiler>(), new NoOpCreateFiler<ByteBufferBackedFiler>(),
+            new MonkeyFilerTransaction<Void, ByteBufferBackedFiler, Boolean>() {
+                @Override
+                public Boolean commit(Void monkey, ByteBufferBackedFiler filer) throws IOException {
+                    byte[] headKey = new byte[_keySize];
+                    Arrays.fill(headKey, Byte.MIN_VALUE);
+                    SkipListSet sls = new SkipListSet();
+                    SkipListSetPage slsp = sls.create(_maxSize, headKey, _keySize, false, payloadSize, false, new SkipListComparator() {
+
+                        @Override
+                        public int compare(Filer a, int astart, Filer b, int bstart, int length) throws IOException {
+                            for (int i = 0; i < length; i++) {
+                                byte av = pset.read(a, astart + i);
+                                byte bv = pset.read(b, bstart + i);
+                                if (av == bv) {
+                                    continue;
+                                }
+                                if (av < bv) {
+                                    return -1;
+                                }
+                                for (int j = i; j < length; j++) {
+                                    if (av < bv) {
+                                        return -1;
+                                    }
+                                }
+                                return 1;
+                            }
+                            return 0;
+                        }
+
+                        @Override
+                        public long range(byte[] a, byte[] b) {
+                            throw new UnsupportedOperationException("Not supported yet.");
+                        }
+                    }, filer);
+
+                    System.out.println("MaxCount = " + pset.getMaxCount(filer) + " vs " + _iterations + " vs " + pset.getCapacity(filer));
+                    System.out.println("Upper Bound Max Count = " + pset.absoluteMaxCount(pset.getKeySize(filer), pset.getPayloadSize(filer)));
+                    long seed = System.currentTimeMillis();
+
+                    System.out.println("\nadd:");
+                    Random random = new Random(seed);
+                    long t = System.currentTimeMillis();
+                    for (int i = 0; i < _iterations; i++) {
+                        sls.sladd(filer, slsp, TestUtils.randomLowerCaseAlphaBytes(random, _keySize), FilerIO.intBytes(i));
+                    }
+                    System.out.println("ByteSL add(" + _iterations + ") took " + (System.currentTimeMillis() - t) + " Size:" + sls.slgetCount(filer, slsp));
+
+                    random = new Random(seed);
+                    t = System.currentTimeMillis();
+                    ConcurrentSkipListSet jsl = new ConcurrentSkipListSet(new Comparator() {
+
+                        @Override
+                        public int compare(Object o1, Object o2) {
+                            return ((Comparable<String>) o1).compareTo((String) o2);
+                        }
+                    });
+                    for (int i = 0; i < _iterations; i++) {
+                        jsl.add(new String(TestUtils.randomLowerCaseAlphaBytes(random, _keySize)));
+                    }
+                    System.out.println("Java ConcurrentSkipListSet add(" + _iterations + ") took " + (System.currentTimeMillis() - t) + " Size:" + jsl.size());
+
+                    random = new Random(seed);
+                    t = System.currentTimeMillis();
+                    TreeSet jtree = new TreeSet(new Comparator() {
+
+                        @Override
+                        public int compare(Object o1, Object o2) {
+                            return ((Comparable<String>) o1).compareTo((String) o2);
+                        }
+                    });
+                    for (int i = 0; i < _iterations; i++) {
+                        jtree.add(new String(TestUtils.randomLowerCaseAlphaBytes(random, _keySize)));
+                    }
+                    System.out.println("Java TreeSet add(" + _iterations + ") took " + (System.currentTimeMillis() - t) +
+                        " Size:" + jtree.size());
+
+                    System.out.println("\nremove:");
+                    random = new Random(seed);
+                    t = System.currentTimeMillis();
+                    for (int i = 0; i < _iterations; i++) {
+                        sls.slremove(filer, slsp, TestUtils.randomLowerCaseAlphaBytes(random, _keySize));
+                    }
+                    System.out.println("ByteSL remove(" + _iterations + ") took " + (System.currentTimeMillis() - t) +
+                        " Size:" + sls.slgetCount(filer, slsp));
+
+                    random = new Random(seed);
+                    t = System.currentTimeMillis();
+                    for (int i = 0; i < _iterations; i++) {
+                        jsl.remove(new String(TestUtils.randomLowerCaseAlphaBytes(random, _keySize)));
+                    }
+                    System.out.println("Java ConcurrentSkipListSet remove(" + _iterations + ") took " + (System.currentTimeMillis() - t) +
+                        " Size:" + jsl.size());
+
+                    random = new Random(seed);
+                    t = System.currentTimeMillis();
+                    for (int i = 0; i < _iterations; i++) {
+                        jtree.remove(new String(TestUtils.randomLowerCaseAlphaBytes(random, _keySize)));
+                    }
+                    System.out.println("Java TreeSet remove(" + _iterations + ") took " + (System.currentTimeMillis() - t) +
+                        " Size:" + jtree.size());
+
+                    System.out.println("\nadd and remove:");
+                    random = new Random(seed);
+                    t = System.currentTimeMillis();
+                    for (int i = 0; i < _maxSize; i++) {
+                        if (i % 2 == 0) {
+                            sls.slremove(filer, slsp, TestUtils.randomLowerCaseAlphaBytes(random, _keySize));
+                        } else {
+                            sls.sladd(filer, slsp, TestUtils.randomLowerCaseAlphaBytes(random, _keySize), FilerIO.intBytes(i));
+                        }
+                    }
+                    System.out.println("ByteSL add and remove (" + _maxSize + ") took " + (System.currentTimeMillis() - t) +
+                        " Size:" + sls.slgetCount(filer, slsp));
+
+                    random = new Random(seed);
+                    t = System.currentTimeMillis();
+                    for (int i = 0; i < _iterations; i++) {
+                        if (i % 2 == 0) {
+                            jsl.remove(new String(TestUtils.randomLowerCaseAlphaBytes(random, _keySize)));
+                        } else {
+                            jsl.add(new String(TestUtils.randomLowerCaseAlphaBytes(random, _keySize)));
+                        }
+                    }
+                    System.out.println("Java ConcurrentSkipListSet add and remove(" + _iterations + ") took " + (System.currentTimeMillis() - t) +
+                        " Size:" + jsl.size());
+
+                    random = new Random(seed);
+                    t = System.currentTimeMillis();
+                    for (int i = 0; i < _maxSize; i++) {
+                        if (i % 2 == 0) {
+                            jtree.remove(new String(TestUtils.randomLowerCaseAlphaBytes(random, _keySize)));
+                        } else {
+                            jtree.add(new String(TestUtils.randomLowerCaseAlphaBytes(random, _keySize)));
+                        }
+                    }
+                    System.out.println("Java TreeSet  add and remove (" + _maxSize + ") took " + (System.currentTimeMillis() - t) +
+                        " Size:" + jtree.size());
+
+                    System.out.println("\ncontains:");
+                    random = new Random(seed);
+                    t = System.currentTimeMillis();
+                    for (int i = 0; i < _maxSize; i++) {
+                        pset.contains(filer, slsp.chunk, TestUtils.randomLowerCaseAlphaBytes(random, _keySize));
+                    }
+                    System.out.println("ByteSL contains (" + _maxSize + ") took " + (System.currentTimeMillis() - t) +
+                        " Size:" + sls.slgetCount(filer, slsp));
+
+                    random = new Random(seed);
+                    t = System.currentTimeMillis();
+                    for (int i = 0; i < _maxSize; i++) {
+                        jsl.contains(new String(TestUtils.randomLowerCaseAlphaBytes(random, _keySize)));
+                    }
+                    System.out.println("Java ConcurrentSkipListSet  contains (" + _maxSize + ") took " + (System.currentTimeMillis() - t) + " Size:" + jsl.size());
+
+                    System.out.println("\ncontains:");
+                    random = new Random(seed);
+                    for (int i = 0; i < _maxSize; i++) {
+                        jtree.contains(new String(TestUtils.randomLowerCaseAlphaBytes(random, _keySize)));
+                    }
+                    System.out.println("Java TreeSet  contains (" + _maxSize + ") took " + (System.currentTimeMillis() - t) + " Size:" + jtree.size());
+
+                    sls.sltoSysOut(filer, slsp, null);
+
                     return true;
                 }
             });
-        }
-        //sls.toSysOut();
-        System.out.println("count:" + sls.slgetCount(slsp));
-        random = new Random(seed);
-        for (int i = 0; i < it; i++) {
-            byte[] key = TestUtils.randomLowerCaseAlphaBytes(random, keySize);
-            byte[] payload = TestUtils.randomLowerCaseAlphaBytes(random, payloadSize); // burns through random at the same rate as add
-            //System.out.println("removing:"+new String(key));
-            if (i % 2 == 0) {
-                //System.out.println("-"+sls.getCount());
-                sls.slremove(slsp, key);
-            } else {
-                //System.out.println("+"+sls.getCount());
-                sls.sladd(slsp, key, payload);
-            }
-            //sls.toSysOut();
-        }
-        System.out.println("count:" + sls.slgetCount(slsp));
-
-    }
-
-    private static int p(int n, byte[] v, SkipListSet sls, SkipListSetPage slsp, byte[] p) throws IOException {
-        System.out.println(n + ": add " + new String(v) + " " + sls.slgetCount(slsp));
-        sls.sladd(slsp, v, p);
-        sls.sltoSysOut(slsp, null);
-        return n + 1;
-    }
-
-    private static int m(int n, byte[] v, SkipListSet sls, SkipListSetPage slsp) throws IOException {
-        System.out.println(n + ": remove " + new String(v) + " " + sls.slgetCount(slsp));
-        sls.slremove(slsp, v);
-        sls.sltoSysOut(slsp, null);
-        return n + 1;
-    }
-
-    private static boolean test(int _iterations, int _keySize, int _maxSize, ConcurrentFilerProvider provider) throws IOException {
-        byte[] headKey = new byte[_keySize];
-        Arrays.fill(headKey, Byte.MIN_VALUE);
-        int keySize = _keySize;
-        int payloadSize = 4;
-        SkipListSet sls = new SkipListSet();
-        MapStore pset = MapStore.INSTANCE;
-        SkipListSetPage slsp = sls.slallocate(pset, _maxSize, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
-
-            @Override
-            public int compare(MapContext a, int astart, MapContext b, int bstart, int length) throws IOException {
-                for (int i = 0; i < length; i++) {
-                    byte av = a.read(astart + i);
-                    byte bv = b.read(bstart + i);
-                    if (av == bv) {
-                        continue;
-                    }
-                    if (av < bv) {
-                        return -1;
-                    }
-                    for (int j = i; j < length; j++) {
-                        if (av < bv) {
-                            return -1;
-                        }
-                    }
-                    return 1;
-                }
-                return 0;
-            }
-
-            @Override
-            public long range(byte[] a, byte[] b) {
-                throw new UnsupportedOperationException("Not supported yet.");
-            }
-        }, provider);
-
-        System.out.println("MaxCount = " + sls.mapStore.getMaxCount(slsp.chunk) + " vs " + _iterations + " vs " + sls.mapStore.getCapacity(slsp.chunk));
-        System.out.println("Upper Bound Max Count = " + sls.mapStore.absoluteMaxCount(sls.mapStore.getKeySize(slsp.chunk), sls.mapStore.getPayloadSize(slsp.chunk)));
-        long seed = System.currentTimeMillis();
-
-        System.out.println("\nadd:");
-        Random random = new Random(seed);
-        long t = System.currentTimeMillis();
-        for (int i = 0; i < _iterations; i++) {
-            sls.sladd(slsp, TestUtils.randomLowerCaseAlphaBytes(random, keySize), FilerIO.intBytes(i));
-        }
-        System.out.println("ByteSL add(" + _iterations + ") took " + (System.currentTimeMillis() - t) + " Size:" + sls.slgetCount(slsp));
-
-        random = new Random(seed);
-        t = System.currentTimeMillis();
-        ConcurrentSkipListSet jsl = new ConcurrentSkipListSet(new Comparator() {
-
-            @Override
-            public int compare(Object o1, Object o2) {
-                return ((Comparable<String>) o1).compareTo((String) o2);
-            }
-        });
-        for (int i = 0; i < _iterations; i++) {
-            jsl.add(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
-        }
-        System.out.println("Java ConcurrentSkipListSet add(" + _iterations + ") took " + (System.currentTimeMillis() - t) + " Size:" + jsl.size());
-
-        random = new Random(seed);
-        t = System.currentTimeMillis();
-        TreeSet jtree = new TreeSet(new Comparator() {
-
-            @Override
-            public int compare(Object o1, Object o2) {
-                return ((Comparable<String>) o1).compareTo((String) o2);
-            }
-        });
-        for (int i = 0; i < _iterations; i++) {
-            jtree.add(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
-        }
-        System.out.println("Java TreeSet add(" + _iterations + ") took " + (System.currentTimeMillis() - t) + " Size:" + jtree.size());
-
-        System.out.println("\nremove:");
-        random = new Random(seed);
-        t = System.currentTimeMillis();
-        for (int i = 0; i < _iterations; i++) {
-            sls.slremove(slsp, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
-        }
-        System.out.println("ByteSL remove(" + _iterations + ") took " + (System.currentTimeMillis() - t) + " Size:" + sls.slgetCount(slsp));
-
-        random = new Random(seed);
-        t = System.currentTimeMillis();
-        for (int i = 0; i < _iterations; i++) {
-            jsl.remove(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
-        }
-        System.out.println("Java ConcurrentSkipListSet remove(" + _iterations + ") took " + (System.currentTimeMillis() - t) + " Size:" + jsl.size());
-
-        random = new Random(seed);
-        t = System.currentTimeMillis();
-        for (int i = 0; i < _iterations; i++) {
-            jtree.remove(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
-        }
-        System.out.println("Java TreeSet remove(" + _iterations + ") took " + (System.currentTimeMillis() - t) + " Size:" + jtree.size());
-
-        System.out.println("\nadd and remove:");
-        random = new Random(seed);
-        t = System.currentTimeMillis();
-        for (int i = 0; i < _maxSize; i++) {
-            if (i % 2 == 0) {
-                sls.slremove(slsp, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
-            } else {
-                sls.sladd(slsp, TestUtils.randomLowerCaseAlphaBytes(random, keySize), FilerIO.intBytes(i));
-            }
-        }
-        System.out.println("ByteSL add and remove (" + _maxSize + ") took " + (System.currentTimeMillis() - t) + " Size:" + sls.slgetCount(slsp));
-
-        random = new Random(seed);
-        t = System.currentTimeMillis();
-        for (int i = 0; i < _iterations; i++) {
-            if (i % 2 == 0) {
-                jsl.remove(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
-            } else {
-                jsl.add(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
-            }
-        }
-        System.out.println("Java ConcurrentSkipListSet add and remove(" + _iterations + ") took " + (System.currentTimeMillis() - t) + " Size:" + jsl.size());
-
-        random = new Random(seed);
-        t = System.currentTimeMillis();
-        for (int i = 0; i < _maxSize; i++) {
-            if (i % 2 == 0) {
-                jtree.remove(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
-            } else {
-                jtree.add(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
-            }
-        }
-        System.out.println("Java TreeSet  add and remove (" + _maxSize + ") took " + (System.currentTimeMillis() - t) + " Size:" + jtree.size());
-
-        System.out.println("\ncontains:");
-        random = new Random(seed);
-        t = System.currentTimeMillis();
-        for (int i = 0; i < _maxSize; i++) {
-            sls.mapStore.contains(slsp.chunk, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
-        }
-        System.out.println("ByteSL contains (" + _maxSize + ") took " + (System.currentTimeMillis() - t) + " Size:" + sls.slgetCount(slsp));
-
-        random = new Random(seed);
-        t = System.currentTimeMillis();
-        for (int i = 0; i < _maxSize; i++) {
-            jsl.contains(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
-        }
-        System.out.println("Java ConcurrentSkipListSet  contains (" + _maxSize + ") took " + (System.currentTimeMillis() - t) + " Size:" + jsl.size());
-
-        System.out.println("\ncontains:");
-        random = new Random(seed);
-        for (int i = 0; i < _maxSize; i++) {
-            jtree.contains(new String(TestUtils.randomLowerCaseAlphaBytes(random, keySize)));
-        }
-        System.out.println("Java TreeSet  contains (" + _maxSize + ") took " + (System.currentTimeMillis() - t) + " Size:" + jtree.size());
-
-        sls.sltoSysOut(slsp, null);
-
-        return true;
     }
 
     /**
@@ -371,57 +397,68 @@ public class SkipListSet_Test {
         }
     }
 
-    private static void stats(int keySize, int payloadSize, int _maxSize, ConcurrentFilerProvider provider) throws IOException {
-        byte[] headKey = new byte[keySize];
-        Arrays.fill(headKey, Byte.MIN_VALUE);
-        SkipListSet sls = new SkipListSet();
-        MapStore pset = MapStore.INSTANCE;
-        SkipListSetPage slsp = sls.slallocate(pset, _maxSize, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
+    private static void stats(final int keySize, final int payloadSize, final int _maxSize, ConcurrentFilerProvider<ByteBufferBackedFiler> provider) throws IOException {
+        final MapStore pset = MapStore.INSTANCE;
 
-            @Override
-            public int compare(MapContext a, int astart, MapContext b, int bstart, int length) throws IOException {
-                for (int i = 0; i < length; i++) {
-                    byte av = a.read(astart + i);
-                    byte bv = b.read(bstart + i);
+        int filerSize = pset.computeFilerSize(_maxSize, keySize, false, payloadSize, false);
+        provider.getOrAllocate(filerSize, new NoOpOpenFiler<ByteBufferBackedFiler>(), new NoOpCreateFiler<ByteBufferBackedFiler>(),
+            new MonkeyFilerTransaction<Void, ByteBufferBackedFiler, Void>() {
+                @Override
+                public Void commit(Void monkey, ByteBufferBackedFiler filer) throws IOException {
+                    byte[] headKey = new byte[keySize];
+                    Arrays.fill(headKey, Byte.MIN_VALUE);
+                    SkipListSet sls = new SkipListSet();
+                    SkipListSetPage slsp = sls.create(_maxSize, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
 
-                    if (av == bv) {
-                        continue;
-                    }
-                    if (av < bv) {
-                        return -1;
-                    }
-                    for (int j = i; j < length; j++) {
-                        if (av < bv) {
-                            return -1;
+                        @Override
+                        public int compare(Filer a, int astart, Filer b, int bstart, int length) throws IOException {
+                            for (int i = 0; i < length; i++) {
+                                byte av = pset.read(a, astart + i);
+                                byte bv = pset.read(b, bstart + i);
+
+                                if (av == bv) {
+                                    continue;
+                                }
+                                if (av < bv) {
+                                    return -1;
+                                }
+                                for (int j = i; j < length; j++) {
+                                    if (av < bv) {
+                                        return -1;
+                                    }
+                                }
+                                return 1;
+                            }
+                            return 0;
                         }
-                    }
-                    return 1;
-                }
-                return 0;
-            }
 
-            @Override
-            public long range(byte[] a, byte[] b) {
-                throw new UnsupportedOperationException("Not supported yet.");
-            }
-        }, provider);
+                        @Override
+                        public long range(byte[] a, byte[] b) {
+                            throw new UnsupportedOperationException("Not supported yet.");
+                        }
+                    }, filer);
+                    return null;
+                }
+            });
+
     }
 
-    private static SkipListSetPage testSet(SkipListSet sls,
-        SkipListSetPage set, long seed, int _iterations, int keySize, int payloadSize, int _maxSize, int mode, boolean _out, ConcurrentFilerProvider provider)
-        throws IOException {
+    private static SkipListSetPage testSet(SkipListSet sls, SkipListSetPage set, long seed, int _iterations, int keySize, int payloadSize, int _maxSize,
+        int mode, boolean _out, ConcurrentFilerProvider<ByteBufferBackedFiler> provider) throws IOException {
 
+        //TODO
+        /*
         if (set == null) {
             byte[] headKey = new byte[keySize];
             Arrays.fill(headKey, Byte.MIN_VALUE);
-            MapStore pset = MapStore.INSTANCE;
-            set = sls.slallocate(pset, _maxSize, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
+            final MapStore pset = MapStore.INSTANCE;
+            set = sls.create(_maxSize, headKey, keySize, false, payloadSize, false, new SkipListComparator() {
 
                 @Override
-                public int compare(MapContext a, int astart, MapContext b, int bstart, int length) throws IOException {
+                public int compare(Filer a, int astart, Filer b, int bstart, int length) throws IOException {
                     for (int i = 0; i < length; i++) {
-                        byte av = a.read(astart + i);
-                        byte bv = b.read(bstart + i);
+                        byte av = pset.read(a, astart + i);
+                        byte bv = pset.read(b, bstart + i);
 
                         if (av == bv) {
                             continue;
@@ -443,7 +480,7 @@ public class SkipListSet_Test {
                 public long range(byte[] a, byte[] b) {
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
-            }, provider);
+            }, filer);
         }
 
         System.out.println("\ncontains:");
@@ -479,12 +516,13 @@ public class SkipListSet_Test {
         }
         if (mode == 3) {
             for (int i = 0; i < _iterations; i++) {
-                sls.mapStore.contains(set.chunk, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
+                pset.contains(set.chunk, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
             }
             if (_out) {
                 System.out.print("contains," + _iterations + "," + (System.currentTimeMillis() - t));
             }
         }
+        */
         return set;
     }
     // have initial impl of a skip list backed by a byte[].. looks like ~1.12mb to store 10,000 (UIDS + a long)

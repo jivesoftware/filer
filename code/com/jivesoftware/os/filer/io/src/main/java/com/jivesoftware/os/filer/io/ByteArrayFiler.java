@@ -21,7 +21,7 @@ import java.io.IOException;
  *
  * @author jonathan
  */
-public class ByteArrayFiler implements ConcurrentFiler {
+public class ByteArrayFiler implements Filer {
 
     private byte[] bytes = new byte[0];
     private long fp = 0;
@@ -44,23 +44,6 @@ public class ByteArrayFiler implements ConcurrentFiler {
     public void reset() {
         fp = 0;
         bytes = new byte[0];
-    }
-
-    @Override
-    public ConcurrentFiler asConcurrentReadWrite(final Object suggestedLock) throws IOException {
-        return new ByteArrayFiler(bytes) {
-
-            @Override
-            public Object lock() {
-                return suggestedLock;
-            }
-
-        };
-    }
-
-    @Override
-    public void delete() {
-        bytes = null;
     }
 
     @Override
@@ -208,10 +191,5 @@ public class ByteArrayFiler implements ConcurrentFiler {
         byte[] newSrc = new byte[src.length + amount];
         System.arraycopy(src, 0, newSrc, 0, src.length);
         return newSrc;
-    }
-
-    @Override
-    public long capacity() {
-        return Integer.MAX_VALUE;
     }
 }

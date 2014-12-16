@@ -55,8 +55,7 @@ public class PartitionedMapChunkBackedMapStore<F extends Filer, K, V> implements
                             // grow the set if needed;
                             if (mapStore.isFull(filer, context)) {
                                 int newSize = mapStore.nextGrowSize(context);
-
-                                chunkProvider.grow(keyBytes, mapStore, context, newSize, null, new MapTransaction<F, Void>() {
+                                chunkProvider.grow(keyBytes, newSize, null, new MapTransaction<F, Void>() {
                                     @Override
                                     public Void commit(MapContext resizedContext, F filer) throws IOException {
                                         mapStore.add(filer, resizedContext, (byte) 1, keyBytes, valueBytes);
@@ -95,12 +94,13 @@ public class PartitionedMapChunkBackedMapStore<F extends Filer, K, V> implements
         }
     }
 
-    public void stream(final EntryStream<K, V> stream) {
+    @Override
+    public boolean stream(final EntryStream<K, V> stream) {
         try {
-            chunkProvider.stream(mapStore, new MapTransaction<F, Boolean>() {
+            return chunkProvider.stream(new MapTransaction<F, Boolean>() {
                 @Override
                 public Boolean commit(MapContext got, F filer) throws IOException {
-                    if (got != null) {
+                    if (got != null && filer != null) {
                         return mapStore.stream(filer, got, new MapStore.EntryStream() {
                             @Override
                             public boolean stream(MapStore.Entry entry) throws IOException {
@@ -120,15 +120,15 @@ public class PartitionedMapChunkBackedMapStore<F extends Filer, K, V> implements
     }
 
     @Override
-    public void streamKeys(final KeyStream<K> stream) throws IOException {
+    public boolean streamKeys(final KeyStream<K> stream) throws IOException {
         try {
-            chunkProvider.stream(mapStore, new MapTransaction<F, Boolean>() {
+            return chunkProvider.stream(new MapTransaction<F, Boolean>() {
                 @Override
                 public Boolean commit(MapContext got, F filer) throws IOException {
-                    if (got != null) {
+                    if (got != null && filer != null) {
                         return mapStore.streamKeys(filer, got, new MapStore.KeyStream() {
                             @Override
-                            public boolean stream(byte[] keyBytes) {
+                            public boolean stream(byte[] keyBytes) throws IOException {
                                 K key = keyValueMarshaller.bytesKey(keyBytes, 0);
                                 return stream.stream(key);
                             }

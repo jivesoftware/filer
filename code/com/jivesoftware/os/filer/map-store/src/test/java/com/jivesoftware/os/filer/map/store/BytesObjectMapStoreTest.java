@@ -6,11 +6,15 @@ import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
+import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
+import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
+import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
+import java.io.IOException;
 import java.nio.file.Files;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
 
 public class BytesObjectMapStoreTest {
 
@@ -107,7 +111,7 @@ public class BytesObjectMapStoreTest {
 
     private void assertCopyTo(
         BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> from,
-        BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> to)
+        final BytesObjectMapStore<ByteBufferBackedFiler, byte[], Object> to)
         throws Exception {
 
         final int numEntries = 100;
@@ -117,26 +121,80 @@ public class BytesObjectMapStoreTest {
         }
 
         for (int i = 0; i < numEntries; i++) {
-            from.add(FilerIO.intBytes(i), objects[i]);
+            final Object value = objects[i];
+            from.execute(FilerIO.intBytes(i), true, new KeyValueTransaction<Object, Void>() {
+                @Override
+                public Void commit(KeyValueContext<Object> context) throws IOException {
+                    context.set(value);
+                    return null;
+                }
+            });
         }
 
         for (int i = 0; i < numEntries; i++) {
-            assertEquals(from.get(FilerIO.intBytes(i)), objects[i]);
+            final Object expected = objects[i];
+            from.execute(FilerIO.intBytes(i), false, new KeyValueTransaction<Object, Void>() {
+                @Override
+                public Void commit(KeyValueContext<Object> context) throws IOException {
+                    assertSame(context.get(), expected);
+                    return null;
+                }
+            });
         }
 
-        from.copyTo(to);
+        //TODO this is terrible copying
+        from.stream(new KeyValueStore.EntryStream<byte[], Object>() {
+            @Override
+            public boolean stream(byte[] key, final Object value) throws IOException {
+                to.execute(key, true, new KeyValueTransaction<Object, Void>() {
+                    @Override
+                    public Void commit(KeyValueContext<Object> context) throws IOException {
+                        context.set(value);
+                        return null;
+                    }
+                });
+                return true;
+            }
+        });
 
         for (int i = 0; i < numEntries; i++) {
-            assertEquals(to.get(FilerIO.intBytes(i)), objects[i]);
+            final Object expected = objects[i];
+            to.execute(FilerIO.intBytes(i), false, new KeyValueTransaction<Object, Void>() {
+                @Override
+                public Void commit(KeyValueContext<Object> context) throws IOException {
+                    assertSame(context.get(), expected);
+                    return null;
+                }
+            });
         }
 
         for (int i = 0; i < numEntries; i++) {
-            to.add(FilerIO.intBytes(numEntries + i), objects[numEntries + i]);
+            final Object value = objects[numEntries + i];
+            to.execute(FilerIO.intBytes(i), true, new KeyValueTransaction<Object, Void>() {
+                @Override
+                public Void commit(KeyValueContext<Object> context) throws IOException {
+                    context.set(value);
+                    return null;
+                }
+            });
         }
 
         for (int i = 0; i < numEntries; i++) {
-            assertEquals(to.get(FilerIO.intBytes(numEntries + i)), objects[numEntries + i]);
-            assertNull(from.get(FilerIO.intBytes(numEntries + i)));
+            final Object expected = objects[numEntries + i];
+            to.execute(FilerIO.intBytes(numEntries + i), false, new KeyValueTransaction<Object, Void>() {
+                @Override
+                public Void commit(KeyValueContext<Object> context) throws IOException {
+                    assertSame(context.get(), expected);
+                    return null;
+                }
+            });
+            from.execute(FilerIO.intBytes(numEntries + i), false, new KeyValueTransaction<Object, Void>() {
+                @Override
+                public Void commit(KeyValueContext<Object> context) throws IOException {
+                    assertNull(context.get());
+                    return null;
+                }
+            });
         }
     }
 }

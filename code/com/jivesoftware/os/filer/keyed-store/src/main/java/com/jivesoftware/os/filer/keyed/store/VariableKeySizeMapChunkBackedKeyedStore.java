@@ -1,6 +1,5 @@
 package com.jivesoftware.os.filer.keyed.store;
 
-import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.io.IBA;
@@ -11,7 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class VariableKeySizeMapChunkBackedKeyedStore<F extends ConcurrentFiler> implements KeyedFilerStore {
+public class VariableKeySizeMapChunkBackedKeyedStore<F extends Filer> implements KeyedFilerStore {
 
     private final PartitionSizedByKeyStore<F>[] keyedStores;
 
@@ -48,16 +47,26 @@ public class VariableKeySizeMapChunkBackedKeyedStore<F extends ConcurrentFiler> 
     }
 
     @Override
-    public void stream(KeyValueStore.EntryStream<IBA, Filer> stream) throws IOException {
-        //TODO
+    public boolean stream(KeyValueStore.EntryStream<IBA, Filer> stream) throws IOException {
+        for (PartitionSizedByKeyStore<F> keyedStore : keyedStores) {
+            if (!keyedStore.store.stream(stream)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
-    public void streamKeys(KeyValueStore.KeyStream<IBA> stream) throws IOException {
-        //TODO
+    public boolean streamKeys(KeyValueStore.KeyStream<IBA> stream) throws IOException {
+        for (PartitionSizedByKeyStore<F> keyedStore : keyedStores) {
+            if (!keyedStore.store.streamKeys(stream)) {
+                return false;
+            }
+        }
+        return true;
     }
 
-    public static class Builder<F extends ConcurrentFiler> {
+    public static class Builder<F extends Filer> {
 
         private final List<PartitionSizedByKeyStore<F>> stores = new ArrayList<>();
 
@@ -76,7 +85,7 @@ public class VariableKeySizeMapChunkBackedKeyedStore<F extends ConcurrentFiler> 
 
     }
 
-    private static class PartitionSizedByKeyStore<F extends ConcurrentFiler> implements Comparable<PartitionSizedByKeyStore<F>> {
+    private static class PartitionSizedByKeyStore<F extends Filer> implements Comparable<PartitionSizedByKeyStore<F>> {
 
         final int keySize;
         final PartitionedMapChunkBackedKeyedStore<F> store;

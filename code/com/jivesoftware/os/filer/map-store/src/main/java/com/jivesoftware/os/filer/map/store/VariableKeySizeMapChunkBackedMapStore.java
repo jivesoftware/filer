@@ -1,18 +1,16 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.jivesoftware.os.filer.io.ConcurrentFiler;
+import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
+import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
+import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 
-public class VariableKeySizeMapChunkBackedMapStore<F extends ConcurrentFiler, K, V> implements KeyValueStore<K, V> {
+public class VariableKeySizeMapChunkBackedMapStore<F extends Filer, K, V> implements KeyValueStore<K, V> {
 
     private final KeyValueMarshaller<K, V> keyValueMarshaller;
     private final PartitionSizedByMapStore<F>[] mapStores;
@@ -36,70 +34,74 @@ public class VariableKeySizeMapChunkBackedMapStore<F extends ConcurrentFiler, K,
     }
 
     @Override
-    public void add(K key, V value) throws IOException {
+    public <R> R execute(final K key, boolean createIfAbsent, final KeyValueTransaction<V, R> keyValueTransaction) throws IOException {
         byte[] keyBytes = keyValueMarshaller.keyBytes(key);
-        byte[] valueBytes = keyValueMarshaller.valueBytes(value);
-        getMapStore(keyBytes.length).store.add(keyBytes, valueBytes);
-    }
-
-    @Override
-    public void remove(K key) throws IOException {
-        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
-        getMapStore(keyBytes.length).store.remove(keyBytes);
-    }
-
-    @Override
-    public V get(K key) throws IOException {
-        byte[] keyBytes = keyValueMarshaller.keyBytes(key);
-        byte[] valueBytes = getMapStore(keyBytes.length).store.get(keyBytes);
-        if (valueBytes != null) {
-            return keyValueMarshaller.bytesValue(key, valueBytes, 0);
-        }
-        return returnWhenGetReturnsNull;
-    }
-
-    @Override
-    public Iterator<Entry<K, V>> iterator() {
-        List<Iterator<Entry<K, V>>> iterators = Lists.newArrayListWithCapacity(mapStores.length);
-        for (PartitionSizedByMapStore<F> mapStore : mapStores) {
-            iterators.add(Iterators.transform(mapStore.store.iterator(), new Function<Entry<byte[], byte[]>, Entry<K, V>>() {
-
-                @Override
-                public Entry<K, V> apply(final Entry<byte[], byte[]> input) {
-                    final K key = keyValueMarshaller.bytesKey(input.getKey(), 0);
-                    return new Entry<K, V>() {
-
-                        @Override
-                        public K getKey() {
-                            return key;
+        KeyValueTransaction<byte[], R> byteTransaction = new KeyValueTransaction<byte[], R>() {
+            @Override
+            public R commit(final KeyValueContext<byte[]> context) throws IOException {
+                return keyValueTransaction.commit(new KeyValueContext<V>() {
+                    @Override
+                    public void set(V value) throws IOException {
+                        if (value != null) {
+                            context.set(keyValueMarshaller.valueBytes(value));
                         }
+                    }
 
-                        @Override
-                        public V getValue() {
-                            return keyValueMarshaller.bytesValue(key, input.getValue(), 0);
+                    @Override
+                    public void remove() throws IOException {
+                        context.remove();
+                    }
+
+                    @Override
+                    public V get() throws IOException {
+                        byte[] valueBytes = context.get();
+                        if (valueBytes == null) {
+                            return returnWhenGetReturnsNull;
                         }
-                    };
-                }
-            }));
-        }
-        return Iterators.concat(iterators.iterator());
+                        return keyValueMarshaller.bytesValue(key, valueBytes, 0);
+                    }
+                });
+            }
+        };
+        return getMapStore(keyBytes.length).store.execute(keyBytes, createIfAbsent, byteTransaction);
     }
 
     @Override
-    public Iterator<K> keysIterator() {
-        List<Iterator<K>> iterators = Lists.newArrayListWithCapacity(mapStores.length);
+    public boolean stream(final EntryStream<K, V> stream) throws IOException {
+        EntryStream<byte[], byte[]> byteStream = new EntryStream<byte[], byte[]>() {
+            @Override
+            public boolean stream(byte[] keyBytes, byte[] valueBytes) throws IOException {
+                K key = keyValueMarshaller.bytesKey(keyBytes, 0);
+                V value = keyValueMarshaller.bytesValue(key, valueBytes, 0);
+                return stream.stream(key, value);
+            }
+        };
         for (PartitionSizedByMapStore<F> mapStore : mapStores) {
-            iterators.add(Iterators.transform(mapStore.store.keysIterator(), new Function<byte[], K>() {
-                @Override
-                public K apply(byte[] input) {
-                    return keyValueMarshaller.bytesKey(input, 0);
-                }
-            }));
+            if (!mapStore.store.stream(byteStream)) {
+                return false;
+            }
         }
-        return Iterators.concat(iterators.iterator());
+        return true;
     }
 
-    public static class Builder<F extends ConcurrentFiler, K, V> {
+    @Override
+    public boolean streamKeys(final KeyStream<K> stream) throws IOException {
+        KeyStream<byte[]> byteStream = new KeyStream<byte[]>() {
+            @Override
+            public boolean stream(byte[] keyBytes) throws IOException {
+                K key = keyValueMarshaller.bytesKey(keyBytes, 0);
+                return stream.stream(key);
+            }
+        };
+        for (PartitionSizedByMapStore<F> mapStore : mapStores) {
+            if (!mapStore.store.streamKeys(byteStream)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static class Builder<F extends Filer, K, V> {
 
         private final V returnWhenGetReturnsNull;
         private final byte[] returnWhenGetReturnsNullBytes;
@@ -141,7 +143,7 @@ public class VariableKeySizeMapChunkBackedMapStore<F extends ConcurrentFiler, K,
 
     }
 
-    private static class PartitionSizedByMapStore<F extends ConcurrentFiler> implements Comparable<PartitionSizedByMapStore<F>> {
+    private static class PartitionSizedByMapStore<F extends Filer> implements Comparable<PartitionSizedByMapStore<F>> {
 
         final int keySize;
         final PartitionedMapChunkBackedMapStore<F, byte[], byte[]> store;

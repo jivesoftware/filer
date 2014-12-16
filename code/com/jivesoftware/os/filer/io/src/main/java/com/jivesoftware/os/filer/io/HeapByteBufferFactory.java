@@ -16,9 +16,10 @@ public class HeapByteBufferFactory implements ByteBufferFactory {
     public ByteBuffer reallocate(byte[] key, ByteBuffer oldBuffer, long newSize) {
         ByteBuffer newBuffer = allocate(key, newSize);
         if (oldBuffer != null) {
+            long position = oldBuffer.position();
             oldBuffer.position(0);
             newBuffer.put(oldBuffer); // this assume we only grow. Blame Kevin :)
-            newBuffer.position(0);
+            newBuffer.position((int) position);
         }
         return newBuffer;
     }

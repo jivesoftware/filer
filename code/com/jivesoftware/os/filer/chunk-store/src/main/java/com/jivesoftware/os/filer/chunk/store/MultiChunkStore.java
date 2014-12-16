@@ -17,6 +17,7 @@ package com.jivesoftware.os.filer.chunk.store;
 
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
+import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
 import java.io.IOException;
 
 /**
@@ -33,7 +34,7 @@ public interface MultiChunkStore {
 
     void remove(byte[] key, long _chunkFP) throws IOException;
 
-    ResizingChunkFilerProvider getChunkFilerProvider(byte[] key, ChunkFPProvider chunkFPProvider, ChunkFiler chunkFiler);
+    ResizingChunkFilerProvider getChunkFilerProvider(byte[] key, ChunkFiler chunkFiler, KeyValueContext<Long> keyValueContext);
 
     ResizingChunkFilerProvider getTemporaryFilerProvider(byte[] keyBytes);
 

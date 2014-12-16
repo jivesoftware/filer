@@ -1,6 +1,6 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ConcurrentFiler;
+import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
@@ -8,7 +8,7 @@ import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 /**
  * @author jonathan.colt
  */
-public class PrimitivesMapStoresBuilder<F extends ConcurrentFiler> {
+public class PrimitivesMapStoresBuilder<F extends Filer> {
 
     private MapChunkProvider<F> mapChunkProvider;
 

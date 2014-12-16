@@ -1,17 +1,17 @@
 package com.jivesoftware.os.filer.map.store;
 
 import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
+import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStoreException;
+import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -81,9 +81,15 @@ public class VariableKeySizeMapChunkBackedMapStoreTest {
         for (int i = 0; i < keySizeThresholds.length; i++) {
             System.out.println("hmm:" + i);
             String key = keyOfLength(keySizeThresholds[i]);
-            long expected = i;
-            mapStore.add(key, expected);
-            assertEquals(mapStore.get(key).longValue(), expected);
+            final long expected = i;
+            mapStore.execute(key, true, new KeyValueTransaction<Long, Void>() {
+                @Override
+                public Void commit(KeyValueContext<Long> context) throws IOException {
+                    context.set(expected);
+                    assertEquals(context.get().longValue(), expected);
+                    return null;
+                }
+            });
         }
     }
 
@@ -94,7 +100,13 @@ public class VariableKeySizeMapChunkBackedMapStoreTest {
             createMapStore(pathsToPartitions, keySizeThresholds);
 
         int maxLength = keySizeThresholds[keySizeThresholds.length - 1];
-        mapStore.add(keyOfLength(maxLength + 1), 0l);
+        mapStore.execute(keyOfLength(maxLength + 1), true, new KeyValueTransaction<Long, Void>() {
+            @Override
+            public Void commit(KeyValueContext<Long> context) throws IOException {
+                context.set(0L);
+                return null;
+            }
+        });
     }
 
     @Test(expectedExceptions = { IllegalStateException.class })
@@ -104,57 +116,67 @@ public class VariableKeySizeMapChunkBackedMapStoreTest {
     }
 
     @Test
-    public void testIterator() throws Exception {
+    public void testStream() throws Exception {
         int[] keySizeThresholds = new int[] { 4, 16 };
         VariableKeySizeMapChunkBackedMapStore<ByteBufferBackedFiler, String, Long> mapStore =
             createMapStore(pathsToPartitions, keySizeThresholds);
 
-        String keyspace = "abcdefghijklmnopqrstuvwxyz";
+        final String keyspace = "abcdefghijklmnopqrstuvwxyz";
         for (int i = 1; i <= 16; i++) {
-            mapStore.add(keyspace.substring(0, i), (long) i);
+            final long value = (long) i;
+            mapStore.execute(keyspace.substring(0, i), true, new KeyValueTransaction<Long, Void>() {
+                @Override
+                public Void commit(KeyValueContext<Long> context) throws IOException {
+                    context.set(value);
+                    return null;
+                }
+            });
         }
 
-        List<KeyValueStore.Entry<String, Long>> entries = Lists.newArrayList(mapStore.iterator());
-        Collections.sort(entries, new Comparator<KeyValueStore.Entry<String, Long>>() {
+        final AtomicInteger keyLength = new AtomicInteger(1);
+        mapStore.stream(new KeyValueStore.EntryStream<String, Long>() {
             @Override
-            public int compare(KeyValueStore.Entry<String, Long> o1, KeyValueStore.Entry<String, Long> o2) {
-                return o1.getValue().compareTo(o2.getValue());
+            public boolean stream(String key, Long value) throws IOException {
+                System.out.println("key=" + key + " size=" + key.length());
+                System.out.println("value=" + value);
+                int _keyLength = keyLength.get();
+                assertEquals(key, keyspace.substring(0, _keyLength));
+                assertEquals(value.longValue(), (long) _keyLength);
+                keyLength.incrementAndGet();
+                return true;
             }
         });
-        int i = 1;
-        for (KeyValueStore.Entry<String, Long> entry : entries) {
-            System.out.println("key=" + entry.getKey() + " size=" + entry.getKey().length());
-            System.out.println("value=" + entry.getValue());
-            assertEquals(entry.getKey(), keyspace.substring(0, i));
-            assertEquals(entry.getValue().longValue(), (long) i);
-            i++;
-        }
     }
 
     @Test
-    public void testKeysIterator() throws Exception {
+    public void testKeysStream() throws Exception {
         int[] keySizeThresholds = new int[] { 4, 16 };
         VariableKeySizeMapChunkBackedMapStore<ByteBufferBackedFiler, String, Long> mapStore =
             createMapStore(pathsToPartitions, keySizeThresholds);
 
-        String keyspace = "abcdefghijklmnopqrstuvwxyz";
+        final String keyspace = "abcdefghijklmnopqrstuvwxyz";
         for (int i = 1; i <= 16; i++) {
-            mapStore.add(keyspace.substring(0, i), (long) i);
+            final long value = (long) i;
+            mapStore.execute(keyspace.substring(0, i), true, new KeyValueTransaction<Long, Void>() {
+                @Override
+                public Void commit(KeyValueContext<Long> context) throws IOException {
+                    context.set(value);
+                    return null;
+                }
+            });
         }
 
-        List<String> keys = Lists.newArrayList(mapStore.keysIterator());
-        Collections.sort(keys, new Comparator<String>() {
+        final AtomicInteger keyLength = new AtomicInteger(1);
+        mapStore.streamKeys(new KeyValueStore.KeyStream<String>() {
             @Override
-            public int compare(String o1, String o2) {
-                return new Integer(o1.length()).compareTo(o2.length());
+            public boolean stream(String key) throws IOException {
+                System.out.println("key=" + key + " size=" + key.length());
+                int _keyLength = keyLength.get();
+                assertEquals(key, keyspace.substring(0, _keyLength));
+                keyLength.incrementAndGet();
+                return true;
             }
         });
-        int i = 1;
-        for (String key : keys) {
-            System.out.println("key=" + key + " size=" + key.length());
-            assertEquals(key, keyspace.substring(0, i));
-            i++;
-        }
     }
 
     private String keyOfLength(int length) {

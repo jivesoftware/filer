@@ -1,23 +1,16 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.jivesoftware.os.filer.io.ConcurrentFiler;
-import com.jivesoftware.os.filer.io.Copyable;
+import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.KeyMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
+import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
 
-public class VariableKeySizeBytesObjectMapStore<F extends ConcurrentFiler, K, V> implements KeyValueStore<K, V>,
-    Copyable<VariableKeySizeBytesObjectMapStore<F, K, V>> {
+public class VariableKeySizeBytesObjectMapStore<F extends Filer, K, V> implements KeyValueStore<K, V> {
 
     private final BytesObjectMapStore<F, byte[], V>[] mapStores;
     private final KeyMarshaller<K> keyMarshaller;
 
-    @SuppressWarnings("unchecked")
     public VariableKeySizeBytesObjectMapStore(BytesObjectMapStore<F, byte[], V>[] mapStores, KeyMarshaller<K> keyMarshaller) {
         this.mapStores = mapStores;
         this.keyMarshaller = keyMarshaller;
@@ -32,68 +25,41 @@ public class VariableKeySizeBytesObjectMapStore<F extends ConcurrentFiler, K, V>
         throw new IndexOutOfBoundsException("Key is too long");
     }
 
-    public void add(K key, V value) throws IOException {
+    @Override
+    public <R> R execute(K key, boolean createIfAbsent, KeyValueTransaction<V, R> keyValueTransaction) throws IOException {
         byte[] keyBytes = keyMarshaller.keyBytes(key);
-        getMapStore(keyBytes.length).add(keyBytes, value);
+        return getMapStore(keyBytes.length).execute(keyBytes, createIfAbsent, keyValueTransaction);
     }
 
     @Override
-    public void remove(K key) throws IOException {
-        byte[] keyBytes = keyMarshaller.keyBytes(key);
-        getMapStore(keyBytes.length).remove(keyBytes);
-    }
-
-    @Override
-    public V get(K key) throws IOException {
-        byte[] keyBytes = keyMarshaller.keyBytes(key);
-        return getMapStore(keyBytes.length).get(keyBytes);
-    }
-
-    @Override
-    public void copyTo(VariableKeySizeBytesObjectMapStore<F, K, V> to) throws IOException {
-        for (int i = 0; i < mapStores.length; i++) {
-            mapStores[i].copyTo(to.mapStores[i]);
-        }
-    }
-
-    @Override
-    public Iterator<Entry<K, V>> iterator() {
-        List<Iterator<Entry<K, V>>> iterators = Lists.newArrayListWithCapacity(mapStores.length);
+    public boolean stream(final EntryStream<K, V> stream) throws IOException {
+        EntryStream<byte[], V> byteStream = new EntryStream<byte[], V>() {
+            @Override
+            public boolean stream(byte[] key, V value) throws IOException {
+                return stream.stream(keyMarshaller.bytesKey(key, 0), value);
+            }
+        };
         for (BytesObjectMapStore<F, byte[], V> mapStore : mapStores) {
-            iterators.add(Iterators.transform(mapStore.iterator(), new Function<Entry<byte[], V>, Entry<K, V>>() {
-                @Override
-                public Entry<K, V> apply(final Entry<byte[], V> input) {
-                    return new Entry<K, V>() {
-
-                        private K key = keyMarshaller.bytesKey(input.getKey(), 0);
-
-                        @Override
-                        public K getKey() {
-                            return key;
-                        }
-
-                        @Override
-                        public V getValue() {
-                            return input.getValue();
-                        }
-                    };
-                }
-            }));
+            if (!mapStore.stream(byteStream)) {
+                return false;
+            }
         }
-        return Iterators.concat(iterators.iterator());
+        return true;
     }
 
     @Override
-    public Iterator<K> keysIterator() {
-        List<Iterator<K>> iterators = Lists.newArrayListWithCapacity(mapStores.length);
+    public boolean streamKeys(final KeyStream<K> stream) throws IOException {
+        KeyStream<byte[]> byteStream = new KeyStream<byte[]>() {
+            @Override
+            public boolean stream(byte[] key) throws IOException {
+                return stream.stream(keyMarshaller.bytesKey(key, 0));
+            }
+        };
         for (BytesObjectMapStore<F, byte[], V> mapStore : mapStores) {
-            iterators.add(Iterators.transform(mapStore.keysIterator(), new Function<byte[], K>() {
-                @Override
-                public K apply(byte[] input) {
-                    return keyMarshaller.bytesKey(input, 0);
-                }
-            }));
+            if (!mapStore.streamKeys(byteStream)) {
+                return false;
+            }
         }
-        return Iterators.concat(iterators.iterator());
+        return true;
     }
 }

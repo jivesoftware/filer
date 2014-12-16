@@ -1,23 +1,22 @@
 package com.jivesoftware.os.filer.map.store;
 
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.jivesoftware.os.filer.io.ConcurrentFiler;
+import com.jivesoftware.os.filer.io.Filer;
+import com.jivesoftware.os.filer.io.KeyMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
+import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
 
-public abstract class VariableKeySizeBytesBytesMapStore<F extends ConcurrentFiler, K, V> implements KeyValueStore<K, V> {
+public abstract class VariableKeySizeBytesBytesMapStore<F extends Filer, K, V> implements KeyValueStore<K, V> {
 
-    private final BytesBytesMapStore<F, K, V>[] mapStores;
+    private final BytesBytesMapStore<F, byte[], V>[] mapStores;
+    private final KeyMarshaller<K> keyMarshaller;
 
-    @SuppressWarnings("unchecked")
-    public VariableKeySizeBytesBytesMapStore(BytesBytesMapStore<F, K, V>[] mapStores) {
+    public VariableKeySizeBytesBytesMapStore(BytesBytesMapStore<F, byte[], V>[] mapStores, KeyMarshaller<K> keyMarshaller) {
         this.mapStores = mapStores;
+        this.keyMarshaller = keyMarshaller;
     }
 
-    private BytesBytesMapStore<F, K, V> getMapStore(int keyLength) {
+    private BytesBytesMapStore<F, byte[], V> getMapStore(int keyLength) {
         for (int i = 0; i < mapStores.length; i++) {
             if (mapStores[i].keySize >= keyLength) {
                 return mapStores[i];
@@ -26,38 +25,41 @@ public abstract class VariableKeySizeBytesBytesMapStore<F extends ConcurrentFile
         throw new IndexOutOfBoundsException("Key is too long");
     }
 
-    protected abstract int keyLength(K key);
-
     @Override
-    public void add(K key, V value) throws IOException {
-        getMapStore(keyLength(key)).add(key, value);
+    public <R> R execute(K key, boolean createIfAbsent, KeyValueTransaction<V, R> keyValueTransaction) throws IOException {
+        byte[] keyBytes = keyMarshaller.keyBytes(key);
+        return getMapStore(keyBytes.length).execute(keyBytes, createIfAbsent, keyValueTransaction);
     }
 
     @Override
-    public void remove(K key) throws IOException {
-        getMapStore(keyLength(key)).remove(key);
-    }
-
-    @Override
-    public V get(K key) throws IOException {
-        return getMapStore(keyLength(key)).get(key);
-    }
-
-    @Override
-    public Iterator<Entry<K, V>> iterator() {
-        List<Iterator<Entry<K, V>>> iterators = Lists.newArrayListWithCapacity(mapStores.length);
-        for (BytesBytesMapStore<F, K, V> mapStore : mapStores) {
-            iterators.add(mapStore.iterator());
+    public boolean stream(final EntryStream<K, V> stream) throws IOException {
+        EntryStream<byte[], V> byteStream = new EntryStream<byte[], V>() {
+            @Override
+            public boolean stream(byte[] key, V value) throws IOException {
+                return stream.stream(keyMarshaller.bytesKey(key, 0), value);
+            }
+        };
+        for (BytesBytesMapStore<F, byte[], V> mapStore : mapStores) {
+            if (!mapStore.stream(byteStream)) {
+                return false;
+            }
         }
-        return Iterators.concat(iterators.iterator());
+        return true;
     }
 
     @Override
-    public Iterator<K> keysIterator() {
-        List<Iterator<K>> iterators = Lists.newArrayListWithCapacity(mapStores.length);
-        for (BytesBytesMapStore<F, K, V> mapStore : mapStores) {
-            iterators.add(mapStore.keysIterator());
+    public boolean streamKeys(final KeyStream<K> stream) throws IOException {
+        KeyStream<byte[]> byteStream = new KeyStream<byte[]>() {
+            @Override
+            public boolean stream(byte[] key) throws IOException {
+                return stream.stream(keyMarshaller.bytesKey(key, 0));
+            }
+        };
+        for (BytesBytesMapStore<F, byte[], V> mapStore : mapStores) {
+            if (!mapStore.streamKeys(byteStream)) {
+                return false;
+            }
         }
-        return Iterators.concat(iterators.iterator());
+        return true;
     }
 }

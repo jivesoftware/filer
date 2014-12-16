@@ -15,7 +15,6 @@
  */
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.ConcurrentFiler;
 import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.Filer;
@@ -80,39 +79,45 @@ public class ConcurrentFilerProviderBackedMapChunkProvider<F extends Filer> impl
 
     @Override
     public <R> R grow(byte[] pageKey,
-        final MapStore mapStore,
-        final MapContext chunk,
         final int newSize,
         final MapStore.CopyToStream copyToStream,
         final MapTransaction<F, R> chunkTransaction) throws IOException {
 
         long filerSize = mapStore.computeFilerSize(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes);
-        return concurrentFilerProviders[getPageIndex(pageKey)].grow(filerSize, new RewriteMapChunkTransaction<F, R>() {
+        return concurrentFilerProviders[getPageIndex(pageKey)].grow(filerSize, openFiler, createFiler, new RewriteMapChunkTransaction<F, R>() {
             @Override
-            public R commit(MapContext currentChunk, F currentFiler, MapContext newChunk, F newFiler) throws IOException {
-                mapStore.copyTo(currentFiler, currentChunk, newFiler, newChunk, copyToStream);
-                return chunkTransaction.commit(newChunk, newFiler);
+            public R commit(MapContext currentContext, F currentFiler, MapContext newContext, F newFiler) throws IOException {
+                mapStore.copyTo(currentFiler, currentContext, newFiler, newContext, copyToStream);
+                return chunkTransaction.commit(newContext, newFiler);
             }
         });
     }
 
     @Override
-    public <R> R copy(byte[] pageKey, MapStore mapStore, MapContext chunk, MapTransaction<F, R> chunkTransaction) throws IOException {
-        return grow(pageKey, mapStore, chunk, chunk.maxCount, null, chunkTransaction);
+    public <R> R copy(final byte[] pageKey, final MapContext fromContext, final F fromFiler, final MapTransaction<F, R> chunkTransaction) throws IOException {
+
+        long filerSize = mapStore.computeFilerSize(fromContext.maxCount, keySize, variableKeySizes, payloadSize, variablePayloadSizes);
+        return concurrentFilerProviders[getPageIndex(pageKey)].getOrAllocate(filerSize, openFiler, createFiler, new MapTransaction<F, R>() {
+            @Override
+            public R commit(MapContext newContext, F newFiler) throws IOException {
+                mapStore.copyTo(fromFiler, fromContext, newFiler, newContext, null);
+                return chunkTransaction.commit(newContext, newFiler);
+            }
+        });
     }
 
     @Override
-    public void stream(final MapStore mapStore, final MapTransaction<F, Boolean> chunkTransaction) throws IOException {
+    public boolean stream(final MapTransaction<F, Boolean> chunkTransaction) throws IOException {
         for (ConcurrentFilerProvider<F> concurrentFilerProvider : concurrentFilerProviders) {
             if (!concurrentFilerProvider.getOrAllocate(-1, openFiler, createFiler, chunkTransaction)) {
-                break;
+                return false;
             }
         }
-        chunkTransaction.commit(null, null);
+        return true;
     }
 
     @Override
-    public <F2 extends ConcurrentFiler> void copyTo(final MapStore mapStore, MapChunkProvider<F2> toProvider) throws IOException {
+    public <F2 extends Filer> void copyTo(MapChunkProvider<F2> toProvider) throws IOException {
         throw new UnsupportedOperationException("Out of scope");
     }
 
