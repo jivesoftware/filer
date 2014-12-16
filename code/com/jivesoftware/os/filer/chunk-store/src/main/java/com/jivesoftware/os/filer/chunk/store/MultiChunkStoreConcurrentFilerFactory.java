@@ -95,8 +95,6 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                             @Override
                             public MapContext create(ChunkFiler mapStoresFiler) throws IOException {
                                 MapContext chunk = MapStore.INSTANCE.create(2, _keySize, true, 8, false, mapStoresFiler);
-                                System.out.println("Wrote " + chunkStore + " keyLength=" + _keySize + " at=" + skyHookFiler.getFilePointer() +
-                                    " value=" + mapStoresFiler.getChunkFP());
                                 FilerIO.writeLong(skyHookFiler, mapStoresFiler.getChunkFP(), "");
                                 return chunk;
                             }
@@ -152,8 +150,6 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                                             @Override
                                             public Long commit(Void monkey, ChunkFiler skyHookFiler) throws IOException {
                                                 skyHookFiler.seek(8 + (8 * chunkPower));
-                                                System.out.println("Rewrite " + chunkStore + " keyLength=" + keyLength +
-                                                    " at=" + skyHookFiler.getFilePointer() + " value=" + chunkFP);
                                                 long oldFP = FilerIO.readLong(skyHookFiler, "");
                                                 skyHookFiler.seek(8 + (8 * chunkPower));
                                                 FilerIO.writeLong(skyHookFiler, chunkFP, "");
@@ -194,8 +190,6 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                 public Long commit(Void monkey, ChunkFiler chunkFiler) throws IOException {
                     chunkFiler.seek(8 + (FilerIO.chunkPower(keyLength, 0) * 8));
                     long mapIndexFP = FilerIO.readLong(chunkFiler, "mapIndexFP");
-                    System.out.println("Checked " + chunkStore + " keyLength=" + keyLength + " at=" + (chunkFiler.getFilePointer() - 8) +
-                        " value=" + mapIndexFP);
                     return mapIndexFP;
                 }
             });

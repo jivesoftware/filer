@@ -10,6 +10,8 @@ package com.jivesoftware.os.filer.io;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -24,12 +26,17 @@ public class ResizableByteBuffer {
     private final boolean autoResize;
     private final Semaphore semaphore;
     private final int semaphorePermits;
-    private final ThreadLocal<AtomicInteger> reentrant = new ThreadLocal<AtomicInteger>() {
+    private final ThreadLocal<BufferStack> reentrant = new ThreadLocal<BufferStack>() {
         @Override
-        protected AtomicInteger initialValue() {
-            return new AtomicInteger(0);
+        protected BufferStack initialValue() {
+            return new BufferStack();
         }
     };
+
+    private static class BufferStack {
+        private final AtomicInteger semaphores = new AtomicInteger(0);
+        private final List<SharedByteBufferBackedFiler> filers = new ArrayList<>();
+    }
 
     public ResizableByteBuffer(long initialSize,
         ByteBufferProvider byteBufferProvider,
@@ -58,8 +65,8 @@ public class ResizableByteBuffer {
 
     public <R> R execute(long size, boolean greedy, FilerTransaction<Filer, R> filerTransaction) throws IOException {
         final int semaphoresToAcquire = greedy ? semaphorePermits : 1;
-        AtomicInteger threadLocalCount = reentrant.get();
-        int currentSemaphores = threadLocalCount.getAndSet(semaphoresToAcquire);
+        BufferStack threadLocalBufferStack = reentrant.get();
+        int currentSemaphores = threadLocalBufferStack.semaphores.getAndSet(semaphoresToAcquire);
         semaphore.release(currentSemaphores);
         try {
             acquire(semaphoresToAcquire, "Execute");
@@ -100,11 +107,18 @@ public class ResizableByteBuffer {
 
                     // acquired a semaphore, need to get the latest buffer
                     buffer = sharedByteBuffer.get();
+                    for (SharedByteBufferBackedFiler filer : threadLocalBufferStack.filers) {
+                        filer.sync(buffer.duplicate());
+                    }
                 }
 
                 // commit() can potentially cause the sharedByteBuffer to change, so if we ever need to operate on the buffer
                 // after the following commit() we would need to call sharedByteBuffer.get() again.
-                return filerTransaction.commit(new ByteBufferBackedFiler(null, buffer.duplicate()));
+                SharedByteBufferBackedFiler filer = new SharedByteBufferBackedFiler(null, buffer.duplicate());
+                threadLocalBufferStack.filers.add(filer);
+                R result = filerTransaction.commit(filer);
+                threadLocalBufferStack.filers.remove(filer);
+                return result;
             } finally {
                 if (semaphores > 0) {
                     release(semaphores);
@@ -113,9 +127,9 @@ public class ResizableByteBuffer {
         } finally {
             try {
                 acquire(currentSemaphores, "Reacquire");
-                threadLocalCount.set(currentSemaphores);
+                threadLocalBufferStack.semaphores.set(currentSemaphores);
             } catch (IOException e) {
-                threadLocalCount.set(0);
+                threadLocalBufferStack.semaphores.set(0);
                 throw e;
             }
         }
