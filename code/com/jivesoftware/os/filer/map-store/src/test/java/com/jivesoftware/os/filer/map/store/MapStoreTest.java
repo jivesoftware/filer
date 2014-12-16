@@ -85,7 +85,6 @@ public class MapStoreTest {
                         }
                     }
                     long elapse = System.currentTimeMillis() - t;
-                    System.out.println("ByteSet add(" + _iterations + ") took " + elapse + " " + mapStore.getCount(filer));
 
                     random = new Random(seed);
                     t = System.currentTimeMillis();
@@ -97,7 +96,7 @@ public class MapStoreTest {
                     System.out.println("JavaHashSet add(" + _iterations + ") took " + elapse);
 
                     random = new Random(seed);
-                    for (int i = 0; i < mapStore.getCount(filer); i++) {
+                    for (int i = 0; i < set.count; i++) {
                         byte[] got = mapStore.getPayload(filer, set, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
                         assert got != null : "shouldn't be null";
                         //int v = UIO.bytesInt(got);
@@ -115,7 +114,7 @@ public class MapStoreTest {
                         }
                     }
                     elapse = System.currentTimeMillis() - t;
-                    System.out.println("ByteSet remove(" + _iterations + ") took " + elapse + " " + mapStore.getCount(filer));
+                    System.out.println("ByteSet remove(" + _iterations + ") took " + elapse + " " + set.count);
 
                     random = new Random(seed);
                     t = System.currentTimeMillis();
@@ -140,7 +139,7 @@ public class MapStoreTest {
                         }
                     }
                     elapse = System.currentTimeMillis() - t;
-                    System.out.println("ByteSet add and remove (" + _maxSize + ") took " + elapse + " " + mapStore.getCount(filer));
+                    System.out.println("ByteSet add and remove (" + _maxSize + ") took " + elapse + " " + set.count);
 
                     random = new Random(seed);
                     t = System.currentTimeMillis();
@@ -160,7 +159,7 @@ public class MapStoreTest {
                         mapStore.contains(filer, set, TestUtils.randomLowerCaseAlphaBytes(random, keySize));
                     }
                     elapse = System.currentTimeMillis() - t;
-                    System.out.println("ByteSet contains (" + _maxSize + ") took " + elapse + " " + mapStore.getCount(filer));
+                    System.out.println("ByteSet contains (" + _maxSize + ") took " + elapse + " " + set.count);
 
                     random = new Random(seed);
                     t = System.currentTimeMillis();
@@ -179,7 +178,7 @@ public class MapStoreTest {
                             //assert got == i;
                         }
                     }
-                    System.out.println("count " + mapStore.getCount(filer));
+                    System.out.println("count " + set.count);
 
                     return true;
                 }

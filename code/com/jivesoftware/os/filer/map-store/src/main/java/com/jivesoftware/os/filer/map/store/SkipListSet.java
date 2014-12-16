@@ -76,7 +76,7 @@ public class SkipListSet {
     }
 
     public long slgetCount(Filer filer, SkipListSetPage page) throws IOException {
-        return mapStore.getCount(filer) - 1; // -1 because of head
+        return page.chunk.count - 1; // -1 because of head
     }
 
     public void sladd(Filer filer, SkipListSetPage page, byte[] _key, byte[] _payload) throws IOException {

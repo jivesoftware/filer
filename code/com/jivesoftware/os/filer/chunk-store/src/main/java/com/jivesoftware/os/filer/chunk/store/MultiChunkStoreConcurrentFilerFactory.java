@@ -428,7 +428,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
 
     @Override
     public ResizingChunkFilerProvider getTemporaryFilerProvider(final byte[] keyBytes) {
-        int i = getChunkIndexForKey(keyBytes);
+         int i = getChunkIndexForKey(keyBytes);
         final ChunkStore chunkStore = chunkStores[i];
         final Object lock = locksProvider.lock(keyBytes);
 

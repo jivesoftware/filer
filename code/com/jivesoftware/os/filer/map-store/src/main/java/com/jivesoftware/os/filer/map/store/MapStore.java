@@ -70,6 +70,14 @@ public class MapStore {
     }
 
     public int computeFilerSize(int maxCount,
+        MapContext mapContext) throws IOException {
+        return computeFilerSize(maxCount, mapContext.keySize,
+            mapContext.keyLengthSize > 0,
+            mapContext.payloadSize,
+            mapContext.payloadLengthSize > 0);
+    }
+
+    public int computeFilerSize(int maxCount,
         int keySize,
         boolean variableKeySizes,
         int payloadSize,
@@ -86,13 +94,27 @@ public class MapStore {
         byte keyLengthSize = getKeyLengthSize(filer);
         int payloadSize = getPayloadSize(filer);
         byte payloadLengthSize = getPayloadLengthSize(filer);
+        long count = getCount(filer);
         return new MapContext(keySize,
             keyLengthSize,
             payloadSize,
             payloadLengthSize,
             getCapacity(filer),
             getMaxCount(filer),
-            keyLengthSize + keySize + payloadLengthSize + payloadSize);
+            keyLengthSize + keySize + payloadLengthSize + payloadSize,
+            count);
+    }
+
+    public MapContext create(
+        int maxCount,
+        MapContext mapContext,
+        Filer filer) throws IOException {
+        return create(maxCount,
+            mapContext.keySize,
+            mapContext.keyLengthSize > 0,
+            mapContext.payloadSize,
+            mapContext.payloadLengthSize > 0,
+            filer);
     }
 
     public MapContext create(
@@ -113,7 +135,7 @@ public class MapStore {
         setMapVersion(filer, cMapVersion);
         setId(filer, id);
         setVersion(filer, 0);
-        setCount(filer, 0);
+
         setMaxCount(filer, maxCount);
         setCapacity(filer, maxCapacity); // good to use prime
 
@@ -122,13 +144,16 @@ public class MapStore {
         setPayloadSize(filer, payloadSize);
         setPayloadLengthSize(filer, payloadLengthSize);
 
-        return new MapContext(keySize,
+        MapContext context = new MapContext(keySize,
             keyLengthSize,
             payloadSize,
             payloadLengthSize,
             maxCapacity,
             maxCount,
-            keyLengthSize + keySize + payloadLengthSize + payloadSize);
+            keyLengthSize + keySize + payloadLengthSize + payloadSize,
+            0);
+        setCount(context, filer, 0);
+        return context;
     }
 
     private byte keyLengthSize(int size) {
@@ -189,24 +214,34 @@ public class MapStore {
         return _bytes;
     }
 
-    public long getCount(Filer filer) throws IOException {
+    long getCount(Filer filer) throws IOException {
         return readInt(filer, cCountOffset);
     }
 
     public boolean isFull(Filer filer, MapContext context) throws IOException {
-        return getCount(filer) >= context.maxCount;
+        return context.count >= context.maxCount;
+    }
+
+    public boolean isFullWithNMore(Filer filer, MapContext context, int nMore) throws IOException {
+        return context.count + nMore >= context.maxCount;
     }
 
     public int nextGrowSize(MapContext context) throws IOException {
         return context.maxCount * 2;
     }
 
-    public long getFreeCount(Filer filer) throws IOException {
-        return getMaxCount(filer) - getCount(filer);
+    public int nextGrowSize(MapContext context, int withRoomForNMore) throws IOException {
+        int totalRoom = context.maxCount + withRoomForNMore;
+        int size = context.maxCount * 2;
+        while (size < totalRoom) {
+            size *= 2;
+        }
+        return size;
     }
 
-    private void setCount(Filer filer, long v) throws IOException {
-        writeInt(filer, cCountOffset, (int) v);
+    private void setCount(MapContext context, Filer filer, long count) throws IOException {
+        context.count = count;
+        writeInt(filer, cCountOffset, (int) count);
     }
 
     public int getMaxCount(Filer filer) throws IOException {
@@ -276,8 +311,8 @@ public class MapStore {
     public int add(Filer filer, MapContext context, byte mode, long keyHash, byte[] key, int keyOffset, byte[] payload, int _payloadOffset)
         throws IOException {
         int capacity = context.capacity;
-        if (getCount(filer) >= context.maxCount) {
-            throw new OverCapacityException(getCount(filer) + " > " + context.maxCount);
+        if (context.count >= context.maxCount) {
+            throw new OverCapacityException(context.count + " > " + context.maxCount);
         }
         int keySize = context.keySize;
         int payloadSize = context.payloadSize;
@@ -290,7 +325,7 @@ public class MapStore {
                 write(filer, (int) ai, mode);
                 write(filer, (int) (ai + 1), context.keyLengthSize, key, keySize, keyOffset);
                 write(filer, (int) (ai + 1 + context.keyLengthSize + keySize), context.payloadLengthSize, payload, payloadSize, _payloadOffset);
-                setCount(filer, getCount(filer) + 1);
+                setCount(context, filer, context.count + 1);
                 return (int) i;
             }
             if (equals(filer, ai, context.keyLengthSize, key.length, key, keyOffset)) {
@@ -496,7 +531,7 @@ public class MapStore {
                 } else {
                     write(filer, (int) index(i, entrySize), cSkip);
                 }
-                setCount(filer, getCount(filer) - 1);
+                setCount(context, filer, context.count - 1);
                 return (int) i;
             }
         }
@@ -506,7 +541,7 @@ public class MapStore {
     public <E extends Exception> void get(Filer filer, MapContext context, IndexStream<E> _callback) {
         try {
             int capacity = context.capacity;
-            long count = getCount(filer);
+            long count = context.count;
             for (int i = 0; i < capacity; i++) {
                 long ai = index(i, context.entrySize);
                 if (read(filer, (int) ai) == cNull) {
@@ -528,15 +563,15 @@ public class MapStore {
         }
     }
 
-    public void copyTo(Filer fromFiler, MapContext fromChunk, Filer toFiler, MapContext toChunk, CopyToStream stream) throws IOException {
-        int fcapacity = fromChunk.capacity;
-        int fkeySize = fromChunk.keySize;
-        int fpayloadSize = fromChunk.payloadSize;
-        long fcount = getCount(fromFiler);
+    public void copyTo(Filer fromFiler, MapContext fromContext, Filer toFiler, MapContext toContext, CopyToStream stream) throws IOException {
+        int fcapacity = fromContext.capacity;
+        int fkeySize = fromContext.keySize;
+        int fpayloadSize = fromContext.payloadSize;
+        long fcount = fromContext.count;
 
-        int tkeySize = toChunk.keySize;
-        int tpayloadSize = toChunk.payloadSize;
-        long tcount = getCount(toFiler);
+        int tkeySize = toContext.keySize;
+        int tpayloadSize = toContext.payloadSize;
+        long tcount = toContext.count;
         int tmaxCount = getMaxCount(toFiler);
 
         if (fkeySize != tkeySize) {
@@ -550,7 +585,7 @@ public class MapStore {
         }
 
         for (int fromIndex = 0; fromIndex < fcapacity; fromIndex++) {
-            long ai = index(fromIndex, fromChunk.entrySize);
+            long ai = index(fromIndex, fromContext.entrySize);
             byte mode = read(fromFiler, (int) ai);
             if (mode == cNull) {
                 continue;
@@ -559,7 +594,7 @@ public class MapStore {
                 continue;
             }
             fcount--;
-            int toIndex = add(toFiler, toChunk, mode, getKey(fromFiler, fromChunk, fromIndex), getPayload(fromFiler, fromChunk, fromIndex));
+            int toIndex = add(toFiler, toContext, mode, getKey(fromFiler, fromContext, fromIndex), getPayload(fromFiler, fromContext, fromIndex));
 
             if (stream != null) {
                 stream.copied(fromIndex, toIndex);
@@ -637,10 +672,12 @@ public class MapStore {
     }
 
     public interface EntryStream {
+
         boolean stream(Entry entry) throws IOException;
     }
 
     public interface KeyStream {
+
         boolean stream(byte[] key) throws IOException;
     }
 
