@@ -22,35 +22,38 @@ import java.util.List;
  *
  * @author jonathan.colt
  */
-public class TransactionStore {
+public class TransactionStore<B> {
 
-    public TransactionStore() {
+    private final B backingStorage;
+
+    public TransactionStore(B backingStorage) {
+        this.backingStorage = backingStorage;
     }
 
-    public <R> R commit(List keys,
+    public <R, S> R commit(List keys,
         List<LevelProvider> levelProviders,
-        StoreTransaction<R, ? extends Object> transaction) throws IOException {
-        return exec(0, null, keys, levelProviders, transaction);
+        StoreTransaction<R, S, ? extends Object> transaction) throws IOException {
+
+        return exec(0, backingStorage, null, keys, levelProviders, transaction);
     }
 
-    public <R, C> R exec(final int level,
+    public <R, S, C> R exec(final int level,
+        final Object backingStorage,
         final Object parent,
         final List keys,
         final List<LevelProvider> levelProviders,
-        final StoreTransaction<R, C> transaction) throws IOException {
+        final StoreTransaction<R, S, C> transaction) throws IOException {
 
         final Object key = keys.get(level);
         final LevelProvider levelProvider = levelProviders.get(level);
-        R r = (R) levelProvider.acquire(parent, key, new StoreTransaction<R, C>() {
+        R r = (R) levelProvider.enter(backingStorage, parent, key, new StoreTransaction<R, S, C>() {
 
             @Override
-            public R commit(C store) throws IOException {
+            public R commit(S storage, C child) throws IOException {
                 if (level + 1 == keys.size()) {
-                    return transaction.commit(store);
+                    return transaction.commit(storage, child);
                 } else {
-                    R r = exec(level + 1, store, keys, levelProviders, transaction); // recursion
-                    levelProvider.release(parent, key, store);
-                    return r;
+                   return exec(level + 1, storage, child, keys, levelProviders, transaction); // recursion
                 }
             }
         });

@@ -31,6 +31,10 @@ public class ChunkFiler implements Filer {
         this.endOfFP = endOfFP;
     }
 
+    public ChunkStore getChunkStore() {
+        return chunkStore;
+    }
+
     public long getChunkFP() {
         return chunkFP;
     }

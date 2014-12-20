@@ -15,16 +15,25 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import java.io.IOException;
+import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 
 /**
  *
  * @author jonathan.colt
  */
-public interface KeyedFP<K> {
+public class MonkeyAndFiler<M> {
 
-    long getFP(K keySize) throws IOException;
+    public final M monkey;
+    public final ChunkFiler filer;
 
-    void update(K keySize, long fp) throws IOException;
+    MonkeyAndFiler(M monkey, ChunkFiler filer) {
+        this.monkey = monkey;
+        this.filer = filer;
+    }
+
+    @Override
+    public String toString() {
+        return "MonkeyAndFiler{" + "monkey=" + monkey + ", filer=" + filer + '}';
+    }
 
 }

@@ -16,32 +16,29 @@
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
+import com.jivesoftware.os.filer.io.PartitionFunction;
 import java.io.IOException;
 
 /**
  *
  * @author jonathan.colt
  */
-public class KeySizeToFPLevel implements LevelProvider<KeyedFP<Integer>, Integer, MapContextFiler> {
+public class ChunkPartitionerLevel<K> implements LevelProvider<ChunkStore[], Void, ChunkStore, K, Void> {
 
-    private final ChunkStore chunkStore;
-    private final boolean variableSizedKeys;
+    private final PartitionFunction<K> partitionFunction;
 
-    public KeySizeToFPLevel(ChunkStore chunkStore, boolean variableSizedKeys) {
-        this.chunkStore = chunkStore;
-        this.variableSizedKeys = variableSizedKeys;
+    public ChunkPartitionerLevel(PartitionFunction<K> partitionFunction) {
+        this.partitionFunction = partitionFunction;
     }
 
     @Override
-    public <R> R acquire(final KeyedFP<Integer> parentStore,
-        final Integer key,
-        final StoreTransaction<R, MapContextFiler> storeTransaction) throws IOException {
-        return MapTransactionUtil.INSTANCE.write(chunkStore, key, variableSizedKeys, 8, false, 1, parentStore, key, storeTransaction);
+    public <R> R enter(ChunkStore[] backingStorage,
+        Void parentLevel,
+        K levelKey,
+        StoreTransaction<R, ChunkStore, Void> storeTransaction) throws IOException {
 
-    }
-
-    @Override
-    public void release(KeyedFP<Integer> parentStore, Integer keySize, MapContextFiler store) throws IOException {
+        int i = partitionFunction.partition(backingStorage.length, levelKey);
+        return storeTransaction.commit(backingStorage[i], null);
     }
 
 }

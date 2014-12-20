@@ -15,19 +15,33 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import java.io.IOException;
+import java.util.concurrent.Semaphore;
 
 /**
  *
  * @author jonathan.colt
- * @param <B> Backing storage
- * @param <P> Parent context
- * @param <S> Context storage
- * @param <L> Level Key
- * @param <C> Child Context
  */
-public interface LevelProvider<B, P, S, L, C> {
+public class IntIndexSemaphore implements SemaphoreProvider<Integer> {
 
-    <R> R enter(B backingStorage, P parentLevel, L levelKey, StoreTransaction<R, S, C> storeTransaction) throws IOException;
+    private final Semaphore[] semaphores;
+    private final int numPermits;
+
+    public IntIndexSemaphore(int numSemaphores, int numPermits) {
+        this.numPermits = numPermits;
+        this.semaphores = new Semaphore[numSemaphores];
+        for (int i = 0; i < numSemaphores; i++) {
+            semaphores[i] = new Semaphore(numPermits, true);
+        }
+    }
+
+    @Override
+    public Semaphore semaphore(Integer index) {
+        return semaphores[index];
+    }
+
+    @Override
+    public int getNumPermits() {
+        return numPermits;
+    }
 
 }

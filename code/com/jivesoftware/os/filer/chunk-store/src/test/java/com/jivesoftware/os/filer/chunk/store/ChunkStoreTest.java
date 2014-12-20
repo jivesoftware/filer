@@ -44,7 +44,7 @@ public class ChunkStoreTest {
         final int numLoops = 100;
         final int numIterations = 100_000;
         final long filerSize = 200_000_000;
-        final int chunkLength = 1_000;
+        final long chunkLength = 1_000;
 
         for (int loop = 0; loop < numLoops; loop++) {
             chunkFile.createNewFile();
@@ -87,7 +87,7 @@ public class ChunkStoreTest {
         String chunkPath = Files.createTempDirectory("testNewChunkStore").toFile().getAbsolutePath();
         ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", size, false, 8);
 
-        long chunk10 = chunkStore.newChunk(10, createFiler);
+        long chunk10 = chunkStore.newChunk(10L, createFiler);
         System.out.println("chunkId:" + chunk10);
         writeIntToChunk(chunkStore, chunk10, 10);
         assertIntInChunk(chunkStore, chunk10, 10);
@@ -122,7 +122,7 @@ public class ChunkStoreTest {
         String chunkPath = Files.createTempDirectory("testExistingChunkStore").toFile().getAbsolutePath();
         ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", size, false, 8);
 
-        long chunk10 = chunkStore.newChunk(10, createFiler);
+        long chunk10 = chunkStore.newChunk(10L, createFiler);
         writeIntToChunk(chunkStore, chunk10, 10);
 
         long expectedReferenceNumber = chunkStore.getReferenceNumber();
@@ -139,7 +139,7 @@ public class ChunkStoreTest {
         String chunkPath = Files.createTempDirectory("testResizingChunkStore").toFile().getAbsolutePath();
         ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", size, true, 8);
 
-        long chunk10 = chunkStore.newChunk(size * 4, createFiler);
+        long chunk10 = chunkStore.newChunk(size * 4L, createFiler);
         chunkStore.execute(chunk10, openFiler, new ChunkTransaction<Void, Void>() {
             @Override
             public Void commit(Void monkey, ChunkFiler filer) throws IOException {
@@ -171,7 +171,7 @@ public class ChunkStoreTest {
 
         List<Long> fps1 = new ArrayList<>();
         for (int i = 0; i < 2; i++) {
-            fps1.add(chunkStore.newChunk(1024, createFiler));
+            fps1.add(chunkStore.newChunk(1024L, createFiler));
         }
 
         for (long fp : fps1) {
@@ -180,7 +180,7 @@ public class ChunkStoreTest {
 
         List<Long> fps2 = new ArrayList<>();
         for (int i = 0; i < 2; i++) {
-            fps2.add(chunkStore.newChunk(1024, createFiler));
+            fps2.add(chunkStore.newChunk(1024L, createFiler));
         }
 
         System.out.println(fps1);

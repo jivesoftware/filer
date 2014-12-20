@@ -15,19 +15,20 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
+import com.jivesoftware.os.filer.io.Filer;
 import java.io.IOException;
 
 /**
  *
  * @author jonathan.colt
- * @param <B> Backing storage
- * @param <P> Parent context
- * @param <S> Context storage
- * @param <L> Level Key
- * @param <C> Child Context
+ * @param <H>
+ * @param <M>
+ * @param <F>
  */
-public interface LevelProvider<B, P, S, L, C> {
+public interface GrowFiler<H, M, F extends Filer> {
 
-    <R> R enter(B backingStorage, P parentLevel, L levelKey, StoreTransaction<R, S, C> storeTransaction) throws IOException;
+    H grow(M monkey, F filer) throws IOException;
+
+    void grow(M currentMonkey, F currentFiler, M newMonkey, F newFiler) throws IOException;
 
 }

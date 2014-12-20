@@ -15,49 +15,44 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkStore;
+import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
+import com.jivesoftware.os.filer.io.CreateFiler;
+import com.jivesoftware.os.filer.map.store.MapContext;
+import com.jivesoftware.os.filer.map.store.MapStore;
 import java.io.IOException;
 
 /**
  *
  * @author jonathan.colt
  */
-public class KeyedPayloadsWriteLevel implements LevelProvider<KeyedFP<byte[]>, byte[], MapContextFiler> {
+public class MapCreator implements CreateFiler<Integer, MapContext, ChunkFiler> {
 
-    private final ChunkStore chunkStore;
+    private final int initialCapacity;
     private final int keySize;
     private final boolean variableKeySize;
     private final int payloadSize;
     private final boolean variablePayloadSize;
-    private final int alwaysRoomForNMoreKeys;
 
-    public KeyedPayloadsWriteLevel(ChunkStore chunkStore,
-        int keySize, boolean variableKeySize,
-        int payloadSize,
-        boolean variablePayloadSize,
-        int alwaysRoomForNMoreKeys) {
-        this.chunkStore = chunkStore;
+    public MapCreator(int initialCapacity, int keySize, boolean variableKeySize, int payloadSize, boolean variablePayloadSize) {
+        this.initialCapacity = initialCapacity < 2 ? 2 : initialCapacity;
         this.keySize = keySize;
         this.variableKeySize = variableKeySize;
         this.payloadSize = payloadSize;
         this.variablePayloadSize = variablePayloadSize;
-        this.alwaysRoomForNMoreKeys = alwaysRoomForNMoreKeys;
     }
 
     @Override
-    public <R> R acquire(KeyedFP<byte[]> parentStore,
-        byte[] key,
-        StoreTransaction<R, MapContextFiler> storeTransaction) throws IOException {
-
-        return MapTransactionUtil.INSTANCE.write(chunkStore,
-            keySize, variableKeySize,
-            payloadSize, variablePayloadSize,
-            alwaysRoomForNMoreKeys, parentStore, key, storeTransaction);
-
+    public MapContext create(Integer hint, ChunkFiler filer) throws IOException {
+        hint += initialCapacity;
+        hint = hint < 2 ? 2 : hint;
+        return MapStore.INSTANCE.create(hint, keySize, variableKeySize, payloadSize, variablePayloadSize, filer);
     }
 
     @Override
-    public void release(KeyedFP<byte[]> parentStore, byte[] keySize, MapContextFiler store) throws IOException {
+    public long sizeInBytes(Integer hint) throws IOException {
+        hint += initialCapacity;
+        hint = hint < 2 ? 2 : hint;
+        return MapStore.INSTANCE.computeFilerSize(hint, keySize, variableKeySize, payloadSize, variablePayloadSize);
     }
 
 }

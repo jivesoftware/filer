@@ -15,19 +15,25 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
+import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
+import com.jivesoftware.os.filer.chunk.store.ChunkStore;
+import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
+import com.jivesoftware.os.filer.io.CreateFiler;
+import com.jivesoftware.os.filer.io.OpenFiler;
 import java.io.IOException;
 
 /**
  *
  * @author jonathan.colt
- * @param <B> Backing storage
- * @param <P> Parent context
- * @param <S> Context storage
- * @param <L> Level Key
- * @param <C> Child Context
+ * @param <K>
  */
-public interface LevelProvider<B, P, S, L, C> {
+public interface KeyedFPIndex<K> {
 
-    <R> R enter(B backingStorage, P parentLevel, L levelKey, StoreTransaction<R, S, C> storeTransaction) throws IOException;
+    <H, M, R> R commit(ChunkStore chunkStore, K keySize,
+        H hint,
+        CreateFiler<H, M, ChunkFiler> creator, // nullable
+        OpenFiler<M, ChunkFiler> opener,
+        GrowFiler<H, M, ChunkFiler> growFiler, // nullable
+        ChunkTransaction<M, R> filerTransaction) throws IOException;
 
 }

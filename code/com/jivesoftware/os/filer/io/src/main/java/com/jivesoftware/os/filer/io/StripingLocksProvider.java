@@ -5,7 +5,7 @@ package com.jivesoftware.os.filer.io;
  * @author jonathan.colt
  * @param <K>
  */
-public class StripingLocksProvider<K> {
+public class StripingLocksProvider<K> implements LocksProvider<K> {
 
     private final StripingLock[] locks;
 
@@ -16,6 +16,7 @@ public class StripingLocksProvider<K> {
         }
     }
 
+    @Override
     public Object lock(K toLock) {
         return locks[Math.abs(toLock.hashCode() % locks.length)];
     }

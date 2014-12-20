@@ -23,7 +23,7 @@ public interface MagicMonkeyFactory<F extends Filer, P, M, Z> {
     <R> R getOrAllocate(final byte[] key,
         long size,
         OpenFiler<M, F> openFiler,
-        CreateFiler<M, F> createFiler,
+        CreateFiler<Long, M, F> createFiler,
         MonkeyFilerTransaction<M, F, R> filerTransaction)
         throws IOException;
 
@@ -40,7 +40,7 @@ public interface MagicMonkeyFactory<F extends Filer, P, M, Z> {
     <R> R grow(final byte[] key,
         final long newSize,
         final OpenFiler<M, F> openFiler,
-        final CreateFiler<M, F> createFiler,
+        final CreateFiler<Long, M, F> createFiler,
         final RewriteMonkeyFilerTransaction<M, F, R> filerTransaction) throws IOException;
 
     /**

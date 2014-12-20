@@ -188,7 +188,7 @@ public class SkipListSet_Test {
         return n + 1;
     }
 
-    private static boolean test(final int _iterations, final int _keySize, final int _maxSize, ConcurrentFilerProvider<ByteBufferBackedFiler> provider)
+    private static Boolean test(final int _iterations, final int _keySize, final int _maxSize, ConcurrentFilerProvider<ByteBufferBackedFiler> provider)
         throws IOException {
         final int payloadSize = 4;
         final MapStore pset = MapStore.INSTANCE;

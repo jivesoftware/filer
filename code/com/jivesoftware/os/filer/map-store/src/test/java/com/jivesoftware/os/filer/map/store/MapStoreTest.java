@@ -4,20 +4,55 @@ import com.google.common.base.Charsets;
 import com.jivesoftware.os.filer.io.ByteBufferBackedConcurrentFilerFactory;
 import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.ConcurrentFilerProvider;
+import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.MonkeyFilerTransaction;
 import com.jivesoftware.os.filer.io.NoOpCreateFiler;
 import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Random;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
  * @author jonathan
  */
 public class MapStoreTest {
+
+    @Test
+    public void copy() throws IOException {
+        int filerSize = MapStore.INSTANCE.computeFilerSize(2, 1, false, 1, false);
+        Filer filer = new ByteBufferBackedFiler(this, ByteBuffer.allocate(filerSize));
+        MapContext context = MapStore.INSTANCE.create(2, 1, false, 1, false, filer);
+
+        for (int i = 0; i < 128; i++) {
+            if (MapStore.INSTANCE.isFull(filer, context)) {
+                int nextSize = MapStore.INSTANCE.nextGrowSize(context);
+                System.out.println("nextSize:" + nextSize);
+                filerSize = MapStore.INSTANCE.computeFilerSize(nextSize, 1, false, 1, false);
+                Filer newFiler = new ByteBufferBackedFiler(this, ByteBuffer.allocate(filerSize));
+                MapContext newContext = MapStore.INSTANCE.create(nextSize, 1, false, 1, false, newFiler);
+
+                MapStore.INSTANCE.copyTo(filer, context, newFiler, newContext, null);
+                filer = newFiler;
+                context = newContext;
+
+                for (int j = 0; j < i; j++) {
+                    byte[] key = new byte[]{(byte) j};
+                    byte[] got = MapStore.INSTANCE.getPayload(newFiler, newContext, key);
+                    System.out.println("Expected:" + Arrays.toString(key) + " Got:" + Arrays.toString(got));
+                    Assert.assertEquals(got, new byte[]{(byte) j});
+                }
+
+            }
+            MapStore.INSTANCE.add(filer, context, (byte) 1, new byte[]{(byte) i}, new byte[]{(byte) i});
+
+        }
+    }
 
     @Test(enabled = false)
     public void basicTest() throws IOException {
@@ -56,7 +91,7 @@ public class MapStoreTest {
         }
     }
 
-    private static boolean test(final int _iterations,
+    private static Boolean test(final int _iterations,
         final int keySize,
         final int _maxSize,
         ConcurrentFilerProvider<ByteBufferBackedFiler> provider)

@@ -15,30 +15,23 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkStore;
+import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
+import com.jivesoftware.os.filer.io.OpenFiler;
+import com.jivesoftware.os.filer.map.store.MapContext;
+import com.jivesoftware.os.filer.map.store.MapStore;
 import java.io.IOException;
 
 /**
  *
  * @author jonathan.colt
  */
-public class KeyedPayloadsReadLevel implements LevelProvider<KeyedFP<byte[]>, byte[], MapContextFiler> {
+public class MapOpener implements OpenFiler<MapContext, ChunkFiler> {
 
-    private final ChunkStore chunkStore;
-
-    public KeyedPayloadsReadLevel(ChunkStore chunkStore) {
-        this.chunkStore = chunkStore;
-    }
+    public static MapOpener DEFAULT = new MapOpener();
 
     @Override
-    public <R> R acquire(final KeyedFP<byte[]> parentStore,
-        final byte[] key,
-        final StoreTransaction<R, MapContextFiler> storeTransaction) throws IOException {
-        return MapTransactionUtil.INSTANCE.read(chunkStore, parentStore, key, storeTransaction);
-    }
-
-    @Override
-    public void release(KeyedFP<byte[]> parentStore, byte[] keySize, MapContextFiler store) throws IOException {
+    public MapContext open(ChunkFiler filer) throws IOException {
+        return MapStore.INSTANCE.open(filer);
     }
 
 }

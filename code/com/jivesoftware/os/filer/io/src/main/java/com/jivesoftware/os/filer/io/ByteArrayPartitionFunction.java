@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jivesoftware.os.filer.chunk.store.transaction;
+package com.jivesoftware.os.filer.io;
 
-import java.io.IOException;
+import java.util.Arrays;
 
 /**
  *
  * @author jonathan.colt
- * @param <B> Backing storage
- * @param <P> Parent context
- * @param <S> Context storage
- * @param <L> Level Key
- * @param <C> Child Context
  */
-public interface LevelProvider<B, P, S, L, C> {
+public class ByteArrayPartitionFunction implements PartitionFunction<byte[]> {
 
-    <R> R enter(B backingStorage, P parentLevel, L levelKey, StoreTransaction<R, S, C> storeTransaction) throws IOException;
+    public static final ByteArrayPartitionFunction INSTANCE = new ByteArrayPartitionFunction();
+
+    @Override
+    public int partition(int partitionCount, byte[] key) {
+        return Math.abs(Arrays.hashCode(key)) % partitionCount;
+    }
 
 }

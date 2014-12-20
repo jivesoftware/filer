@@ -15,17 +15,21 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
+import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
+import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
 import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
-import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.io.LocksProvider;
+import com.jivesoftware.os.filer.io.NoOpCreateFiler;
+import com.jivesoftware.os.filer.io.NoOpOpenFiler;
+import com.jivesoftware.os.filer.io.StripingLocksProvider;
+import com.jivesoftware.os.filer.map.store.MapContext;
 import com.jivesoftware.os.filer.map.store.MapStore;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -40,103 +44,227 @@ public class TransactionStoreNGTest {
     @Test
     public void testCommit() throws Exception {
         String chunkPath = Files.createTempDirectory("testNewChunkStore").toFile().getAbsolutePath();
-        ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", 10, true, 8);
-        TransactionStore transactionStore = new TransactionStore();
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPath, "data1", 10, true, 8);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPath, "data2", 10, true, 8);
+        ChunkStore[] chunckStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
-        List<LevelProvider> levelProviders = new ArrayList<>();
-        levelProviders.add(new PowerToFPLevel(chunkStore));
-        levelProviders.add(new KeySizeToFPLevel(chunkStore, true));
+        LocksProvider<byte[]> locksProvider = new ByteArrayStripingLocksProvider(10);
+        LocksProvider<Integer> intLocksProvider = new StripingLocksProvider<>(10);
+        final int addCount = 16;
+        for (int c = 0; c < 10; c++) {
 
-        transactionStore.commit(Arrays.asList(_skyHookFP, 8),
-            levelProviders, new StoreTransaction<Void, MapContextFiler>() {
+            TransactionBuilder rootWrite = new TransactionBuilder<KeyedFPIndex<Long>>()
+                .add(FilerIO.intBytes(c), new ChunkPartitionerLevel(ByteArrayPartitionFunction.INSTANCE))
+                .add(_skyHookFP, new ConstantFPLevel<Long>())
+                .add("skyHook".getBytes(), new KeyedFPIndexWriteLevel())
+                .add("table".length(), new KeyedMapFPIndexWriteLevel(intLocksProvider, true))
+                .add("table".getBytes(), new KeyedFPIndexWriteLevel());
 
-            @Override
-            public Void commit(MapContextFiler store) throws IOException {
-                MapStore.INSTANCE.add(store.filer, store.mapContext, (byte) 1, "booya".getBytes(), FilerIO.longBytes(1234));
-                return null;
-            }
-            });
+            TransactionBuilder rootRead = new TransactionBuilder<KeyedFPIndex<Long>>()
+                .add(FilerIO.intBytes(c), new ChunkPartitionerLevel(ByteArrayPartitionFunction.INSTANCE))
+                .add(_skyHookFP, new ConstantFPLevel<Long>())
+                .add("skyHook".getBytes(), new KeyedFPIndexReadLevel())
+                .add("table".length(), new KeyedMapFPIndexReadLevel(intLocksProvider))
+                .add("table".getBytes(), new KeyedFPIndexReadLevel());
 
-        transactionStore.commit(Arrays.asList(_skyHookFP, 8),
-            levelProviders, new StoreTransaction<Void, MapContextFiler>() {
+            TransactionBuilder mapWrite = rootWrite
+                .add("row".length(), new KeyedMapFPIndexWriteLevel(intLocksProvider, true))
+                .add("row".getBytes(), new KeyedMapWriteLevel(new MapCreator(2, 3, true, 8, false), MapOpener.DEFAULT, locksProvider, 1));
 
-                @Override
-                public Void commit(MapContextFiler store) throws IOException {
-                    long i = MapStore.INSTANCE.get(store.filer, store.mapContext, "booya".getBytes());
-                    long value = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(store.filer, store.mapContext, i));
-                    Assert.assertEquals(value, 1234L);
-                    return null;
-                }
-            });
+            TransactionBuilder mapRead = rootRead
+                .add("row".length(), new KeyedMapFPIndexReadLevel(intLocksProvider))
+                .add("row".getBytes(), new KeyedMapReadLevel(MapOpener.DEFAULT, locksProvider));
 
-        levelProviders.clear();
-        chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", 1024 * 1024 * 10, true, 8);
-        transactionStore = new TransactionStore();
-        levelProviders.add(new PowerToFPLevel(chunkStore));
-        levelProviders.add(new KeySizeToFPLevel(chunkStore, true));
+            TransactionBuilder filerOverwrite = rootWrite
+                .add((c + "overwrite").length(), new KeyedMapFPIndexWriteLevel(intLocksProvider, true))
+                .add((c + "overwrite").getBytes(),
+                    new KeyedFilerOverwriteLevel(locksProvider, 8, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>()));
 
-        transactionStore.commit(Arrays.asList(_skyHookFP, 8),
-            levelProviders, new StoreTransaction<Void, MapContextFiler>() {
+            TransactionBuilder filerReadOverwrite = rootRead
+                .add((c + "overwrite").length(), new KeyedMapFPIndexReadLevel(intLocksProvider))
+                .add((c + "overwrite").getBytes(), new KeyedFilerReadOnlyLevel(locksProvider, new NoOpOpenFiler<ChunkFiler>()));
 
-                @Override
-                public Void commit(MapContextFiler store) throws IOException {
-                    long i = MapStore.INSTANCE.get(store.filer, store.mapContext, "booya".getBytes());
-                    long value = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(store.filer, store.mapContext, i));
-                    Assert.assertEquals(value, 1234L);
-                    return null;
-                }
-            });
-    }
+            TransactionBuilder filerRewrite = rootWrite
+                .add((c + "rewrite").length(), new KeyedMapFPIndexWriteLevel(intLocksProvider, true))
+                .add((c + "rewrite").getBytes(), new KeyedFilerRewriteLevel(locksProvider, 8,
+                        new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>()));
 
-    @Test
-    public void testFilers() throws Exception {
-        String chunkPath = Files.createTempDirectory("testNewChunkStore").toFile().getAbsolutePath();
-        ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPath, "data", 10, true, 8);
-        ByteArrayStripingLocksProvider locksProvider = new ByteArrayStripingLocksProvider(32);
-        TransactionStore transactionStore = new TransactionStore();
+            TransactionBuilder filerReadRewrite = rootRead
+                .add((c + "rewrite").length(), new KeyedMapFPIndexReadLevel(intLocksProvider))
+                .add((c + "rewrite").getBytes(), new KeyedFilerReadOnlyLevel(locksProvider, new NoOpOpenFiler<ChunkFiler>()));
 
-        List<LevelProvider> levelProviders = new ArrayList<>();
-        levelProviders.add(new PowerToFPLevel(chunkStore));
-        levelProviders.add(new KeySizeToFPLevel(chunkStore, true));
-        levelProviders.add(new KeyedPayloadsWriteLevel(chunkStore, 8, true, 8, false, 1));
-        levelProviders.add(new RewriteFilerLevel(chunkStore, locksProvider, 8));
+            int accum = 0;
+            for (int i = 0; i < addCount; i++) {
+                accum = accum + i;
+                final int key = i;
+                mapWrite.commit(chunckStores, new StoreTransaction<Void, ChunkStore, MonkeyAndFiler<MapContext>>() {
 
-        for (int i = 0; i < 10; i++) {
-            transactionStore.commit(Arrays.asList(_skyHookFP, 8, "foo".getBytes(), "bar".getBytes()),
-                levelProviders, new StoreTransaction<Void, RewriteFilerLevel.RewriteFiler>() {
-
-                @Override
-                public Void commit(RewriteFilerLevel.RewriteFiler store) throws IOException {
-                    // addition for the win.
-                    long count = 0;
-                    if (store.oldFiler != null) {
-                        count = FilerIO.readLong(store.oldFiler, "count");
+                    @Override
+                    public Void commit(ChunkStore store, MonkeyAndFiler<MapContext> context) throws IOException {
+                        MapStore.INSTANCE.add(context.filer, context.monkey, (byte) 1, String.valueOf(key).getBytes(), FilerIO.longBytes(key));
+                        return null;
                     }
-                    count++;
-                    FilerIO.writeLong(store.newFiler, count, "count");
-                    return null;
-                }
-
                 });
+
+                filerOverwrite.commit(chunckStores, new StoreTransaction<Void, ChunkStore, MonkeyAndFiler<Void>>() {
+                    @Override
+                    public Void commit(ChunkStore backingStorage, MonkeyAndFiler<Void> context) throws IOException {
+                        context.filer.seek(0);
+                        FilerIO.writeLong(context.filer, key, "value");
+                        System.out.println("Overwrite:" + key + " " + context.filer.getChunkFP());
+                        return null;
+                    }
+                });
+
+                filerRewrite.commit(chunckStores, new StoreTransaction<Void, ChunkStore, KeyedFilerRewriteLevel.RewriteFiler<Void>>() {
+                    @Override
+                    public Void commit(ChunkStore backingStorage, KeyedFilerRewriteLevel.RewriteFiler<Void> context) throws IOException {
+                        long oldValue = 0;
+                        if (context.oldFiler != null) {
+                            context.oldFiler.seek(0);
+                            oldValue = FilerIO.readLong(context.oldFiler, "value");
+                            System.out.println("Old value:" + oldValue);
+                        }
+                        context.newFiler.seek(0);
+                        FilerIO.writeLong(context.newFiler, oldValue + key, "value");
+                        System.out.println("Rewrite:" + (oldValue + key) + " " + context.newFiler.getChunkFP());
+                        return null;
+                    }
+                });
+                System.out.println("Accum:" + accum);
+
+            }
+
+            final AtomicBoolean failed = new AtomicBoolean();
+            final int expectedAccum = accum;
+            for (int i = 0; i < addCount; i++) {
+                final int key = i;
+                mapRead.commit(chunckStores, new StoreTransaction<Void, ChunkStore, MonkeyAndFiler<MapContext>>() {
+
+                    @Override
+                    public Void commit(ChunkStore chunkStore, MonkeyAndFiler<MapContext> context) throws IOException {
+                        long i = MapStore.INSTANCE.get(context.filer, context.monkey, String.valueOf(key).getBytes());
+                        long value = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(context.filer, context.monkey, i));
+                        //System.out.println("expected:" + key + " got:" + value + " from " + context.filer.getChunkFP());
+                        if (value != key) {
+                            System.out.println("mapRead FAILED. " + value + " vs " + key);
+                            failed.set(true);
+                        }
+                        return null;
+                    }
+                });
+
+                filerReadOverwrite.commit(chunckStores, new StoreTransaction<Void, ChunkStore, MonkeyAndFiler<Void>>() {
+                    @Override
+                    public Void commit(ChunkStore backingStorage, MonkeyAndFiler<Void> context) throws IOException {
+                        context.filer.seek(0);
+                        long v = FilerIO.readLong(context.filer, "value");
+                        //System.out.println("OR:" + v);
+                        if (v != addCount - 1) {
+                            System.out.println("filerReadOverwrite FAILED. " + v + " vs " + (addCount - 1));
+                            failed.set(true);
+                        }
+                        return null;
+                    }
+                });
+
+                filerReadRewrite.commit(chunckStores, new StoreTransaction<Void, ChunkStore, MonkeyAndFiler<Void>>() {
+                    @Override
+                    public Void commit(ChunkStore backingStorage, MonkeyAndFiler<Void> context) throws IOException {
+                        context.filer.seek(0);
+                        long v = FilerIO.readLong(context.filer, "value");
+                        System.out.println("RR:" + v + " from " + context.filer.getChunkFP());
+                        if (v != expectedAccum) {
+                            System.out.println("filerReadRewrite FAILED. " + v + " vs " + expectedAccum);
+                            failed.set(true);
+                        }
+                        return null;
+                    }
+                });
+            }
+            Assert.assertFalse(failed.get());
+
         }
 
-        levelProviders.clear();
-        levelProviders.add(new PowerToFPLevel(chunkStore));
-        levelProviders.add(new KeySizeToFPLevel(chunkStore, true));
-        levelProviders.add(new KeyedPayloadsWriteLevel(chunkStore, 8, true, 8, false, 1));
-        levelProviders.add(new ReadOnlyFilerLevel(chunkStore, locksProvider));
-        transactionStore.commit(Arrays.asList(_skyHookFP, 8, "foo".getBytes(), "bar".getBytes()),
-            levelProviders, new StoreTransaction<Void, Filer>() {
+        chunkStore1 = new ChunkStoreInitializer().initialize(chunkPath, "data1", 10, true, 8);
+        chunkStore2 = new ChunkStoreInitializer().initialize(chunkPath, "data2", 10, true, 8);
+        chunckStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
-                @Override
-                public Void commit(Filer filer) throws IOException {
-                    // addition for the win.
-                    long count = FilerIO.readLong(filer, "count");
-                    Assert.assertEquals(count, 10);
-                    return null;
+        for (int c = 0; c < 10; c++) {
 
-                }
-            });
+            TransactionBuilder rootRead = new TransactionBuilder<KeyedFPIndex<Long>>()
+                .add(FilerIO.intBytes(c), new ChunkPartitionerLevel(ByteArrayPartitionFunction.INSTANCE))
+                .add(_skyHookFP, new ConstantFPLevel<Long>())
+                .add("skyHook".getBytes(), new KeyedFPIndexReadLevel())
+                .add("table".length(), new KeyedMapFPIndexReadLevel(intLocksProvider))
+                .add("table".getBytes(), new KeyedFPIndexReadLevel());
+
+            TransactionBuilder mapRead = rootRead
+                .add("row".length(), new KeyedMapFPIndexReadLevel(intLocksProvider))
+                .add("row".getBytes(), new KeyedMapReadLevel(MapOpener.DEFAULT, locksProvider));
+
+            TransactionBuilder filerReadOverwrite = rootRead
+                .add((c + "overwrite").length(), new KeyedMapFPIndexReadLevel(intLocksProvider))
+                .add((c + "overwrite").getBytes(), new KeyedFilerReadOnlyLevel(locksProvider, new NoOpOpenFiler<ChunkFiler>()));
+
+            TransactionBuilder filerReadRewrite = rootRead
+                .add((c + "rewrite").length(), new KeyedMapFPIndexReadLevel(intLocksProvider))
+                .add((c + "rewrite").getBytes(), new KeyedFilerReadOnlyLevel(locksProvider, new NoOpOpenFiler<ChunkFiler>()));
+
+            int accum = 0;
+            for (int i = 0; i < addCount; i++) {
+                accum += i;
+            }
+            final int expectedAccum = accum;
+            final AtomicBoolean failed = new AtomicBoolean();
+            for (int i = 0; i < addCount; i++) {
+                final int key = i;
+                mapRead.commit(chunckStores, new StoreTransaction<Void, ChunkStore, MonkeyAndFiler<MapContext>>() {
+
+                    @Override
+                    public Void commit(ChunkStore chunkStore, MonkeyAndFiler<MapContext> context) throws IOException {
+                        long i = MapStore.INSTANCE.get(context.filer, context.monkey, String.valueOf(key).getBytes());
+                        long value = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(context.filer, context.monkey, i));
+                        //System.out.println("expected:" + key + " got:" + value + " from " + context.filer.getChunkFP());
+                        if (value != key) {
+                            System.out.println("on re-open mapRead FAILED. " + value + " vs " + key);
+                            failed.set(true);
+                        }
+                        return null;
+                    }
+                });
+
+                filerReadOverwrite.commit(chunckStores, new StoreTransaction<Void, ChunkStore, MonkeyAndFiler<Void>>() {
+                    @Override
+                    public Void commit(ChunkStore backingStorage, MonkeyAndFiler<Void> context) throws IOException {
+                        context.filer.seek(0);
+                        long v = FilerIO.readLong(context.filer, "value");
+                        System.out.println("OR:" + v);
+                        if (v != addCount - 1) {
+                            System.out.println("on re-open filerReadOverwrite FAILED. " + v + " vs " + (addCount - 1));
+                            failed.set(true);
+                        }
+                        return null;
+                    }
+                });
+
+                filerReadRewrite.commit(chunckStores, new StoreTransaction<Void, ChunkStore, MonkeyAndFiler<Void>>() {
+                    @Override
+                    public Void commit(ChunkStore backingStorage, MonkeyAndFiler<Void> context) throws IOException {
+                        context.filer.seek(0);
+                        long v = FilerIO.readLong(context.filer, "value");
+                        System.out.println("RR:" + v);
+                        if (v != expectedAccum) {
+                            System.out.println("on re-open filerReadRewrite FAILED. " + v + " vs " + expectedAccum);
+                            failed.set(true);
+                        }
+                        return null;
+                    }
+                });
+            }
+            Assert.assertFalse(failed.get());
+
+        }
     }
 
 }

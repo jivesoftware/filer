@@ -563,7 +563,12 @@ public class MapStore {
         }
     }
 
-    public void copyTo(Filer fromFiler, MapContext fromContext, Filer toFiler, MapContext toContext, CopyToStream stream) throws IOException {
+    public void copyTo(Filer fromFiler,
+        MapContext fromContext,
+        Filer toFiler,
+        MapContext toContext,
+        CopyToStream stream) throws IOException {
+
         int fcapacity = fromContext.capacity;
         int fkeySize = fromContext.keySize;
         int fpayloadSize = fromContext.payloadSize;
@@ -594,7 +599,8 @@ public class MapStore {
                 continue;
             }
             fcount--;
-            int toIndex = add(toFiler, toContext, mode, getKey(fromFiler, fromContext, fromIndex), getPayload(fromFiler, fromContext, fromIndex));
+            byte[] key = getKey(fromFiler, fromContext, fromIndex);
+            int toIndex = add(toFiler, toContext, mode, key, getPayload(fromFiler, fromContext, fromIndex));
 
             if (stream != null) {
                 stream.copied(fromIndex, toIndex);

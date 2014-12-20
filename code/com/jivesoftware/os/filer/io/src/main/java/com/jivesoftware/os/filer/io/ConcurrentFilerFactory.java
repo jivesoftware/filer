@@ -20,10 +20,10 @@ public interface ConcurrentFilerFactory<F extends Filer> {
      * @return the result
      * @throws IOException
      */
-    <M, R> R getOrAllocate(final byte[] key,
+    <M, R> R getOrAllocate(byte[] key,
         long size,
         OpenFiler<M, F> openFiler,
-        CreateFiler<M, F> createFiler,
+        CreateFiler<Long, M, F> createFiler,
         MonkeyFilerTransaction<M, F, R> filerTransaction)
         throws IOException;
 
@@ -38,11 +38,11 @@ public interface ConcurrentFilerFactory<F extends Filer> {
      * @return the result
      * @throws IOException
      */
-    <M, R> R grow(final byte[] key,
-        final long newSize,
-        final OpenFiler<M, F> openFiler,
-        final CreateFiler<M, F> createFiler,
-        final RewriteMonkeyFilerTransaction<M, F, R> filerTransaction) throws IOException;
+    <M, R> R grow(byte[] key,
+        long newSize,
+        OpenFiler<M, F> openFiler,
+        CreateFiler<Long, M, F> createFiler,
+        RewriteMonkeyFilerTransaction<M, F, R> filerTransaction) throws IOException;
 
     /**
      * @param key the filer key

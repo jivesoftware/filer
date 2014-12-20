@@ -13,27 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jivesoftware.os.filer.chunk.store.transaction;
-
-import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
-import com.jivesoftware.os.filer.io.OpenFiler;
-import com.jivesoftware.os.filer.map.store.MapContext;
-import com.jivesoftware.os.filer.map.store.MapStore;
-import java.io.IOException;
+package com.jivesoftware.os.filer.io;
 
 /**
  *
  * @author jonathan.colt
  */
-public class MapChunkOpener implements OpenFiler<MapContext, ChunkFiler> {
+public interface LocksProvider<K> {
 
-    public static final MapChunkOpener INSTANCE = new MapChunkOpener();
+    Object lock(K toLock);
 
-    private MapChunkOpener() {
-    }
-
-    @Override
-    public MapContext open(ChunkFiler filer) throws IOException {
-        return MapStore.INSTANCE.open(filer);
-    }
 }

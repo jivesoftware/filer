@@ -59,10 +59,15 @@ public class ConcurrentFilerProviderBackedMapChunkProvider<F extends Filer> impl
         }
     };
 
-    private final CreateFiler<MapContext, F> createFiler = new CreateFiler<MapContext, F>() {
+    private final CreateFiler<Long, MapContext, F> createFiler = new CreateFiler<Long, MapContext, F>() {
         @Override
-        public MapContext create(F filer) throws IOException {
+        public MapContext create(Long hint, F filer) throws IOException {
             return mapStore.create(initialPageCapacity, keySize, variableKeySizes, payloadSize, variablePayloadSizes, filer);
+        }
+
+        @Override
+        public long sizeInBytes(Long hint) throws IOException {
+            return mapStore.computeFilerSize(initialPageCapacity, keySize, variableKeySizes, payloadSize, variablePayloadSizes);
         }
     };
 
@@ -86,10 +91,15 @@ public class ConcurrentFilerProviderBackedMapChunkProvider<F extends Filer> impl
         long filerSize = mapStore.computeFilerSize(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes);
         return concurrentFilerProviders[getPageIndex(pageKey)].grow(filerSize,
             openFiler,
-            new CreateFiler<MapContext, F>() {
+            new CreateFiler<Long, MapContext, F>() {
                 @Override
-                public MapContext create(F filer) throws IOException {
+                public MapContext create(Long hint, F filer) throws IOException {
                     return mapStore.create(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes, filer);
+                }
+
+                @Override
+                public long sizeInBytes(Long hint) throws IOException {
+                    return mapStore.computeFilerSize(newSize, keySize, variableKeySizes, payloadSize, variablePayloadSizes);
                 }
             },
             new RewriteMapChunkTransaction<F, R>() {

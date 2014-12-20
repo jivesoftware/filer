@@ -13,21 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jivesoftware.os.filer.chunk.store.transaction;
-
-import java.io.IOException;
+package com.jivesoftware.os.filer.io;
 
 /**
  *
  * @author jonathan.colt
- * @param <B> Backing storage
- * @param <P> Parent context
- * @param <S> Context storage
- * @param <L> Level Key
- * @param <C> Child Context
  */
-public interface LevelProvider<B, P, S, L, C> {
+public interface PartitionFunction<K> {
 
-    <R> R enter(B backingStorage, P parentLevel, L levelKey, StoreTransaction<R, S, C> storeTransaction) throws IOException;
-
+    int partition(int partitionCount, K key);
 }

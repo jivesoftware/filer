@@ -77,9 +77,9 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
 
     private void initializeIfNeeded(final ChunkStore chunkStore) throws IOException {
         if (!chunkStore.isUsed(skyHookFP)) {
-            chunkStore.newChunk(8 + (8 * maxKeySizePower), new CreateFiler<Void, ChunkFiler>() {
+            chunkStore.newChunk(null, new CreateFiler<Void, Void, ChunkFiler>() {
                 @Override
-                public Void create(final ChunkFiler skyHookFiler) throws IOException {
+                public Void create(Void hint, final ChunkFiler skyHookFiler) throws IOException {
                     long newSkyHookFP = skyHookFiler.getChunkFP();
 
                     if (newSkyHookFP != skyHookFP) {
@@ -89,18 +89,30 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                     skyHookFiler.seek(0);
                     FilerIO.writeLong(skyHookFiler, MAGIC_SKY_HOOK_NUMBER, "magic");
                     for (int i = 1, keySize = 1; i < maxKeySizePower; i++, keySize *= 2) {
-                        int filerSize = MapStore.INSTANCE.computeFilerSize(2, keySize, true, 8, false);
+
                         final int _keySize = keySize;
-                        chunkStore.newChunk(filerSize, new CreateFiler<MapContext, ChunkFiler>() {
+
+                        CreateFiler<Void, MapContext, ChunkFiler> creator = new CreateFiler<Void, MapContext, ChunkFiler>() {
                             @Override
-                            public MapContext create(ChunkFiler mapStoresFiler) throws IOException {
+                            public MapContext create(Void hint, ChunkFiler mapStoresFiler) throws IOException {
                                 MapContext chunk = MapStore.INSTANCE.create(2, _keySize, true, 8, false, mapStoresFiler);
                                 FilerIO.writeLong(skyHookFiler, mapStoresFiler.getChunkFP(), "");
                                 return chunk;
                             }
-                        });
+
+                            @Override
+                            public long sizeInBytes(Void hint) throws IOException {
+                                return MapStore.INSTANCE.computeFilerSize(2, _keySize, true, 8, false);
+                            }
+                        };
+                        chunkStore.newChunk(null, creator);
                     }
                     return null;
+                }
+
+                @Override
+                public long sizeInBytes(Void hint) throws IOException {
+                    return 8 + (8 * maxKeySizePower);
                 }
             });
         }
@@ -132,16 +144,21 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
                             if (MapStore.INSTANCE.isFull(currentIndexFiler, currentIndexChunk)) {
                                 final int newSize = MapStore.INSTANCE.nextGrowSize(currentIndexChunk);
                                 final int chunkPower = FilerIO.chunkPower(keyLength, 1);
-                                int filerSize = MapStore.INSTANCE.computeFilerSize(newSize, chunkPower, true, 8, false);
 
-                                final long chunkFP = chunkStore.newChunk(filerSize, new CreateFiler<MapContext, ChunkFiler>() {
+                                CreateFiler<Void, MapContext, ChunkFiler> creator = new CreateFiler<Void, MapContext, ChunkFiler>() {
                                     @Override
-                                    public MapContext create(ChunkFiler newIndexFiler) throws IOException {
+                                    public MapContext create(Void hint, ChunkFiler newIndexFiler) throws IOException {
                                         MapContext newIndexChunk = MapStore.INSTANCE.create(newSize, keyLength, true, 8, false, newIndexFiler);
                                         MapStore.INSTANCE.copyTo(currentIndexFiler, currentIndexChunk, newIndexFiler, newIndexChunk, null);
                                         return newIndexChunk;
                                     }
-                                });
+
+                                    @Override
+                                    public long sizeInBytes(Void hint) throws IOException {
+                                        return MapStore.INSTANCE.computeFilerSize(newSize, chunkPower, true, 8, false);
+                                    }
+                                };
+                                final long chunkFP = chunkStore.newChunk(null, creator);
 
                                 long oldFP;
                                 synchronized (skyHookLock) {
@@ -202,7 +219,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
     public <M, R> R getOrAllocate(final byte[] key,
         final long size,
         final OpenFiler<M, ChunkFiler> openFiler,
-        final CreateFiler<M, ChunkFiler> createFiler,
+        final CreateFiler<Long, M, ChunkFiler> createFiler,
         final MonkeyFilerTransaction<M, ChunkFiler, R> filerTransaction)
         throws IOException {
 
@@ -273,7 +290,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
     public <M, R> R grow(final byte[] key,
         final long newSize,
         final OpenFiler<M, ChunkFiler> openFiler,
-        final CreateFiler<M, ChunkFiler> createFiler,
+        final CreateFiler<Long, M, ChunkFiler> createFiler,
         final RewriteMonkeyFilerTransaction<M, ChunkFiler, R> filerTransaction) throws IOException {
 
         int i = getChunkIndexForKey(key);
@@ -320,7 +337,7 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
     }
 
     @Override
-    public <M> long newChunk(byte[] key, long _capacity, CreateFiler<M, ChunkFiler> createFiler) throws IOException {
+    public <M> long newChunk(byte[] key, long _capacity, CreateFiler<Long, M, ChunkFiler> createFiler) throws IOException {
         return chunkStores[getChunkIndexForKey(key)].newChunk(_capacity, createFiler);
     }
 
@@ -350,35 +367,35 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
             @Override
             public void init(long initialChunkSize) throws IOException {
                 /*
-                Preconditions.checkArgument(initialChunkSize > 0);
-                long chunkFP = keyValueContext.get();
-                ChunkFiler filer = null;
-                if (chunkFP >= 0) {
-                    filer = chunkStore.getFiler(chunkFP, lock);
-                }
-                if (filer == null) {
-                    chunkFP = newChunk(keyBytes, initialChunkSize);
-                    chunkFPProvider.setChunkFP(keyBytes, chunkFP);
-                    filer = chunkStore.getFiler(chunkFP, lock);
-                }
-                filerReference.set(filer);
-                */
+                 Preconditions.checkArgument(initialChunkSize > 0);
+                 long chunkFP = keyValueContext.get();
+                 ChunkFiler filer = null;
+                 if (chunkFP >= 0) {
+                 filer = chunkStore.getFiler(chunkFP, lock);
+                 }
+                 if (filer == null) {
+                 chunkFP = newChunk(keyBytes, initialChunkSize);
+                 chunkFPProvider.setChunkFP(keyBytes, chunkFP);
+                 filer = chunkStore.getFiler(chunkFP, lock);
+                 }
+                 filerReference.set(filer);
+                 */
             }
 
             @Override
             public boolean open() throws IOException {
                 return false;
                 /*
-                ChunkFiler filer;
-                long chunkFP = chunkFPProvider.getChunkFP(keyBytes);
-                if (chunkFP >= 0) {
-                    filer = chunkStore.getFiler(chunkFP, lock);
-                } else {
-                    filer = null;
-                }
-                filerReference.set(filer);
-                return filer != null;
-                */
+                 ChunkFiler filer;
+                 long chunkFP = chunkFPProvider.getChunkFP(keyBytes);
+                 if (chunkFP >= 0) {
+                 filer = chunkStore.getFiler(chunkFP, lock);
+                 } else {
+                 filer = null;
+                 }
+                 filerReference.set(filer);
+                 return filer != null;
+                 */
             }
 
             @Override
@@ -404,31 +421,31 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
             public ChunkFiler grow(long capacity) throws IOException {
                 return null;
                 /*
-                ChunkFiler currentFiler = filerReference.get();
-                if (capacity >= currentFiler.length()) {
-                    long currentOffset = currentFiler.getFilePointer();
-                    long newChunkFP = chunkStore.newChunk(capacity, new NoOpCreateFiler<ChunkFiler>());
-                    ChunkFiler newFiler = chunkStore.getFiler(newChunkFP, lock);
-                    copy(currentFiler, newFiler, -1);
-                    long oldChunkFP = chunkFPProvider.getAndSetChunkFP(keyBytes, newChunkFP);
-                    if (oldChunkFP >= 0) {
-                        chunkStore.remove(oldChunkFP);
-                    }
-                    // copy and remove each manipulate the pointer, so restore pointer afterward
-                    newFiler.seek(currentOffset);
-                    filerReference.set(newFiler);
-                    return newFiler;
-                } else {
-                    return currentFiler;
-                }
-                */
+                 ChunkFiler currentFiler = filerReference.get();
+                 if (capacity >= currentFiler.length()) {
+                 long currentOffset = currentFiler.getFilePointer();
+                 long newChunkFP = chunkStore.newChunk(capacity, new NoOpCreateFiler<ChunkFiler>());
+                 ChunkFiler newFiler = chunkStore.getFiler(newChunkFP, lock);
+                 copy(currentFiler, newFiler, -1);
+                 long oldChunkFP = chunkFPProvider.getAndSetChunkFP(keyBytes, newChunkFP);
+                 if (oldChunkFP >= 0) {
+                 chunkStore.remove(oldChunkFP);
+                 }
+                 // copy and remove each manipulate the pointer, so restore pointer afterward
+                 newFiler.seek(currentOffset);
+                 filerReference.set(newFiler);
+                 return newFiler;
+                 } else {
+                 return currentFiler;
+                 }
+                 */
             }
         };
     }
 
     @Override
     public ResizingChunkFilerProvider getTemporaryFilerProvider(final byte[] keyBytes) {
-         int i = getChunkIndexForKey(keyBytes);
+        int i = getChunkIndexForKey(keyBytes);
         final ChunkStore chunkStore = chunkStores[i];
         final Object lock = locksProvider.lock(keyBytes);
 
@@ -444,11 +461,11 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
             @Override
             public void init(long initialChunkSize) throws IOException {
                 /*
-                Preconditions.checkArgument(initialChunkSize > 0);
-                long chunkFP = newChunk(keyBytes, initialChunkSize, noOpCreateChunkFiler);
-                ChunkFiler filer = chunkStore.getFiler(chunkFP, lock);
-                filerReference.set(filer);
-                */
+                 Preconditions.checkArgument(initialChunkSize > 0);
+                 long chunkFP = newChunk(keyBytes, initialChunkSize, noOpCreateChunkFiler);
+                 ChunkFiler filer = chunkStore.getFiler(chunkFP, lock);
+                 filerReference.set(filer);
+                 */
             }
 
             @Override
@@ -476,23 +493,23 @@ public class MultiChunkStoreConcurrentFilerFactory implements ConcurrentFilerFac
             public ChunkFiler grow(long capacity) throws IOException {
                 return null;
                 /*
-                ChunkFiler currentFiler = filerReference.get();
-                if (capacity >= currentFiler.length()) {
-                    long currentOffset = currentFiler.getFilePointer();
-                    long newChunkFP = chunkStore.newChunk(capacity);
-                    ChunkFiler newFiler = chunkStore.getFiler(newChunkFP, lock);
-                    copy(currentFiler, newFiler, -1);
-                    long chunkFP = currentFiler.getChunkFP();
-                    chunkStore.remove(chunkFP);
-                    // copy and remove each manipulate the pointer, so restore pointer afterward
-                    newFiler.seek(currentOffset);
+                 ChunkFiler currentFiler = filerReference.get();
+                 if (capacity >= currentFiler.length()) {
+                 long currentOffset = currentFiler.getFilePointer();
+                 long newChunkFP = chunkStore.newChunk(capacity);
+                 ChunkFiler newFiler = chunkStore.getFiler(newChunkFP, lock);
+                 copy(currentFiler, newFiler, -1);
+                 long chunkFP = currentFiler.getChunkFP();
+                 chunkStore.remove(chunkFP);
+                 // copy and remove each manipulate the pointer, so restore pointer afterward
+                 newFiler.seek(currentOffset);
 
-                    filerReference.set(newFiler);
-                    return newFiler;
-                } else {
-                    return currentFiler;
-                }
-                */
+                 filerReference.set(newFiler);
+                 return newFiler;
+                 } else {
+                 return currentFiler;
+                 }
+                 */
             }
 
         };

@@ -172,12 +172,13 @@ public class ChunkStore implements Copyable<ChunkStore> {
     /**
      *
      * @param <M>
-     * @param _capacity
+     * @param <H>
      * @param createFiler Nullable
      * @return
      * @throws IOException
      */
-    public <M> long newChunk(long _capacity, final CreateFiler<M, ChunkFiler> createFiler) throws IOException {
+    public <M, H> long newChunk(final H hint, final CreateFiler<H, M, ChunkFiler> createFiler) throws IOException {
+        long _capacity = createFiler.sizeInBytes(hint);
         final int chunkPower = FilerIO.chunkPower(_capacity, cMinPower);
         final long chunkLength = FilerIO.chunkLength(chunkPower)
             + 8 // add magicNumber
@@ -247,7 +248,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
                 //TODO if this throws an IOException we should free up the chunkFP
                 M monkey = null;
                 if (createFiler != null) {
-                    monkey = createFiler.create(chunkFiler);
+                    monkey = createFiler.create(hint, chunkFiler);
                 }
                 Chunk<M> chunk = new Chunk<>(monkey, _chunkFP, startOfFP, endOfFP);
                 chunk.fp = chunkFiler.getFilePointer();
@@ -355,11 +356,9 @@ public class ChunkStore implements Copyable<ChunkStore> {
                 @Override
                 public R commit(Filer filer) throws IOException {
                     ChunkFiler chunkFiler = new ChunkFiler(ChunkStore.this, filer, chunkFP, chunk.startOfFP, chunk.endOfFP);
-
                     chunkFiler.seek(chunk.fp);
                     R result = chunkTransaction.commit(chunk.monkey, chunkFiler);
                     chunk.fp = chunkFiler.getFilePointer();
-
                     return result;
                 }
             });
@@ -425,23 +424,11 @@ public class ChunkStore implements Copyable<ChunkStore> {
     private static final byte[] zerosMin = new byte[(int) Math.pow(2, cMinPower)]; // never too big
     private static final byte[] zerosMax = new byte[(int) Math.pow(2, 16)]; // 65536 max used until min needed
 
-    public <M, R> R getOrCreate(final long chunkFP,
-        final long capacity,
-        final CreateFiler<M, ChunkFiler> createFiler,
-        final OpenFiler<M, ChunkFiler> openFiler,
-        final ChunkTransaction<M, R> chunkTransaction) throws IOException {
-
-        if (chunkFP < 0) {
-            long fp = newChunk(capacity, createFiler);
-            return execute(fp, openFiler, chunkTransaction);
+    public <M> boolean isValid(final long chunkFP) throws IOException {
+        if (openChunks.get(chunkFP) != null) {
+            return true;
         }
-
-        final Chunk<M> chunk = (Chunk<M>) openChunks.get(chunkFP);
-        if (chunk != null) {
-            return execute(chunkFP, openFiler, chunkTransaction);
-        }
-
-        Boolean valid = resizableByteBuffer.execute(-1, false, new FilerTransaction<Filer, Boolean>() {
+        return  resizableByteBuffer.execute(-1, false, new FilerTransaction<Filer, Boolean>() {
             @Override
             public Boolean commit(Filer filer) throws IOException {
                 filer.seek(chunkFP);
@@ -449,11 +436,6 @@ public class ChunkStore implements Copyable<ChunkStore> {
                 return magicNumber == cMagicNumber;
             }
         });
-        if (valid) {
-            return execute(chunkFP, openFiler, chunkTransaction);
-        } else {
-            long fp = newChunk(capacity, createFiler);
-            return execute(fp, openFiler, chunkTransaction);
-        }
     }
+
 }

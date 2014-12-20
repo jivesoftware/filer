@@ -22,11 +22,12 @@ import java.io.IOException;
 
 /**
  * @author jonathan
+ * @param <F>
  */
 public class PartitionedMapChunkBackedKeyedStore<F extends Filer> implements KeyedFilerStore {
 
     private static final OpenFiler<Void, ChunkFiler> openFiler = new NoOpOpenFiler<>();
-    private static final CreateFiler<Void, ChunkFiler> createFiler = new NoOpCreateFiler<>();
+    private static final CreateFiler<Long, Void, ChunkFiler> createFiler = new NoOpCreateFiler<>();
 
     private final PartitionedMapChunkBackedMapStore<F, IBA, Long> mapStore;
     private final MultiChunkStore multiChunkStore;

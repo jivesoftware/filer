@@ -23,8 +23,8 @@ import java.io.IOException;
  * @param <R> Result
  * @param <C> Child
  */
-public interface StoreTransaction<R, C> {
+public interface StoreTransaction<R, B, C> {
 
-    R commit(C store) throws IOException;
+    R commit(B backingStorage, C child) throws IOException;
 
 }

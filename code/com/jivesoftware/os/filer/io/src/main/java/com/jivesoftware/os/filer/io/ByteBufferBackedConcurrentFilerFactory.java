@@ -21,7 +21,7 @@ public class ByteBufferBackedConcurrentFilerFactory implements ConcurrentFilerFa
     public <M, R> R getOrAllocate(byte[] key,
         long size,
         OpenFiler<M, ByteBufferBackedFiler> openFiler,
-        CreateFiler<M, ByteBufferBackedFiler> createFiler,
+        CreateFiler<Long, M, ByteBufferBackedFiler> createFiler,
         MonkeyFilerTransaction<M, ByteBufferBackedFiler, R> filerTransaction)
         throws IOException {
 
@@ -34,9 +34,9 @@ public class ByteBufferBackedConcurrentFilerFactory implements ConcurrentFilerFa
             filer = new ByteBufferBackedFiler(new Object(), bb);
             ByteBufferBackedFiler had = bufferCache.putIfAbsent(new IBA(key), filer);
             if (had != null) {
-                return filerTransaction.commit(createFiler.create(had), had);
+                return filerTransaction.commit(createFiler.create(size, had), had);
             } else {
-                return filerTransaction.commit(createFiler.create(filer), filer);
+                return filerTransaction.commit(createFiler.create(size, filer), filer);
             }
         } else {
             return filerTransaction.commit(null, null);
@@ -47,7 +47,7 @@ public class ByteBufferBackedConcurrentFilerFactory implements ConcurrentFilerFa
     public <M, R> R grow(byte[] key,
         long newSize,
         OpenFiler<M, ByteBufferBackedFiler> openFiler,
-        CreateFiler<M, ByteBufferBackedFiler> createFiler,
+        CreateFiler<Long, M, ByteBufferBackedFiler> createFiler,
         RewriteMonkeyFilerTransaction<M, ByteBufferBackedFiler, R> filerTransaction)
         throws IOException {
 
@@ -66,7 +66,7 @@ public class ByteBufferBackedConcurrentFilerFactory implements ConcurrentFilerFa
             }
         }
 
-        return filerTransaction.commit(openFiler.open(oldFiler), oldFiler, createFiler.create(filer), filer);
+        return filerTransaction.commit(openFiler.open(oldFiler), oldFiler, createFiler.create(newSize, filer), filer);
     }
 
     @Override

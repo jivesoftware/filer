@@ -5,7 +5,7 @@ import java.util.Arrays;
 /**
  *
  */
-public class ByteArrayStripingLocksProvider {
+public class ByteArrayStripingLocksProvider implements LocksProvider<byte[]> {
 
     private final ByteArrayStripingLock[] locks;
 
@@ -16,6 +16,7 @@ public class ByteArrayStripingLocksProvider {
         }
     }
 
+    @Override
     public Object lock(byte[] toLock) {
         return locks[Math.abs(Arrays.hashCode(toLock) % locks.length)];
     }

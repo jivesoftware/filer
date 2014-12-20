@@ -27,7 +27,7 @@ public interface MultiChunkStore {
 
     void allChunks(ChunkIdStream _chunks) throws IOException;
 
-    <M> long newChunk(byte[] key, long _capacity, CreateFiler<M, ChunkFiler> createFiler) throws IOException;
+    <M> long newChunk(byte[] key, long _capacity, CreateFiler<Long, M, ChunkFiler> createFiler) throws IOException;
 
     <M, R> R execute(byte[] key, final long chunkFP, final OpenFiler<M, ChunkFiler> openFiler, final ChunkTransaction<M, R> chunkTransaction)
         throws IOException;

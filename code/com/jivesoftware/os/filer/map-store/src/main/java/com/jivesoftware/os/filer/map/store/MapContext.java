@@ -25,4 +25,17 @@ public class MapContext {
         this.count = count;
     }
 
+    @Override
+    public String toString() {
+        return "MapContext{"
+            + "keySize=" + keySize
+            + ", keyLengthSize=" + keyLengthSize
+            + ", payloadSize=" + payloadSize
+            + ", payloadLengthSize=" + payloadLengthSize
+            + ", capacity=" + capacity
+            + ", maxCount=" + maxCount
+            + ", entrySize=" + entrySize
+            + ", count=" + count + '}';
+    }
+
 }
