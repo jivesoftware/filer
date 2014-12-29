@@ -3,7 +3,6 @@ package com.jivesoftware.os.filer.chunk.store;
 import com.jivesoftware.os.filer.io.Filer;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
 /*
  This class segments a single Filer into segment filers where
@@ -20,7 +19,6 @@ public class ChunkFiler implements Filer {
     private final long chunkFP;
     private final long startOfFP;
     private final long endOfFP;
-    private final AtomicLong semaphore = new AtomicLong();
     private final AtomicBoolean recycle = new AtomicBoolean();
 
     ChunkFiler(ChunkStore chunkStore, Filer filer, long chunkFP, long startOfFP, long endOfFP) {
@@ -44,21 +42,11 @@ public class ChunkFiler implements Filer {
     }
 
     @Override
-    public Object lock() throws IOException {
-        semaphore.incrementAndGet();
-        if (recycle.get()) {
-            throw new IOException("Cannot aquire a lock for a removed filer.");
-        }
-        return filer.lock();
-    }
-
-    @Override
     public void close() throws IOException {
-        long s = semaphore.decrementAndGet();
         if (isFileBacked()) {
             filer.close();
         }
-        if (s == 0 && recycle.get()) {
+        if (recycle.get()) {
             chunkStore.remove(chunkFP);
         }
     }

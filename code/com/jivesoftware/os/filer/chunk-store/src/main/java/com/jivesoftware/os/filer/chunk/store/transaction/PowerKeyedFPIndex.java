@@ -20,6 +20,7 @@ import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import java.io.IOException;
 
@@ -27,7 +28,7 @@ import java.io.IOException;
  *
  * @author jonathan.colt
  */
-public class PowerKeyedFPIndex implements KeyedFPIndex<Integer>, KeyedFPIndexUtil.BackingFPIndex<Integer> {
+public class PowerKeyedFPIndex implements  KeyedFPIndexUtil.BackingFPIndex<Integer> {
 
     private final ChunkStore backingChunkStore;
     private final long backingFP;
@@ -63,7 +64,6 @@ public class PowerKeyedFPIndex implements KeyedFPIndex<Integer>, KeyedFPIndexUti
         fpIndex[key] = fp;
     }
 
-    @Override
     public <H, M, R> R commit(ChunkStore chunkStore,
         Integer keySize,
         H hint,
@@ -76,7 +76,6 @@ public class PowerKeyedFPIndex implements KeyedFPIndex<Integer>, KeyedFPIndexUti
 
     }
 
-    @Override
     public <M> Boolean stream(ChunkStore chunkStore, final KeysStream<Integer> keysStream) throws IOException {
         return backingChunkStore.execute(backingFP, null, new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
 

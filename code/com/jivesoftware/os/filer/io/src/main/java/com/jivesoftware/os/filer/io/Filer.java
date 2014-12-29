@@ -22,13 +22,6 @@ public interface Filer extends Readable, Writeable {
 
     /**
      *
-     * @return
-     * @throws IOException
-     */
-    public Object lock() throws IOException;
-
-    /**
-     *
      * @param position
      * @throws IOException
      */

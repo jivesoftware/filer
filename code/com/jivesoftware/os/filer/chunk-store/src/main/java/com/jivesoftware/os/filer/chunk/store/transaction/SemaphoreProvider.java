@@ -20,6 +20,7 @@ import java.util.concurrent.Semaphore;
 /**
  *
  * @author jonathan.colt
+ * @param <K>
  */
 public interface SemaphoreProvider<K> {
 

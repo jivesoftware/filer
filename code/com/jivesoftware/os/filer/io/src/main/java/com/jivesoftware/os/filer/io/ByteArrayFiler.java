@@ -47,11 +47,6 @@ public class ByteArrayFiler implements Filer {
     }
 
     @Override
-    public Object lock() {
-        return this;
-    }
-
-    @Override
     public int read() throws IOException {
         if (fp >= bytes.length) {
             return -1;

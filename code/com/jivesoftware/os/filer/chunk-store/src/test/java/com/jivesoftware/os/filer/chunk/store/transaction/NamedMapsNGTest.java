@@ -24,6 +24,7 @@ import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.NoOpCreateFiler;
+import com.jivesoftware.os.filer.io.NoOpGrowFiler;
 import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.map.store.MapContext;
 import com.jivesoftware.os.filer.map.store.MapStore;
@@ -171,6 +172,17 @@ public class NamedMapsNGTest {
         chunkStore1 = new ChunkStoreInitializer().initialize(chunkPath, "data1", 10, true, 8);
         chunkStore2 = new ChunkStoreInitializer().initialize(chunkPath, "data2", 10, true, 8);
         chunckStores = new ChunkStore[]{chunkStore1, chunkStore2};
+
+        namedMapOfFilers = new TxNamedMapOfFiler<>(chunckStores, 464,
+            new ByteArrayPartitionFunction(),
+            new NoOpCreateFiler<ChunkFiler>(),
+            new NoOpOpenFiler<ChunkFiler>(),
+            new NoOpGrowFiler<Long, Void, ChunkFiler>());
+
+        namedMap = new TxNamedMap(chunckStores, 464, new ByteArrayPartitionFunction(),
+            new MapCreator(2, 4, true, 8, false),
+            new MapOpener(),
+            new MapGrower<>(1));
 
         for (int c = 0; c < 10; c++) {
 

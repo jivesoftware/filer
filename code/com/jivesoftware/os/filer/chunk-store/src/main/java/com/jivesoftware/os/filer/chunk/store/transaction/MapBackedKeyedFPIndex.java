@@ -20,6 +20,7 @@ import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.map.store.MapContext;
 import com.jivesoftware.os.filer.map.store.MapStore;
@@ -29,7 +30,7 @@ import java.io.IOException;
  *
  * @author jonathan.colt
  */
-public class MapBackedKeyedFPIndex implements KeyedFPIndex<byte[]>, KeyedFPIndexUtil.BackingFPIndex<byte[]> {
+public class MapBackedKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<byte[]> {
 
     private final ChunkStore backingChunkStore;
     private final long backingFP;
@@ -79,7 +80,6 @@ public class MapBackedKeyedFPIndex implements KeyedFPIndex<byte[]>, KeyedFPIndex
         });
     }
 
-    @Override
     public <H, M, R> R commit(ChunkStore chunkStore,
         byte[] key,
         H hint,
@@ -91,7 +91,6 @@ public class MapBackedKeyedFPIndex implements KeyedFPIndex<byte[]>, KeyedFPIndex
         return KeyedFPIndexUtil.INSTANCE.commit(this, stripingSemaphores, chunkStore, key, hint, creator, opener, growFiler, filerTransaction);
     }
 
-    @Override
     public <M> Boolean stream(ChunkStore chunkStore, final KeysStream<byte[]> keysStream) throws IOException {
         final MapStore.KeyStream mapKeyStream = new MapStore.KeyStream() {
 

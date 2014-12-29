@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jivesoftware.os.filer.chunk.store.transaction;
+package com.jivesoftware.os.filer.io;
 
-import com.jivesoftware.os.filer.io.Filer;
 import java.io.IOException;
 
 /**

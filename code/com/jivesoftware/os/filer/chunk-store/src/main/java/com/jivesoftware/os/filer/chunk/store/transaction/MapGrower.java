@@ -1,6 +1,7 @@
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
+import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.map.store.MapContext;
 import com.jivesoftware.os.filer.map.store.MapStore;
 import java.io.IOException;

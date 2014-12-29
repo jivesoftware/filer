@@ -114,7 +114,7 @@ public class ResizableByteBuffer {
 
                 // commit() can potentially cause the sharedByteBuffer to change, so if we ever need to operate on the buffer
                 // after the following commit() we would need to call sharedByteBuffer.get() again.
-                SharedByteBufferBackedFiler filer = new SharedByteBufferBackedFiler(null, buffer.duplicate());
+                SharedByteBufferBackedFiler filer = new SharedByteBufferBackedFiler(buffer.duplicate());
                 threadLocalBufferStack.filers.add(filer);
                 try {
                     return filerTransaction.commit(filer); // Root PITA dynamic code injection!

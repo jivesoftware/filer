@@ -13,18 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jivesoftware.os.filer.chunk.store.transaction;
+package com.jivesoftware.os.filer.io;
 
 import java.io.IOException;
 
 /**
  *
  * @author jonathan.colt
- * @param <K>
+ * @param <H>
  * @param <M>
  * @param <F>
  */
-public interface TxStream<K, M, F> {
+public interface GrowFiler<H, M, F extends Filer> {
 
-    boolean stream(K key, M monkey, F filer) throws IOException;
+    H grow(M monkey, F filer) throws IOException;
+
+    void grow(M currentMonkey, F currentFiler, M newMonkey, F newFiler) throws IOException;
+
 }

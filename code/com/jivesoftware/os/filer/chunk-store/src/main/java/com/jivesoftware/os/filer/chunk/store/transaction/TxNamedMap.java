@@ -19,6 +19,7 @@ import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.io.CreateFiler;
+import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.io.PartitionFunction;
 import com.jivesoftware.os.filer.map.store.MapContext;
@@ -69,8 +70,7 @@ public class TxNamedMap {
             @Override
             public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
 
-                int nameSize = mapName.length;
-                MapBackedKeyedFPIndexCreator creator = new MapBackedKeyedFPIndexCreator(2, nameSize, false, 8, false);
+                MapBackedKeyedFPIndexCreator creator = new MapBackedKeyedFPIndexCreator(2, mapName.length, false, 8, false);
                 return monkey.commit(chunkStore, mapName.length, 1, creator, opener, grower, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
 
                     @Override

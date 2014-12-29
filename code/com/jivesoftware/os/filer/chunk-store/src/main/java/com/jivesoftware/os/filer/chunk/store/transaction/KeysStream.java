@@ -15,20 +15,15 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import com.jivesoftware.os.filer.io.Filer;
 import java.io.IOException;
 
 /**
  *
  * @author jonathan.colt
- * @param <H>
- * @param <M>
- * @param <F>
+ * @param <K>
  */
-public interface GrowFiler<H, M, F extends Filer> {
+public interface KeysStream<K> {
 
-    H grow(M monkey, F filer) throws IOException;
-
-    void grow(M currentMonkey, F currentFiler, M newMonkey, F newFiler) throws IOException;
+    boolean stream(K key) throws IOException;
 
 }

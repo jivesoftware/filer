@@ -20,6 +20,8 @@ import java.io.IOException;
 /**
  *
  * @author jonathan.colt
+ * @param <K>
+ * @param <V>
  */
 public interface TxStreamKeys<K, V> {
 

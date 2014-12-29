@@ -19,6 +19,7 @@ import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.io.CreateFiler;
+import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import java.io.IOException;
 import java.util.concurrent.Semaphore;
@@ -32,7 +33,7 @@ public class KeyedFPIndexUtil {
 
     public static KeyedFPIndexUtil INSTANCE = new KeyedFPIndexUtil();
 
-    public KeyedFPIndexUtil() {
+    private KeyedFPIndexUtil() {
     }
 
     public <H, M, K, R> R commit(final BackingFPIndex<K> backingFPIndex,

@@ -26,11 +26,6 @@ public class ByteBufferBackedFiler implements Filer {
     }
 
     @Override
-    public Object lock() {
-        return lock;
-    }
-
-    @Override
     public void seek(long position) throws IOException {
         buffer.position((int) position); // what a pain! limited to an int!
     }

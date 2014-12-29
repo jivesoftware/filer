@@ -17,17 +17,10 @@ import java.nio.ByteBuffer;
  */
 public class SharedByteBufferBackedFiler implements Filer {
 
-    private final Object lock;
     private ByteBuffer buffer;
 
-    public SharedByteBufferBackedFiler(Object lock, ByteBuffer buffer) {
-        this.lock = lock;
+    public SharedByteBufferBackedFiler(ByteBuffer buffer) {
         this.buffer = buffer;
-    }
-
-    @Override
-    public Object lock() {
-        return lock;
     }
 
     public void sync(ByteBuffer buffer) {

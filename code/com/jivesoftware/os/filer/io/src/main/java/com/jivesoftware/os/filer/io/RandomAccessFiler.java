@@ -43,11 +43,6 @@ public class RandomAccessFiler extends RandomAccessFile implements Filer {
     }
 
     @Override
-    public Object lock() {
-        return this;
-    }
-
-    @Override
     public long skip(long position) throws IOException {
         long fp = getFilePointer();
         if (position == 0) {
