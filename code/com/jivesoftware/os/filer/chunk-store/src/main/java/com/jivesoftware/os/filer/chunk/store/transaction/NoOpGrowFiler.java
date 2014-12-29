@@ -15,30 +15,22 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkStore;
-import com.jivesoftware.os.filer.io.PartitionFunction;
+import com.jivesoftware.os.filer.io.Filer;
 import java.io.IOException;
 
 /**
  *
  * @author jonathan.colt
  */
-public class ChunkPartitionerLevel<K> implements LevelProvider<ChunkStore[], Void, ChunkStore, K, Void> {
+public class NoOpGrowFiler<H, M, F extends Filer> implements GrowFiler<H, M, F> {
 
-    private final PartitionFunction<K> partitionFunction;
-
-    public ChunkPartitionerLevel(PartitionFunction<K> partitionFunction) {
-        this.partitionFunction = partitionFunction;
+    @Override
+    public H grow(M monkey, F filer) throws IOException {
+        return null;
     }
 
     @Override
-    public <R> R enter(ChunkStore[] backingStorage,
-        Void parentLevel,
-        K levelKey,
-        StoreTransaction<R, ChunkStore, Void> storeTransaction) throws IOException {
-
-        int i = partitionFunction.partition(backingStorage.length, levelKey);
-        return storeTransaction.commit(backingStorage[i], null);
+    public void grow(M currentMonkey, F currentFiler, M newMonkey, F newFiler) throws IOException {
     }
 
 }

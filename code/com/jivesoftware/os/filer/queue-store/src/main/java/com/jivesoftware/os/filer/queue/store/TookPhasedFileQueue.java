@@ -123,10 +123,7 @@ public class TookPhasedFileQueue {
             return false;
         }
         final TookPhasedFileQueue other = (TookPhasedFileQueue) obj;
-        if (this.queueId != other.queueId && (this.queueId == null || !this.queueId.equals(other.queueId))) {
-            return false;
-        }
-        return true;
+        return !(this.queueId != other.queueId && (this.queueId == null || !this.queueId.equals(other.queueId)));
     }
 
     @Override

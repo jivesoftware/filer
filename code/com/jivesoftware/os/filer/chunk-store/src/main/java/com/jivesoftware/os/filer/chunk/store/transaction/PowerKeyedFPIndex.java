@@ -76,4 +76,20 @@ public class PowerKeyedFPIndex implements KeyedFPIndex<Integer>, KeyedFPIndexUti
 
     }
 
+    @Override
+    public <M> Boolean stream(ChunkStore chunkStore, final KeysStream<Integer> keysStream) throws IOException {
+        return backingChunkStore.execute(backingFP, null, new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
+
+            @Override
+            public Boolean commit(PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                for (int i = 0; i < fpIndex.length; i++) {
+                    if (fpIndex[i] > -1 && !keysStream.stream(i)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        });
+    }
+
 }

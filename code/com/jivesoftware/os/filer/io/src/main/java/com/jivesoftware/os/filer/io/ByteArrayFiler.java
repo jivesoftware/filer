@@ -56,7 +56,7 @@ public class ByteArrayFiler implements Filer {
         if (fp >= bytes.length) {
             return -1;
         }
-        int b = (int) (bytes[(int) fp] & 0xFF);
+        int b = bytes[(int) fp] & 0xFF;
         fp++;
         return b;
     }

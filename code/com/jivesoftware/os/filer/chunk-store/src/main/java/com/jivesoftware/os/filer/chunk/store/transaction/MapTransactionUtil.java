@@ -22,7 +22,7 @@ import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.LocksProvider;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.map.store.MapContext;
-import com.jivesoftware.os.filer.map.store.MapStore;
+
 import java.io.IOException;
 
 /**
@@ -42,53 +42,34 @@ public class MapTransactionUtil {
         final K key,
         final OpenFiler<M, ChunkFiler> opener,
         final S contextStorage,
-        final StoreTransaction<R, S, MonkeyAndFiler<M>> storeTransaction) throws IOException {
+        final StoreTransaction<R, S, MonkeyAndKeyedFiler<M, K>> storeTransaction) throws IOException {
 
         return parentStore.commit(chunkStore, key, null, null, opener, null, new ChunkTransaction<M, R>() {
 
             @Override
             public R commit(M monkey, ChunkFiler filer) throws IOException {
-                return storeTransaction.commit(contextStorage, new MonkeyAndFiler<>(monkey, filer));
+                return storeTransaction.commit(contextStorage, new MonkeyAndKeyedFiler<>(monkey, key, filer));
             }
         });
 
     }
 
-    public <R, S, K, M extends MapContext> R write(final ChunkStore chunkStore,
-        final CreateFiler<Integer, M, ChunkFiler> creator,
-        final int alwaysRoomForNMoreKeys,
+    public <R, S, K, H, M extends MapContext> R write(final ChunkStore chunkStore,
+        final CreateFiler<H, M, ChunkFiler> creator,
+        final H alwaysRoomForNMoreKeys,
         final KeyedFPIndex<K> parentStore,
         final LocksProvider<K> locksProvider,
         final K key,
         final OpenFiler<M, ChunkFiler> opener,
+        final GrowFiler<H, M, ChunkFiler> grower,
         final S contextStorage,
-        final StoreTransaction<R, S, MonkeyAndFiler<M>> storeTransaction) throws IOException {
+        final StoreTransaction<R, S, MonkeyAndKeyedFiler<M, K>> storeTransaction) throws IOException {
 
-        return parentStore.commit(chunkStore, key, alwaysRoomForNMoreKeys, creator, opener, new GrowFiler<Integer, M, ChunkFiler>() {
-
-            @Override
-            public Integer grow(M monkey, ChunkFiler filer) throws IOException {
-                synchronized (monkey) {
-                    if (MapStore.INSTANCE.isFullWithNMore(filer, monkey, alwaysRoomForNMoreKeys)) {
-                        return MapStore.INSTANCE.nextGrowSize(monkey, alwaysRoomForNMoreKeys);
-                    }
-                }
-                return null;
-            }
-
-            @Override
-            public void grow(M currentMonkey, ChunkFiler currentFiler, M newMonkey, ChunkFiler newFiler) throws IOException {
-                synchronized (currentMonkey) {
-                    synchronized (newMonkey) {
-                        MapStore.INSTANCE.copyTo(currentFiler, currentMonkey, newFiler, newMonkey, null);
-                    }
-                }
-            }
-        }, new ChunkTransaction<M, R>() {
+        return parentStore.commit(chunkStore, key, alwaysRoomForNMoreKeys, creator, opener, grower, new ChunkTransaction<M, R>() {
 
             @Override
             public R commit(M monkey, ChunkFiler filer) throws IOException {
-                return storeTransaction.commit(contextStorage, new MonkeyAndFiler<>(monkey, filer));
+                return storeTransaction.commit(contextStorage, new MonkeyAndKeyedFiler<>(monkey, key, filer));
             }
         });
 

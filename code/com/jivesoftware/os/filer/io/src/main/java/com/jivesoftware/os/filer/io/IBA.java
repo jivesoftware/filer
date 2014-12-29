@@ -28,11 +28,8 @@ public class IBA {
 
         IBA iba = (IBA) o;
 
-        if (!Arrays.equals(bytes, iba.bytes)) {
-            return false;
-        }
+        return Arrays.equals(bytes, iba.bytes);
 
-        return true;
     }
 
     @Override

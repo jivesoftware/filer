@@ -25,22 +25,29 @@ import java.io.IOException;
 /**
  *
  * @author jonathan.colt
- * @param <K>
  */
-public interface KeyedFPIndex<K> {
+public class ConstantFPIndex<K> implements KeyedFPIndex<K> {
+    private final Long constantFP;
 
-    <H, M, R> R commit(ChunkStore chunkStore, K keySize,
-        H hint,
-        CreateFiler<H, M, ChunkFiler> creator, // nullable
-        OpenFiler<M, ChunkFiler> opener,
-        GrowFiler<H, M, ChunkFiler> growFiler, // nullable
-        ChunkTransaction<M, R> filerTransaction) throws IOException;
+    public ConstantFPIndex(Long constantFP) {
+        this.constantFP = constantFP;
+    }
 
-    <M> Boolean stream(ChunkStore chunkStore, KeysStream<K> keysStream) throws IOException;
+    @Override
+    public <H, M, R> R commit(ChunkStore chunkStore, K keySize, H hint, CreateFiler<H, M, ChunkFiler> creator, OpenFiler<M, ChunkFiler> opener,
+        GrowFiler<H, M, ChunkFiler> growFiler, ChunkTransaction<M, R> filerTransaction) throws IOException {
+        synchronized (chunkStore) {
+            if (!chunkStore.isValid(constantFP)) {
+                chunkStore.newChunk(null, creator);
+            }
+        }
+        R result = chunkStore.execute(constantFP, opener, filerTransaction);
+        return result;
+    }
 
-    public interface KeysStream<K> {
-
-        boolean stream(K key) throws IOException;
+    @Override
+    public <M> Boolean stream(ChunkStore chunkStore, KeyedFPIndex.KeysStream<K> keysStream) throws IOException {
+        return keysStream.stream(null);
     }
 
 }

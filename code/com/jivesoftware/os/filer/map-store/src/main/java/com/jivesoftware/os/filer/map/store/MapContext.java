@@ -5,13 +5,13 @@ package com.jivesoftware.os.filer.map.store;
  */
 public class MapContext {
 
-    final int keySize; // read only
-    final byte keyLengthSize; // read only
-    final int payloadSize; // read only
-    final byte payloadLengthSize; // read only
-    final int capacity; // read only
-    final int maxCount; // read only
-    final int entrySize; // read only
+    public final int keySize; // read only
+    public final byte keyLengthSize; // read only
+    public final int payloadSize; // read only
+    public final byte payloadLengthSize; // read only
+    public final int capacity; // read only
+    public final int maxCount; // read only
+    public final int entrySize; // read only
     transient long count;
 
     public MapContext(int keySize, byte keyLengthSize, int payloadSize, byte payloadLengthSize, int capacity, int maxCount, int entrySize, long count) {

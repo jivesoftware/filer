@@ -117,7 +117,7 @@ public class ResizableByteBuffer {
                 SharedByteBufferBackedFiler filer = new SharedByteBufferBackedFiler(null, buffer.duplicate());
                 threadLocalBufferStack.filers.add(filer);
                 try {
-                    return filerTransaction.commit(filer);
+                    return filerTransaction.commit(filer); // Root PITA dynamic code injection!
                 } finally {
                     threadLocalBufferStack.filers.remove(filer);
                 }

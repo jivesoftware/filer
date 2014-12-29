@@ -20,14 +20,8 @@ import java.io.IOException;
 /**
  *
  * @author jonathan.colt
- * @param <B> Backing storage
- * @param <P> Parent context
- * @param <S> Context storage
- * @param <L> Level Key
- * @param <C> Child Context
  */
-public interface LevelProvider<B, P, S, L, C> {
+public interface TxStream<K, M, F> {
 
-    <R> R enter(B backingStorage, P parentLevel, L levelKey, StoreTransaction<R, S, C> storeTransaction) throws IOException;
-
+    boolean stream(K key, M monkey, F filer) throws IOException;
 }

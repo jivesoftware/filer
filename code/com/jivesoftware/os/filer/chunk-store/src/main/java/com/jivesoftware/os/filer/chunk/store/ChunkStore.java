@@ -169,6 +169,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
             }
         });
     }
+
     /**
      *
      * @param <M>
@@ -428,7 +429,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
         if (openChunks.get(chunkFP) != null) {
             return true;
         }
-        return  resizableByteBuffer.execute(-1, false, new FilerTransaction<Filer, Boolean>() {
+        return resizableByteBuffer.execute(-1, false, new FilerTransaction<Filer, Boolean>() {
             @Override
             public Boolean commit(Filer filer) throws IOException {
                 filer.seek(chunkFP);
