@@ -27,9 +27,9 @@ public class TxKeyedFilerStoreTest {
 
     @Test
     public void keyedStoreTest() throws Exception {
-        String chunkPath = Files.createTempDirectory("testNewChunkStore").
-            toFile().
-            getAbsolutePath();
+        String chunkPath = Files.createTempDirectory("testNewChunkStore")
+            .toFile()
+            .getAbsolutePath();
         ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPath, "data1", 10, true, 8);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPath, "data2", 10, true, 8);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
@@ -62,9 +62,9 @@ public class TxKeyedFilerStoreTest {
 
     @Test
     public void rewriteTest() throws Exception {
-        String chunkPath = Files.createTempDirectory("testNewChunkStore").
-            toFile().
-            getAbsolutePath();
+        String chunkPath = Files.createTempDirectory("testNewChunkStore")
+            .toFile()
+            .getAbsolutePath();
         ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPath, "data1", 10, true, 8);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPath, "data2", 10, true, 8);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
@@ -98,7 +98,7 @@ public class TxKeyedFilerStoreTest {
 
         store = new TxKeyedFilerStore(chunkStores,
             "booya".getBytes());
-        
+
         store.execute(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
             @Override
             public Void commit(Filer filer) throws IOException {
