@@ -17,26 +17,18 @@ public class MapStore {
     public static final MapStore INSTANCE = new MapStore();
 
     public static final byte cVariableSized = 1;
-    public static final byte cMapFamily = 1;
     public static final byte cMapVersion = 1;
-    private static final int cMapVersionSize = 1;
-    private static final int cMapFamilySize = 1;
-    private static final int cIdSize = 16;
-    private static final int cVersion = 8;
+
     private static final int cCountSize = 4;
     private static final int cMaxCountSize = 4;
     private static final int cMaxCapacitySize = 4;
     private static final int cKeySizeSize = 4;
     private static final int cPayloadSize = 4;
 
-    private static final int cHeaderSize = cMapFamilySize + cMapVersionSize + cIdSize + cVersion + cCountSize
-        + cMaxCountSize + cMaxCapacitySize + cVariableSized + cKeySizeSize + cVariableSized + cPayloadSize;
+    private static final int cHeaderSize = 1 + cCountSize + cMaxCountSize + cMaxCapacitySize + cVariableSized + cKeySizeSize + cVariableSized + cPayloadSize;
 
-    private static final int cMapFamilyOffset = 0;
-    private static final int cMapVersionOffset = cMapFamilySize;
-    private static final int cIdOffset = cMapVersionOffset + cMapVersionSize;
-    private static final int cVersionOffset = cIdOffset + cIdSize;
-    private static final int cCountOffset = cVersionOffset + cVersion;
+    private static final int cMapVersionOffset = 0;
+    private static final int cCountOffset = cMapVersionOffset + 1;
     private static final int cMaxCountOffset = cCountOffset + cCountSize;
     private static final int cCapacityOffset = cMaxCountOffset + cMaxCountSize;
     private static final int cKeySizeOffset = cCapacityOffset + cMaxCapacitySize;
@@ -125,16 +117,12 @@ public class MapStore {
         boolean variablePayloadSizes,
         Filer filer) throws IOException {
 
-        byte[] id = new byte[cIdSize];
         int maxCapacity = calculateCapacity(maxCount);
 
         byte keyLengthSize = keyLengthSize(variableKeySizes ? keySize : 0);
         byte payloadLengthSize = keyLengthSize(variablePayloadSizes ? payloadSize : 0);
 
-        setMapFamily(filer, cMapFamily);
         setMapVersion(filer, cMapVersion);
-        setId(filer, id);
-        setVersion(filer, 0);
 
         setMaxCount(filer, maxCount);
         setCapacity(filer, maxCapacity); // good to use prime
@@ -168,50 +156,12 @@ public class MapStore {
         }
     }
 
-    public byte getFamily(Filer filer) throws IOException {
-        return read(filer, cMapFamilyOffset);
-    }
-
-    public void setMapFamily(Filer filer, byte family) throws IOException {
-        write(filer, cMapFamilyOffset, family);
-    }
-
     public byte getMapVersion(Filer filer) throws IOException {
         return read(filer, cMapVersionOffset);
     }
 
     public void setMapVersion(Filer filer, byte family) throws IOException {
         write(filer, cMapVersionOffset, family);
-    }
-
-    public byte[] getId(Filer filer) throws IOException {
-        byte[] id = new byte[cIdSize];
-        read(filer, cIdOffset, id, 0, cIdSize);
-        return id;
-    }
-
-    public void setId(Filer filer, byte[] id) throws IOException {
-        write(filer, cIdSize, id, 0, cIdSize);
-    }
-
-    public long getVersion(Filer filer) throws IOException {
-        return readLong(filer, cVersionOffset);
-    }
-
-    public void setVersion(Filer filer, long version) throws IOException {
-        write(filer, cVersionOffset, longBytes(version, new byte[8], 0), 0, 8); // todo  refactor to use writeLong(
-    }
-
-    private byte[] longBytes(long v, byte[] _bytes, int _offset) {
-        _bytes[_offset + 0] = (byte) (v >>> 56);
-        _bytes[_offset + 1] = (byte) (v >>> 48);
-        _bytes[_offset + 2] = (byte) (v >>> 40);
-        _bytes[_offset + 3] = (byte) (v >>> 32);
-        _bytes[_offset + 4] = (byte) (v >>> 24);
-        _bytes[_offset + 5] = (byte) (v >>> 16);
-        _bytes[_offset + 6] = (byte) (v >>> 8);
-        _bytes[_offset + 7] = (byte) v;
-        return _bytes;
     }
 
     long getCount(Filer filer) throws IOException {
@@ -600,7 +550,8 @@ public class MapStore {
             }
             fcount--;
             byte[] key = getKey(fromFiler, fromContext, fromIndex);
-            int toIndex = add(toFiler, toContext, mode, key, getPayload(fromFiler, fromContext, fromIndex));
+            byte[] payload = getPayload(fromFiler, fromContext, fromIndex);
+            int toIndex = add(toFiler, toContext, mode, key, payload);
 
             if (stream != null) {
                 stream.copied(fromIndex, toIndex);
@@ -617,7 +568,7 @@ public class MapStore {
         void copied(int fromIndex, int toIndex);
     }
 
-    private void toSysOut(Filer filer, MapContext context) throws IOException {
+    public void toSysOut(Filer filer, MapContext context) throws IOException {
         try {
             int capacity = context.capacity;
             for (int i = 0; i < capacity; i++) {
