@@ -5,6 +5,7 @@ import java.io.IOException;
 /**
  *
  * @param <F>
+ * @param <R>
  */
 public interface RewriteFilerTransaction<F extends Filer, R> {
 

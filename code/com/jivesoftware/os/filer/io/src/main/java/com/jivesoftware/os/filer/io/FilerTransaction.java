@@ -4,6 +4,7 @@ import java.io.IOException;
 
 /**
  *
+ * @param <F>
  */
 public interface FilerTransaction<F extends Filer, R> {
 

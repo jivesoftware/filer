@@ -1,5 +1,6 @@
 package com.jivesoftware.os.filer.io;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 
@@ -26,7 +27,7 @@ public class DirectBufferCleaner {
             _cleanerClass = Class.forName("sun.misc.Cleaner");
             _cleanMethod = _cleanerClass.getMethod("clean");
             _available = true;
-        } catch (Exception e) {
+        } catch (ClassNotFoundException | NoSuchMethodException | SecurityException e) {
             System.out.println("Failed to reflect direct buffer cleaner, these methods will be unavailable");
             e.printStackTrace();
         }
@@ -42,7 +43,7 @@ public class DirectBufferCleaner {
             try {
                 Object cleaner = directBufferCleanerMethod.invoke(bb);
                 cleanMethod.invoke(cleaner);
-            } catch (Exception e) {
+            } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
                 System.out.println("Failed to clean buffer");
                 e.printStackTrace();
             }

@@ -4,6 +4,7 @@ import java.io.IOException;
 
 /**
  *
+ * @param <V>
  */
 public interface Copyable<V> {
 

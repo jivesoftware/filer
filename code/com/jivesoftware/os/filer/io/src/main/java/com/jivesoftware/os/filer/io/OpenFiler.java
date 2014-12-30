@@ -8,5 +8,6 @@ import java.io.IOException;
  * @param <F>
  */
 public interface OpenFiler<M, F extends Filer> {
+
     M open(F filer) throws IOException;
 }

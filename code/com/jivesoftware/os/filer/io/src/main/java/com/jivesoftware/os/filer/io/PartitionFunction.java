@@ -18,6 +18,7 @@ package com.jivesoftware.os.filer.io;
 /**
  *
  * @author jonathan.colt
+ * @param <K>
  */
 public interface PartitionFunction<K> {
 
