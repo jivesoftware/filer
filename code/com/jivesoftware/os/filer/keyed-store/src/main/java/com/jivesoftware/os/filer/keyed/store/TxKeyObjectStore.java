@@ -174,22 +174,28 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
 
                         @Override
                         public void remove() throws IOException {
-                            synchronized (monkey) {
-                                int ai = MapStore.INSTANCE.remove(filer, monkey, keyBytes);
-                                values[ai] = null;
+                            if (monkey != null && filer != null) {
+                                synchronized (monkey) {
+                                    int ai = MapStore.INSTANCE.remove(filer, monkey, keyBytes);
+                                    if (ai > -1) {
+                                        values[ai] = null;
+                                    }
+                                }
                             }
                         }
 
                         @Override
                         @SuppressWarnings("unchecked")
                         public V get() throws IOException {
-                            synchronized (monkey) {
-                                long ai = MapStore.INSTANCE.get(filer, monkey, keyBytes);
-                                if (ai > -1) {
-                                    return (V) values[(int) ai];
+                            if (monkey != null && filer != null) {
+                                synchronized (monkey) {
+                                    long ai = MapStore.INSTANCE.get(filer, monkey, keyBytes);
+                                    if (ai > -1) {
+                                        return (V) values[(int) ai];
+                                    }
                                 }
-                                return null;
                             }
+                            return null;
                         }
                     });
                 }
