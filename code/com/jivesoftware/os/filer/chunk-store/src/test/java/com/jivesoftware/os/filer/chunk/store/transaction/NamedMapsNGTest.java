@@ -30,6 +30,7 @@ import com.jivesoftware.os.filer.map.store.MapContext;
 import com.jivesoftware.os.filer.map.store.MapStore;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -41,9 +42,137 @@ import org.testng.annotations.Test;
 public class NamedMapsNGTest {
 
     @Test
+    public void testVariableMapNameSizesCommit() throws Exception {
+
+        String[] chunkPaths = new String[]{Files.createTempDirectory("testNewChunkStore")
+            .toFile()
+            .getAbsolutePath()};
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
+        ChunkStore[] chunckStores = new ChunkStore[]{chunkStore1, chunkStore2};
+
+        TxNamedMap namedMap = new TxNamedMap(chunckStores, 464, new ByteArrayPartitionFunction(),
+            new MapCreator(2, 4, true, 8, false),
+            new MapOpener(),
+            new MapGrower<>(1));
+
+        final Random writeRand = new Random(1234);
+        for (int i = 0; i < 127; i++) {
+            byte[] mapName = new byte[1 + writeRand.nextInt(1024)];
+            writeRand.nextBytes(mapName);
+            mapName[0] = (byte) i;
+            for (int a = 0; a < 10; a++) {
+                final int ai = a;
+                namedMap.write(mapName, mapName, new ChunkTransaction<MapContext, Void>() {
+
+                    @Override
+                    public Void commit(MapContext monkey, ChunkFiler filer) throws IOException {
+                        byte[] key = new byte[1 + writeRand.nextInt(3)];
+                        writeRand.nextBytes(key);
+                        key[0] = (byte) ai;
+                        MapStore.INSTANCE.add(filer, monkey, (byte) 1, key, FilerIO.longBytes(writeRand.nextLong()));
+                        return null;
+                    }
+                });
+            }
+        }
+
+        final Random readRandom = new Random(1234);
+        for (int i = 0; i < 127; i++) {
+            byte[] mapName = new byte[1 + readRandom.nextInt(1024)];
+            readRandom.nextBytes(mapName);
+            mapName[0] = (byte) i;
+            for (int a = 0; a < 10; a++) {
+                final int ai = a;
+                namedMap.read(mapName, mapName, new ChunkTransaction<MapContext, Void>() {
+
+                    @Override
+                    public Void commit(MapContext monkey, ChunkFiler filer) throws IOException {
+                        byte[] key = new byte[1 + readRandom.nextInt(3)];
+                        readRandom.nextBytes(key);
+                        key[0] = (byte) ai;
+
+                        long expected = readRandom.nextLong();
+                        byte[] got = MapStore.INSTANCE.getPayload(filer, monkey, key);
+                        Assert.assertNotNull(got);
+                        Assert.assertEquals(FilerIO.bytesLong(got), expected);
+                        return null;
+                    }
+                });
+            }
+        }
+
+    }
+
+    @Test
+    public void testVariableNamedMapOfFilers() throws Exception {
+        String[] chunkPaths = new String[]{Files.createTempDirectory("testNewChunkStore")
+            .toFile()
+            .getAbsolutePath()};
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
+        ChunkStore[] chunckStores = new ChunkStore[]{chunkStore1, chunkStore2};
+
+        TxNamedMapOfFiler<Void> namedMapOfFilers = new TxNamedMapOfFiler<>(chunckStores, 464,
+            new ByteArrayPartitionFunction(),
+            new NoOpCreateFiler<ChunkFiler>(),
+            new NoOpOpenFiler<ChunkFiler>(),
+            new NoOpGrowFiler<Long, Void, ChunkFiler>());
+
+        int tries = 1; //change back to 128
+        final Random writeRand = new Random(1234);
+        for (int i = 0; i < tries; i++) {
+            byte[] mapName = new byte[1 + writeRand.nextInt(1024)];
+            writeRand.nextBytes(mapName);
+            mapName[0] = (byte) i;
+
+            for (int f = 0; f < tries; f++) {
+                byte[] filerName = new byte[1 + writeRand.nextInt(1024)];
+                writeRand.nextBytes(filerName);
+                filerName[0] = (byte) f;
+
+                namedMapOfFilers.overwrite(mapName, mapName, filerName, 8L, new ChunkTransaction<Void, Void>() {
+
+                    @Override
+                    public Void commit(Void monkey, ChunkFiler filer) throws IOException {
+                        FilerIO.writeLong(filer, writeRand.nextLong(), "value");
+                        return null;
+                    }
+                });
+            }
+
+        }
+
+        final Random readRandom = new Random(1234);
+        for (int i = 0; i < tries; i++) {
+            byte[] mapName = new byte[1 + readRandom.nextInt(1024)];
+            readRandom.nextBytes(mapName);
+            mapName[0] = (byte) i;
+            for (int f = 0; f < tries; f++) {
+                byte[] filerName = new byte[1 + readRandom.nextInt(1024)];
+                readRandom.nextBytes(filerName);
+                filerName[0] = (byte) f;
+                namedMapOfFilers.read(mapName, mapName, filerName, new ChunkTransaction<Void, Void>() {
+
+                    @Override
+                    public Void commit(Void monkey, ChunkFiler filer) throws IOException {
+                        Assert.assertNotNull(filer);
+                        long expected = readRandom.nextLong();
+                        filer.seek(0);
+                        Assert.assertEquals(FilerIO.readLong(filer, "value"), expected);
+                        return null;
+                    }
+                });
+            }
+        }
+    }
+
+    @Test
     public void testCommit() throws Exception {
 
-        String[] chunkPaths = new String[] { Files.createTempDirectory("testNewChunkStore").toFile().getAbsolutePath() };
+        String[] chunkPaths = new String[]{Files.createTempDirectory("testNewChunkStore")
+            .toFile()
+            .getAbsolutePath()};
         ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
         ChunkStore[] chunckStores = new ChunkStore[]{chunkStore1, chunkStore2};

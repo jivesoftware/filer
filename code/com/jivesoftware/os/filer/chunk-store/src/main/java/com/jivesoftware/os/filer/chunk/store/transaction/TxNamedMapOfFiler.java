@@ -94,8 +94,7 @@ public class TxNamedMapOfFiler<M> {
                                 @Override
                                 public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
                                     int chunkPower = FilerIO.chunkPower(filerKey.length, 0);
-                                    int maxKeySize = (int) FilerIO.chunkLength(chunkPower);
-                                    MapBackedKeyedFPIndexCreator creator = new MapBackedKeyedFPIndexCreator(2, maxKeySize, true, 8, false);
+                                    MapBackedKeyedFPIndexCreator creator = POWER_CREATORS[chunkPower];
                                     return monkey.commit(chunkStore, chunkPower, 2, creator, opener, grower, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
                                         @Override
                                         public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
@@ -141,8 +140,7 @@ public class TxNamedMapOfFiler<M> {
                                 @Override
                                 public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
                                     int chunkPower = FilerIO.chunkPower(filerKey.length, 0);
-                                    int maxKeySize = (int) FilerIO.chunkLength(chunkPower);
-                                    MapBackedKeyedFPIndexCreator creator = POWER_CREATORS[maxKeySize];
+                                    MapBackedKeyedFPIndexCreator creator = POWER_CREATORS[chunkPower];
                                     return monkey.commit(chunkStore, chunkPower, 1, creator, opener, grower, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
 
                                         @Override
@@ -215,8 +213,11 @@ public class TxNamedMapOfFiler<M> {
 
                                         @Override
                                         public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                            if (monkey == null || filer == null) {
+                                                return filerTransaction.commit(null, null);
+                                            }
                                             // TODO consider using the provided filer in appropriate cases.
-                                            return monkey.commit(chunkStore, filerKey, null, filerCreator, filerOpener, filerGrower, filerTransaction);
+                                            return monkey.commit(chunkStore, filerKey, null, null, filerOpener, null, filerTransaction);
                                         }
                                     });
                                 }
@@ -293,7 +294,6 @@ public class TxNamedMapOfFiler<M> {
         }
         return true;
     }
-
 
     public Boolean streamKeys(final byte[] mapName, final TxStreamKeys<byte[]> stream) throws IOException {
         for (final ChunkStore chunkStore : chunkStores) {
