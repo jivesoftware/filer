@@ -14,13 +14,14 @@ public class ChunkStoreInitializer {
 
     private static final long referenceNumber = 1;
 
-    public ChunkStore initialize(String chunkPath,
+    public ChunkStore initialize(String[] chunkPaths,
         String chunkPrefix,
+        int index,
         long chunkStoreCapacityInBytes,
         boolean autoResize,
         int concurrencyLevel)
         throws Exception {
-        File chunkStoreFile = getChunkStoreFile(new String[] { chunkPath }, chunkPrefix, 0);
+        File chunkStoreFile = getChunkStoreFile(chunkPaths, chunkPrefix, index);
         ByteBufferProvider byteBufferProvider = new ByteBufferProvider(chunkStoreFile.getName().getBytes(Charsets.UTF_8),
             new FileBackedMemMappedByteBufferFactory(chunkStoreFile.getParentFile()));
         return openOrCreate(chunkStoreFile, byteBufferProvider, chunkStoreCapacityInBytes, autoResize, concurrencyLevel);

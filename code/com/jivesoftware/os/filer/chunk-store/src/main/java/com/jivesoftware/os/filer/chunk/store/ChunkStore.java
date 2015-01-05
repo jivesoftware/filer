@@ -127,6 +127,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
                     public Void commit(Filer toFiler) throws IOException {
                         fromFiler.seek(0);
                         toFiler.seek(0);
+                        //TODO if these filers are both byte buffer backed then it's much faster to do an NIO ByteBuffer.put()
                         FilerIO.copy(fromFiler, toFiler, -1);
                         return null;
                     }
@@ -171,7 +172,6 @@ public class ChunkStore implements Copyable<ChunkStore> {
     }
 
     /**
-     *
      * @param <M>
      * @param <H>
      * @param hint
@@ -308,11 +308,10 @@ public class ChunkStore implements Copyable<ChunkStore> {
     }
 
     /**
-     *
      * @param <M>
      * @param <R>
      * @param chunkFP
-     * @param openFiler Nullable
+     * @param openFiler        Nullable
      * @param chunkTransaction
      * @return
      * @throws IOException

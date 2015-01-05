@@ -33,10 +33,9 @@ import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
 import java.io.IOException;
 
 /**
- *
- * @author jonathan.colt
  * @param <K>
  * @param <V>
+ * @author jonathan.colt
  */
 public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
 
@@ -82,7 +81,14 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
 
                         @Override
                         public V get() throws IOException {
-                            throw new IllegalStateException("cannot get within a write tx.");
+                            synchronized (monkey) {
+                                long pi = MapStore.INSTANCE.get(filer, monkey, keyBytes);
+                                if (pi > -1) {
+                                    byte[] rawValue = MapStore.INSTANCE.getPayload(filer, monkey, pi);
+                                    return keyValueMarshaller.bytesValue(key, rawValue, 0);
+                                }
+                                return null;
+                            }
                         }
                     });
                 }
@@ -101,19 +107,25 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
 
                         @Override
                         public void remove() throws IOException {
-                            throw new IllegalStateException("cannot remove within a read tx.");
+                            if (filer != null && monkey != null) {
+                                synchronized (monkey) {
+                                    MapStore.INSTANCE.remove(filer, monkey, keyBytes);
+                                }
+                            }
                         }
 
                         @Override
                         public V get() throws IOException {
-                            synchronized (monkey) {
-                                long pi = MapStore.INSTANCE.get(filer, monkey, keyBytes);
-                                if (pi > -1) {
-                                    byte[] rawValue = MapStore.INSTANCE.getPayload(filer, monkey, pi);
-                                    return keyValueMarshaller.bytesValue(key, rawValue, 0);
+                            if (filer != null && monkey != null) {
+                                synchronized (monkey) {
+                                    long pi = MapStore.INSTANCE.get(filer, monkey, keyBytes);
+                                    if (pi > -1) {
+                                        byte[] rawValue = MapStore.INSTANCE.getPayload(filer, monkey, pi);
+                                        return keyValueMarshaller.bytesValue(key, rawValue, 0);
+                                    }
                                 }
-                                return null;
                             }
+                            return null;
                         }
                     });
                 }

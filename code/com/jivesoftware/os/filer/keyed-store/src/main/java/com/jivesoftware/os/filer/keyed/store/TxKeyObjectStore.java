@@ -147,8 +147,15 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
                         }
 
                         @Override
+                        @SuppressWarnings("unchecked")
                         public V get() throws IOException {
-                            throw new IllegalStateException("cannot get within a write tx.");
+                            synchronized (monkey) {
+                                long ai = MapStore.INSTANCE.get(filer, monkey, keyBytes);
+                                if (ai > -1) {
+                                    return (V) values[(int) ai];
+                                }
+                                return null;
+                            }
                         }
                     });
                 }
@@ -167,10 +174,14 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
 
                         @Override
                         public void remove() throws IOException {
-                            throw new IllegalStateException("cannot remove within a read tx.");
+                            synchronized (monkey) {
+                                int ai = MapStore.INSTANCE.remove(filer, monkey, keyBytes);
+                                values[ai] = null;
+                            }
                         }
 
                         @Override
+                        @SuppressWarnings("unchecked")
                         public V get() throws IOException {
                             synchronized (monkey) {
                                 long ai = MapStore.INSTANCE.get(filer, monkey, keyBytes);

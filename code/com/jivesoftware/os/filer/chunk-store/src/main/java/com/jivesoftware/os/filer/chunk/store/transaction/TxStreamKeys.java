@@ -21,9 +21,8 @@ import java.io.IOException;
  *
  * @author jonathan.colt
  * @param <K>
- * @param <V>
  */
-public interface TxStreamKeys<K, V> {
+public interface TxStreamKeys<K> {
 
-    boolean stream(K key, V value) throws IOException;
+    boolean stream(K key) throws IOException;
 }

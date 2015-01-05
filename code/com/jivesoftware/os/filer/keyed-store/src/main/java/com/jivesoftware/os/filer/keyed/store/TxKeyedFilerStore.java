@@ -99,11 +99,11 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
 
     @Override
     public boolean streamKeys(final KeyValueStore.KeyStream<IBA> stream) throws IOException {
-        return namedMapOfFilers.streamKeys(name, new TxStreamKeys<byte[], byte[]>() {
+        return namedMapOfFilers.streamKeys(name, new TxStreamKeys<byte[]>() {
 
             @Override
-            public boolean stream(byte[] key, byte[] value) throws IOException {
-                return stream.stream(new IBA(value));
+            public boolean stream(byte[] key) throws IOException {
+                return stream.stream(new IBA(key));
             }
         });
     }

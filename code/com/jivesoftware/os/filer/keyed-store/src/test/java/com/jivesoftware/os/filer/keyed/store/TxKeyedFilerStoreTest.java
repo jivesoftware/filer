@@ -27,11 +27,9 @@ public class TxKeyedFilerStoreTest {
 
     @Test
     public void keyedStoreTest() throws Exception {
-        String chunkPath = Files.createTempDirectory("testNewChunkStore")
-            .toFile()
-            .getAbsolutePath();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPath, "data1", 10, true, 8);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPath, "data2", 10, true, 8);
+        String[] chunkPaths = new String[] { Files.createTempDirectory("testNewChunkStore").toFile().getAbsolutePath() };
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores,
@@ -62,11 +60,9 @@ public class TxKeyedFilerStoreTest {
 
     @Test
     public void rewriteTest() throws Exception {
-        String chunkPath = Files.createTempDirectory("testNewChunkStore")
-            .toFile()
-            .getAbsolutePath();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPath, "data1", 10, true, 8);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPath, "data2", 10, true, 8);
+        String[] chunkPaths = new String[] { Files.createTempDirectory("testNewChunkStore").toFile().getAbsolutePath() };
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores,

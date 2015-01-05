@@ -43,11 +43,9 @@ public class NamedMapsNGTest {
     @Test
     public void testCommit() throws Exception {
 
-        String chunkPath = Files.createTempDirectory("testNewChunkStore")
-            .toFile()
-            .getAbsolutePath();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPath, "data1", 10, true, 8);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPath, "data2", 10, true, 8);
+        String[] chunkPaths = new String[] { Files.createTempDirectory("testNewChunkStore").toFile().getAbsolutePath() };
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
         ChunkStore[] chunckStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         TxNamedMapOfFiler<Void> namedMapOfFilers = new TxNamedMapOfFiler<>(chunckStores, 464,
@@ -169,8 +167,8 @@ public class NamedMapsNGTest {
 
         }
 
-        chunkStore1 = new ChunkStoreInitializer().initialize(chunkPath, "data1", 10, true, 8);
-        chunkStore2 = new ChunkStoreInitializer().initialize(chunkPath, "data2", 10, true, 8);
+        chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
+        chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
         chunckStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         namedMapOfFilers = new TxNamedMapOfFiler<>(chunckStores, 464,

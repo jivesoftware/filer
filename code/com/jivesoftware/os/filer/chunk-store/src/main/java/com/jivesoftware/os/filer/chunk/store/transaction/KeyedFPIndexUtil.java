@@ -53,7 +53,7 @@ public class KeyedFPIndexUtil {
             fp = backingFPIndex.get(key);
             if (fp < 0) {
                 if (creator == null) {
-                    return null;
+                    return filerTransaction.commit(null, null);
                 }
                 try {
                     semaphore.acquire(numPermits);
@@ -86,7 +86,7 @@ public class KeyedFPIndexUtil {
                             return null;
                         }
                     }
-                    return new Bag(filerTransaction.commit(monkey, filer));
+                    return new Bag<>(filerTransaction.commit(monkey, filer));
                 }
             });
             if (bag != null) {
@@ -110,10 +110,10 @@ public class KeyedFPIndexUtil {
                         H hint = growFiler.grow(monkey, filer);
                         if (hint != null) {
                             final long grownFP = chunkStore.newChunk(hint, creator);
-                            chunkStore.execute(grownFP, null, new ChunkTransaction<M, R>() {
+                            chunkStore.execute(grownFP, null, new ChunkTransaction<M, Void>() {
 
                                 @Override
-                                public R commit(M newMonkey, ChunkFiler newFiler) throws IOException {
+                                public Void commit(M newMonkey, ChunkFiler newFiler) throws IOException {
                                     growFiler.grow(monkey, filer, newMonkey, newFiler);
                                     return null;
                                 }
