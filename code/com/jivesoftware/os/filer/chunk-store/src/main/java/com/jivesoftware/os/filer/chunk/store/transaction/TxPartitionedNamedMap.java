@@ -47,10 +47,10 @@ public class TxPartitionedNamedMap {
     }
 
     public Boolean stream(final byte[] mapName, final TxStream<byte[], MapContext, ChunkFiler> stream) throws IOException {
-        for (final TxNamedMap namedMap : namedMaps) {
+        for (TxNamedMap namedMap : namedMaps) {
             boolean result = namedMap.stream(mapName, stream);
             if (!result) {
-                break;
+                return false;
             }
         }
         return true;

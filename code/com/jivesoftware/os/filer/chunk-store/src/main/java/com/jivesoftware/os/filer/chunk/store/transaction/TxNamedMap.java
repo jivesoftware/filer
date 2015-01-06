@@ -106,8 +106,11 @@ public class TxNamedMap {
 
                     @Override
                     public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                        MapOpener opener = new MapOpener();
-                        return monkey.commit(chunkStore, mapName, 1, null, opener, null, mapTransaction);
+                        if (monkey != null && filer != null) {
+                            return monkey.commit(chunkStore, mapName, 1, null, mapOpener, null, mapTransaction);
+                        } else {
+                            return mapTransaction.commit(null, null);
+                        }
                     }
 
                 });
@@ -132,7 +135,7 @@ public class TxNamedMap {
 
                     @Override
                     public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                        return monkey.commit(chunkStore, mapName, null, null, new MapOpener(), null, new ChunkTransaction<MapContext, Boolean>() {
+                        return monkey.commit(chunkStore, mapName, null, null, mapOpener, null, new ChunkTransaction<MapContext, Boolean>() {
 
                             @Override
                             public Boolean commit(MapContext monkey, ChunkFiler filer) throws IOException {

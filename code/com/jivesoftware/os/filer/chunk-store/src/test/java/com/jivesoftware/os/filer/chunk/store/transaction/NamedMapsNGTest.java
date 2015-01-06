@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -55,49 +56,101 @@ public class NamedMapsNGTest {
             new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), new MapOpener(), new MapGrower<>(1))
         });
 
-        final Random writeRand = new Random(1234);
-        for (int i = 0; i < 127; i++) {
-            byte[] mapName = new byte[1 + writeRand.nextInt(1024)];
-            writeRand.nextBytes(mapName);
-            mapName[0] = (byte) i;
-            for (int a = 0; a < 10; a++) {
-                final int ai = a;
-                namedMap.write(mapName, mapName, new ChunkTransaction<MapContext, Void>() {
+        int tries = 128;
 
-                    @Override
-                    public Void commit(MapContext monkey, ChunkFiler filer) throws IOException {
-                        byte[] key = new byte[1 + writeRand.nextInt(3)];
-                        writeRand.nextBytes(key);
-                        key[0] = (byte) ai;
-                        MapStore.INSTANCE.add(filer, monkey, (byte) 1, key, FilerIO.longBytes(writeRand.nextLong()));
-                        return null;
-                    }
-                });
-            }
-        }
-
-        final Random readRandom = new Random(1234);
-        for (int i = 0; i < 127; i++) {
-            byte[] mapName = new byte[1 + readRandom.nextInt(1024)];
-            readRandom.nextBytes(mapName);
-            mapName[0] = (byte) i;
-            for (int a = 0; a < 10; a++) {
-                final int ai = a;
+        READS_AGAINST_EMPTY:
+        {
+            final Random rand = new Random(1234);
+            final AtomicInteger nulls = new AtomicInteger();
+            for (int i = 0; i < tries; i++) {
+                byte[] mapName = new byte[1 + rand.nextInt(1024)];
+                rand.nextBytes(mapName);
+                mapName[0] = (byte) i;
                 namedMap.read(mapName, mapName, new ChunkTransaction<MapContext, Void>() {
 
                     @Override
                     public Void commit(MapContext monkey, ChunkFiler filer) throws IOException {
-                        byte[] key = new byte[1 + readRandom.nextInt(3)];
-                        readRandom.nextBytes(key);
-                        key[0] = (byte) ai;
-
-                        long expected = readRandom.nextLong();
-                        byte[] got = MapStore.INSTANCE.getPayload(filer, monkey, key);
-                        Assert.assertNotNull(got);
-                        Assert.assertEquals(FilerIO.bytesLong(got), expected);
+                        Assert.assertNull(monkey);
+                        Assert.assertNull(filer);
+                        nulls.addAndGet(1);
                         return null;
                     }
                 });
+            }
+            Assert.assertEquals(nulls.get(), tries);
+        }
+
+        WRITES:
+        {
+            final Random rand = new Random(1234);
+            for (int i = 0; i < tries; i++) {
+                byte[] mapName = new byte[1 + rand.nextInt(1024)];
+                rand.nextBytes(mapName);
+                mapName[0] = (byte) i;
+                for (int a = 0; a < 10; a++) {
+                    final int ai = a;
+                    namedMap.write(mapName, mapName, new ChunkTransaction<MapContext, Void>() {
+
+                        @Override
+                        public Void commit(MapContext monkey, ChunkFiler filer) throws IOException {
+                            byte[] key = new byte[1 + rand.nextInt(3)];
+                            rand.nextBytes(key);
+                            key[0] = (byte) ai;
+                            MapStore.INSTANCE.add(filer, monkey, (byte) 1, key, FilerIO.longBytes(rand.nextLong()));
+                            return null;
+                        }
+                    });
+                }
+            }
+        }
+
+        MISSING_READS:
+        {
+            final Random rand = new Random(1234);
+            final AtomicInteger nulls = new AtomicInteger();
+            for (int i = tries; i < tries * 2; i++) {
+                byte[] mapName = new byte[1 + rand.nextInt(1024)];
+                rand.nextBytes(mapName);
+                mapName[0] = (byte) i;
+                namedMap.read(mapName, mapName, new ChunkTransaction<MapContext, Void>() {
+
+                    @Override
+                    public Void commit(MapContext monkey, ChunkFiler filer) throws IOException {
+                        Assert.assertNull(monkey);
+                        Assert.assertNull(filer);
+                        nulls.addAndGet(1);
+                        return null;
+                    }
+                });
+            }
+            Assert.assertEquals(nulls.get(), tries);
+        }
+
+        REMOVES:
+        {
+            final Random rand = new Random(1234);
+            for (int i = 0; i < tries; i++) {
+                byte[] mapName = new byte[1 + rand.nextInt(1024)];
+                rand.nextBytes(mapName);
+                mapName[0] = (byte) i;
+                for (int a = 0; a < 10; a++) {
+                    final int ai = a;
+                    namedMap.read(mapName, mapName, new ChunkTransaction<MapContext, Void>() {
+
+                        @Override
+                        public Void commit(MapContext monkey, ChunkFiler filer) throws IOException {
+                            byte[] key = new byte[1 + rand.nextInt(3)];
+                            rand.nextBytes(key);
+                            key[0] = (byte) ai;
+
+                            long expected = rand.nextLong();
+                            byte[] got = MapStore.INSTANCE.getPayload(filer, monkey, key);
+                            Assert.assertNotNull(got);
+                            Assert.assertEquals(FilerIO.bytesLong(got), expected);
+                            return null;
+                        }
+                    });
+                }
             }
         }
 
@@ -113,33 +166,37 @@ public class NamedMapsNGTest {
 
         TxPartitionedNamedMapOfFiler<Void> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(), new TxNamedMapOfFiler[]{
             new TxNamedMapOfFiler(chunkStore1,
-                464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>()),
+            464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>()),
             new TxNamedMapOfFiler(chunkStore2,
-                464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>())
+            464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>())
         });
 
-        int tries = 1; //change back to 128
-        final Random writeRand = new Random(1234);
-        for (int i = 0; i < tries; i++) {
-            byte[] mapName = new byte[1 + writeRand.nextInt(1024)];
-            writeRand.nextBytes(mapName);
-            mapName[0] = (byte) i;
+        int tries = 128;
 
-            for (int f = 0; f < tries; f++) {
-                byte[] filerName = new byte[1 + writeRand.nextInt(1024)];
-                writeRand.nextBytes(filerName);
-                filerName[0] = (byte) f;
+        WRITES:
+        {
+            final Random rand = new Random(1234);
+            for (int i = 0; i < tries; i++) {
+                byte[] mapName = new byte[1 + rand.nextInt(1024)];
+                rand.nextBytes(mapName);
+                mapName[0] = (byte) i;
 
-                namedMapOfFilers.overwrite(mapName, mapName, filerName, 8L, new ChunkTransaction<Void, Void>() {
+                for (int f = 0; f < tries; f++) {
+                    byte[] filerName = new byte[1 + rand.nextInt(1024)];
+                    rand.nextBytes(filerName);
+                    filerName[0] = (byte) f;
 
-                    @Override
-                    public Void commit(Void monkey, ChunkFiler filer) throws IOException {
-                        FilerIO.writeLong(filer, writeRand.nextLong(), "value");
-                        return null;
-                    }
-                });
+                    namedMapOfFilers.overwrite(mapName, mapName, filerName, 8L, new ChunkTransaction<Void, Void>() {
+
+                        @Override
+                        public Void commit(Void monkey, ChunkFiler filer) throws IOException {
+                            FilerIO.writeLong(filer, rand.nextLong(), "value");
+                            return null;
+                        }
+                    });
+                }
+
             }
-
         }
 
         final Random readRandom = new Random(1234);
@@ -177,9 +234,9 @@ public class NamedMapsNGTest {
 
         TxPartitionedNamedMapOfFiler<Void> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(), new TxNamedMapOfFiler[]{
             new TxNamedMapOfFiler(chunkStore1,
-                464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>()),
+            464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>()),
             new TxNamedMapOfFiler(chunkStore2,
-                464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>())
+            464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>())
         });
 
         TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[]{
@@ -300,9 +357,9 @@ public class NamedMapsNGTest {
 
         namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(), new TxNamedMapOfFiler[]{
             new TxNamedMapOfFiler(chunkStore1,
-                464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>()),
+            464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>()),
             new TxNamedMapOfFiler(chunkStore2,
-                464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>())
+            464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>())
         });
 
         namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[]{
@@ -376,6 +433,15 @@ public class NamedMapsNGTest {
             @Override
             public boolean stream(byte[] key, Void monkey, ChunkFiler filer) throws IOException {
                 System.out.println(new IBA(key) + " " + filer);
+                return true;
+            }
+        });
+
+        namedMapOfFilers.streamKeys("filer2".getBytes(), new TxStreamKeys<byte[]>() {
+
+            @Override
+            public boolean stream(byte[] key) throws IOException {
+                System.out.println(new IBA(key));
                 return true;
             }
         });
