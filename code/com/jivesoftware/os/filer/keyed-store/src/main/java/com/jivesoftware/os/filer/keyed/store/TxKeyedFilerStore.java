@@ -110,7 +110,6 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
 
     @Override
     public void close() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
 }

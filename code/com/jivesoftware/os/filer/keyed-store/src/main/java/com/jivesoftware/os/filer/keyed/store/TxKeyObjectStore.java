@@ -19,6 +19,7 @@ import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMap;
+import com.jivesoftware.os.filer.chunk.store.transaction.TxPartitionedNamedMap;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStream;
 import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
 import com.jivesoftware.os.filer.io.CreateFiler;
@@ -40,10 +41,10 @@ import static com.jivesoftware.os.filer.keyed.store.TxKeyValueStore._skyHookFP;
  */
 public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
 
+    private final TxPartitionedNamedMap partitionedNamedMap;
     private final KeyMarshaller<K> keyMarshaller;
     private final byte[] name;
-    private final TxNamedMap namedMap;
-    private Object[] values;
+    private Object[][] values;
 
     public TxKeyObjectStore(ChunkStore[] chunkStores,
         KeyMarshaller<K> keyMarshaller,
@@ -53,68 +54,75 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
         final boolean variableKeySize) {
         this.keyMarshaller = keyMarshaller;
         this.name = name;
+        this.values = new Object[chunkStores.length][];
 
-        OpenFiler<MapContext, ChunkFiler> opener = new OpenFiler<MapContext, ChunkFiler>() {
+        TxNamedMap[] namedMaps = new TxNamedMap[chunkStores.length];
+        for (int i = 0; i < chunkStores.length; i++) {
+            final int _i = i;
+            OpenFiler<MapContext, ChunkFiler> opener = new OpenFiler<MapContext, ChunkFiler>() {
 
-            @Override
-            public MapContext open(ChunkFiler filer) throws IOException {
-                MapContext mapContext = MapStore.INSTANCE.open(filer);
-                values = new Object[mapContext.capacity];
-                return mapContext;
-            }
-        };
+                @Override
+                public MapContext open(ChunkFiler filer) throws IOException {
+                    MapContext mapContext = MapStore.INSTANCE.open(filer);
+                    values[_i] = new Object[mapContext.capacity];
+                    return mapContext;
+                }
+            };
 
-        CreateFiler<Integer, MapContext, ChunkFiler> creator = new CreateFiler<Integer, MapContext, ChunkFiler>() {
-            @Override
-            public MapContext create(Integer hint, ChunkFiler filer) throws IOException {
-                hint += initialCapacity;
-                hint = hint < 2 ? 2 : hint;
-                MapContext mapContext = MapStore.INSTANCE.create(hint, keySize, variableKeySize, 0, false, filer);
-                values = new Object[mapContext.capacity];
-                return mapContext;
-            }
+            CreateFiler<Integer, MapContext, ChunkFiler> creator = new CreateFiler<Integer, MapContext, ChunkFiler>() {
+                @Override
+                public MapContext create(Integer hint, ChunkFiler filer) throws IOException {
+                    hint += initialCapacity;
+                    hint = hint < 2 ? 2 : hint;
+                    MapContext mapContext = MapStore.INSTANCE.create(hint, keySize, variableKeySize, 0, false, filer);
+                    values[_i] = new Object[mapContext.capacity];
+                    return mapContext;
+                }
 
-            @Override
-            public long sizeInBytes(Integer hint) throws IOException {
-                hint += initialCapacity;
-                hint = hint < 2 ? 2 : hint;
-                return MapStore.INSTANCE.computeFilerSize(hint, keySize, variableKeySize, 0, false);
-            }
-        };
+                @Override
+                public long sizeInBytes(Integer hint) throws IOException {
+                    hint += initialCapacity;
+                    hint = hint < 2 ? 2 : hint;
+                    return MapStore.INSTANCE.computeFilerSize(hint, keySize, variableKeySize, 0, false);
+                }
+            };
 
-        GrowFiler<Integer, MapContext, ChunkFiler> grower = new GrowFiler<Integer, MapContext, ChunkFiler>() {
-            @Override
-            public Integer grow(MapContext monkey, ChunkFiler filer) throws IOException {
-                synchronized (monkey) {
-                    if (MapStore.INSTANCE.isFullWithNMore(filer, monkey, 1)) {
-                        return MapStore.INSTANCE.nextGrowSize(monkey, 1);
+            GrowFiler<Integer, MapContext, ChunkFiler> grower = new GrowFiler<Integer, MapContext, ChunkFiler>() {
+                @Override
+                public Integer grow(MapContext monkey, ChunkFiler filer) throws IOException {
+                    synchronized (monkey) {
+                        if (MapStore.INSTANCE.isFullWithNMore(filer, monkey, 1)) {
+                            return MapStore.INSTANCE.nextGrowSize(monkey, 1);
+                        }
+                    }
+                    return null;
+                }
+
+                @Override
+                public void grow(MapContext currentMonkey, ChunkFiler currentFiler, MapContext newMonkey, ChunkFiler newFiler) throws IOException {
+                    synchronized (currentMonkey) {
+                        synchronized (newMonkey) {
+                            final Object[] newValues = new Object[newMonkey.capacity];
+                            MapStore.INSTANCE.copyTo(currentFiler, currentMonkey, newFiler, newMonkey, new MapStore.CopyToStream() {
+                                @Override
+                                public void copied(int fromIndex, int toIndex) {
+                                    newValues[toIndex] = values[fromIndex];
+                                }
+                            });
+                            values[_i] = newValues;
+
+                        }
                     }
                 }
-                return null;
-            }
+            };
+            namedMaps[i] = new TxNamedMap(chunkStores[i], _skyHookFP,
+                creator,
+                opener,
+                grower);
+        }
 
-            @Override
-            public void grow(MapContext currentMonkey, ChunkFiler currentFiler, MapContext newMonkey, ChunkFiler newFiler) throws IOException {
-                synchronized (currentMonkey) {
-                    synchronized (newMonkey) {
-                        final Object[] newValues = new Object[newMonkey.capacity];
-                        MapStore.INSTANCE.copyTo(currentFiler, currentMonkey, newFiler, newMonkey, new MapStore.CopyToStream() {
-                            @Override
-                            public void copied(int fromIndex, int toIndex) {
-                                newValues[toIndex] = values[fromIndex];
-                            }
-                        });
-                        values = newValues;
+        this.partitionedNamedMap = new TxPartitionedNamedMap(namedMaps, new ByteArrayPartitionFunction());
 
-                    }
-                }
-            }
-        };
-
-        this.namedMap = new TxNamedMap(chunkStores, _skyHookFP, new ByteArrayPartitionFunction(),
-            creator,
-            opener,
-            grower);
     }
 
     @Override
