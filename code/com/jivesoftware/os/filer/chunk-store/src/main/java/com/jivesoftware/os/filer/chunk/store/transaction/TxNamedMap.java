@@ -100,6 +100,9 @@ public class TxNamedMap {
 
             @Override
             public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                if (monkey == null || filer == null) {
+                    return mapTransaction.commit(null, null);
+                }
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
                 return monkey.commit(chunkStore, chunkPower, 1, null, opener, null, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
@@ -129,16 +132,25 @@ public class TxNamedMap {
 
             @Override
             public Boolean commit(final PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                if (monkey == null || filer == null) {
+                    return true;
+                }
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
                 return monkey.commit(chunkStore, chunkPower, null, null, opener, null, new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
 
                     @Override
                     public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                        if (monkey == null || filer == null) {
+                            return true;
+                        }
                         return monkey.commit(chunkStore, mapName, null, null, mapOpener, null, new ChunkTransaction<MapContext, Boolean>() {
 
                             @Override
                             public Boolean commit(MapContext monkey, ChunkFiler filer) throws IOException {
+                                if (monkey == null || filer == null) {
+                                    return true;
+                                }
                                 return stream.stream(mapName, monkey, filer);
                             }
                         });

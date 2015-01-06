@@ -146,6 +146,9 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
 
             @Override
             public boolean stream(byte[] key, MapContext monkey, ChunkFiler filer) throws IOException {
+                if (monkey == null || filer == null) {
+                    return true;
+                }
                 return MapStore.INSTANCE.stream(filer, monkey, new MapStore.EntryStream() {
 
                     @Override
@@ -165,6 +168,9 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
 
             @Override
             public boolean stream(byte[] key, MapContext monkey, ChunkFiler filer) throws IOException {
+                if (monkey == null || filer == null) {
+                    return true;
+                }
                 return MapStore.INSTANCE.streamKeys(filer, monkey, new MapStore.KeyStream() {
 
                     @Override

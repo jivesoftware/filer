@@ -181,12 +181,18 @@ public class TxNamedMapOfFiler<M> {
 
             @Override
             public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                if (monkey == null || filer == null) {
+                    return filerTransaction.commit(null, null);
+                }
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
                 return monkey.commit(chunkStore, chunkPower, 1, null, opener, null, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
 
                     @Override
                     public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                        if (monkey == null || filer == null) {
+                            return filerTransaction.commit(null, null);
+                        }
 
                         return monkey.commit(chunkStore, mapName, null, null, KeyedFPIndexOpener.DEFAULT, null,
                             new ChunkTransaction<PowerKeyedFPIndex, R>() {
@@ -228,18 +234,27 @@ public class TxNamedMapOfFiler<M> {
 
             @Override
             public Boolean commit(final PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                if (monkey == null || filer == null) {
+                    return true;
+                }
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
                 return monkey.commit(chunkStore, chunkPower, null, null, opener, null, new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
 
                     @Override
                     public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                        if (monkey == null || filer == null) {
+                            return true;
+                        }
 
                         return monkey.commit(chunkStore, mapName, null, null, KeyedFPIndexOpener.DEFAULT, null,
                             new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
 
                                 @Override
                                 public Boolean commit(final PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                    if (monkey == null || filer == null) {
+                                        return true;
+                                    }
                                     return monkey.stream(chunkStore, new KeysStream<Integer>() {
 
                                         @Override
@@ -249,6 +264,9 @@ public class TxNamedMapOfFiler<M> {
 
                                                     @Override
                                                     public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                                        if (monkey == null || filer == null) {
+                                                            return true;
+                                                        }
                                                         return monkey.stream(chunkStore, new KeysStream<byte[]>() {
 
                                                             @Override
@@ -288,18 +306,27 @@ public class TxNamedMapOfFiler<M> {
 
             @Override
             public Boolean commit(final PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                if (monkey == null || filer == null) {
+                    return true;
+                }
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
                 return monkey.commit(chunkStore, chunkPower, null, null, opener, null, new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
 
                     @Override
                     public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                        if (monkey == null || filer == null) {
+                            return true;
+                        }
 
                         return monkey.commit(chunkStore, mapName, null, null, KeyedFPIndexOpener.DEFAULT, null,
                             new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
 
                                 @Override
                                 public Boolean commit(final PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                    if (monkey == null || filer == null) {
+                                        return true;
+                                    }
                                     return monkey.stream(chunkStore, new KeysStream<Integer>() {
 
                                         @Override
@@ -309,6 +336,9 @@ public class TxNamedMapOfFiler<M> {
 
                                                     @Override
                                                     public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                                        if (monkey == null || filer == null) {
+                                                            return true;
+                                                        }
                                                         Boolean result = monkey.stream(chunkStore, new KeysStream<byte[]>() {
 
                                                             @Override
