@@ -27,6 +27,11 @@ import java.io.IOException;
  */
 public class MapBackedKeyedFPIndexOpener implements OpenFiler<MapBackedKeyedFPIndex, ChunkFiler> {
 
+    public static final MapBackedKeyedFPIndexOpener INSTANCE = new MapBackedKeyedFPIndexOpener();
+
+    private MapBackedKeyedFPIndexOpener() {
+    }
+
     @Override
     public MapBackedKeyedFPIndex open(ChunkFiler filer) throws IOException {
         MapContext mapContext = MapStore.INSTANCE.open(filer);

@@ -51,7 +51,7 @@ public class MapBackedKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<by
 
     @Override
     public long get(final byte[] key) throws IOException {
-        return backingChunkStore.execute(backingFP, new MapBackedKeyedFPIndexOpener(), new ChunkTransaction<MapBackedKeyedFPIndex, Long>() {
+        return backingChunkStore.execute(backingFP, MapBackedKeyedFPIndexOpener.INSTANCE, new ChunkTransaction<MapBackedKeyedFPIndex, Long>() {
 
             @Override
             public Long commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
@@ -68,7 +68,7 @@ public class MapBackedKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<by
 
     @Override
     public void set(final byte[] key, final long fp) throws IOException {
-        backingChunkStore.execute(backingFP, null, new ChunkTransaction<MapBackedKeyedFPIndex, Void>() {
+        backingChunkStore.execute(backingFP,  MapBackedKeyedFPIndexOpener.INSTANCE, new ChunkTransaction<MapBackedKeyedFPIndex, Void>() {
 
             @Override
             public Void commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {

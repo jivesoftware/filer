@@ -45,7 +45,6 @@ public class TxNamedMapOfFiler<M> {
     private final OpenFiler<M, ChunkFiler> filerOpener;
     private final GrowFiler<Long, M, ChunkFiler> filerGrower;
 
-    private final MapBackedKeyedFPIndexOpener opener = new MapBackedKeyedFPIndexOpener();
     private final MapBackedKeyedFPIndexGrower grower = new MapBackedKeyedFPIndexGrower(1);
 
     public TxNamedMapOfFiler(ChunkStore chunkStore,
@@ -77,28 +76,30 @@ public class TxNamedMapOfFiler<M> {
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
                 MapBackedKeyedFPIndexCreator creator = POWER_CREATORS[chunkPower];
-                return monkey.commit(chunkStore, chunkPower, 2, creator, opener, grower, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
+                return monkey.commit(chunkStore, chunkPower, 2, creator, MapBackedKeyedFPIndexOpener.INSTANCE,
+                    grower, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
 
-                    @Override
-                    public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                        @Override
+                        public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
 
-                        return monkey.commit(chunkStore, mapName, null, KeyedFPIndexCreator.DEFAULT, KeyedFPIndexOpener.DEFAULT, null,
-                            new ChunkTransaction<PowerKeyedFPIndex, R>() {
-                                @Override
-                                public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                                    int chunkPower = FilerIO.chunkPower(filerKey.length, 0);
-                                    MapBackedKeyedFPIndexCreator creator = POWER_CREATORS[chunkPower];
-                                    return monkey.commit(chunkStore, chunkPower, 2, creator, opener, grower, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
-                                        @Override
-                                        public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                                            // TODO consider using the provided filer in appropriate cases.
-                                            return monkey.commit(chunkStore, filerKey, sizeHint, filerCreator, filerOpener, filerGrower, filerTransaction);
-                                        }
-                                    });
-                                }
-                            });
-                    }
-                });
+                            return monkey.commit(chunkStore, mapName, null, KeyedFPIndexCreator.DEFAULT, KeyedFPIndexOpener.DEFAULT, null,
+                                new ChunkTransaction<PowerKeyedFPIndex, R>() {
+                                    @Override
+                                    public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                        int chunkPower = FilerIO.chunkPower(filerKey.length, 0);
+                                        MapBackedKeyedFPIndexCreator creator = POWER_CREATORS[chunkPower];
+                                        return monkey.commit(chunkStore, chunkPower, 2, creator, MapBackedKeyedFPIndexOpener.INSTANCE,
+                                            grower, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
+                                            @Override
+                                            public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                                // TODO consider using the provided filer in appropriate cases.
+                                                return monkey.commit(chunkStore, filerKey, sizeHint, filerCreator, filerOpener, filerGrower, filerTransaction);
+                                            }
+                                        });
+                                    }
+                                });
+                        }
+                    });
             }
         });
     }
@@ -120,53 +121,55 @@ public class TxNamedMapOfFiler<M> {
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
                 MapBackedKeyedFPIndexCreator creator = POWER_CREATORS[chunkPower];
-                return monkey.commit(chunkStore, chunkPower, 2, creator, opener, grower, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
+                return monkey.commit(chunkStore, chunkPower, 2, creator, MapBackedKeyedFPIndexOpener.INSTANCE,
+                    grower, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
 
-                    @Override
-                    public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                        @Override
+                        public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
 
-                        return monkey.commit(chunkStore, mapName, null, KeyedFPIndexCreator.DEFAULT, KeyedFPIndexOpener.DEFAULT, null,
-                            new ChunkTransaction<PowerKeyedFPIndex, R>() {
-                                @Override
-                                public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                                    int chunkPower = FilerIO.chunkPower(filerKey.length, 0);
-                                    MapBackedKeyedFPIndexCreator creator = POWER_CREATORS[chunkPower];
-                                    return monkey.commit(chunkStore, chunkPower, 1, creator, opener, grower, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
+                            return monkey.commit(chunkStore, mapName, null, KeyedFPIndexCreator.DEFAULT, KeyedFPIndexOpener.DEFAULT, null,
+                                new ChunkTransaction<PowerKeyedFPIndex, R>() {
+                                    @Override
+                                    public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                        int chunkPower = FilerIO.chunkPower(filerKey.length, 0);
+                                        MapBackedKeyedFPIndexCreator creator = POWER_CREATORS[chunkPower];
+                                        return monkey.commit(chunkStore, chunkPower, 1, creator, MapBackedKeyedFPIndexOpener.INSTANCE,
+                                            grower, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
 
-                                        @Override
-                                        public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                                            // TODO consider using the provided filer in appropriate cases.
-                                            final AtomicReference<R> result = new AtomicReference<>();
-                                            GrowFiler<Long, M, ChunkFiler> rewriteGrower = new GrowFiler<Long, M, ChunkFiler>() {
-
-                                                @Override
-                                                public Long grow(M monkey, ChunkFiler filer) throws IOException {
-                                                    return sizeHint;
-                                                }
-
-                                                @Override
-                                                public void grow(M currentMonkey,
-                                                    ChunkFiler currentFiler,
-                                                    M newMonkey,
-                                                    ChunkFiler newFiler) throws IOException {
-                                                    filerGrower.grow(currentMonkey, currentFiler, newMonkey, newFiler);
-                                                    result.set(rewriteChunkTransaction.commit(currentMonkey, currentFiler, newMonkey, newFiler));
-                                                }
-                                            };
-                                            return monkey.commit(chunkStore, filerKey, sizeHint, filerCreator, filerOpener, rewriteGrower,
-                                                new ChunkTransaction<M, R>() {
+                                            @Override
+                                            public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                                // TODO consider using the provided filer in appropriate cases.
+                                                final AtomicReference<R> result = new AtomicReference<>();
+                                                GrowFiler<Long, M, ChunkFiler> rewriteGrower = new GrowFiler<Long, M, ChunkFiler>() {
 
                                                     @Override
-                                                    public R commit(M monkey, ChunkFiler filer) throws IOException {
-                                                        return result.get();
+                                                    public Long grow(M monkey, ChunkFiler filer) throws IOException {
+                                                        return sizeHint;
                                                     }
-                                                });
-                                        }
-                                    });
-                                }
-                            });
-                    }
-                });
+
+                                                    @Override
+                                                    public void grow(M currentMonkey,
+                                                        ChunkFiler currentFiler,
+                                                        M newMonkey,
+                                                        ChunkFiler newFiler) throws IOException {
+                                                        filerGrower.grow(currentMonkey, currentFiler, newMonkey, newFiler);
+                                                        result.set(rewriteChunkTransaction.commit(currentMonkey, currentFiler, newMonkey, newFiler));
+                                                    }
+                                                };
+                                                return monkey.commit(chunkStore, filerKey, sizeHint, filerCreator, filerOpener, rewriteGrower,
+                                                    new ChunkTransaction<M, R>() {
+
+                                                        @Override
+                                                        public R commit(M monkey, ChunkFiler filer) throws IOException {
+                                                            return result.get();
+                                                        }
+                                                    });
+                                            }
+                                        });
+                                    }
+                                });
+                        }
+                    });
             }
         });
     }
@@ -186,39 +189,41 @@ public class TxNamedMapOfFiler<M> {
                 }
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.commit(chunkStore, chunkPower, 1, null, opener, null, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
+                return monkey.commit(chunkStore, chunkPower, 1, null, MapBackedKeyedFPIndexOpener.INSTANCE,
+                    null, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
 
-                    @Override
-                    public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                        if (monkey == null || filer == null) {
-                            return filerTransaction.commit(null, null);
+                        @Override
+                        public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                            if (monkey == null || filer == null) {
+                                return filerTransaction.commit(null, null);
+                            }
+
+                            return monkey.commit(chunkStore, mapName, null, null, KeyedFPIndexOpener.DEFAULT, null,
+                                new ChunkTransaction<PowerKeyedFPIndex, R>() {
+                                    @Override
+                                    public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                        if (monkey == null || filer == null) {
+                                            return filerTransaction.commit(null, null);
+                                        }
+
+                                        int chunkPower = FilerIO.chunkPower(filerKey.length, 0);
+                                        return monkey.commit(chunkStore, chunkPower, 1, null, MapBackedKeyedFPIndexOpener.INSTANCE,
+                                            null, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
+
+                                            @Override
+                                            public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                                if (monkey == null || filer == null) {
+                                                    return filerTransaction.commit(null, null);
+                                                }
+                                                // TODO consider using the provided filer in appropriate cases.
+                                                return monkey.commit(chunkStore, filerKey, null, null, filerOpener, null, filerTransaction);
+                                            }
+                                        });
+                                    }
+                                });
                         }
 
-                        return monkey.commit(chunkStore, mapName, null, null, KeyedFPIndexOpener.DEFAULT, null,
-                            new ChunkTransaction<PowerKeyedFPIndex, R>() {
-                                @Override
-                                public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                                    if (monkey == null || filer == null) {
-                                        return filerTransaction.commit(null, null);
-                                    }
-
-                                    int chunkPower = FilerIO.chunkPower(filerKey.length, 0);
-                                    return monkey.commit(chunkStore, chunkPower, 1, null, opener, null, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
-
-                                        @Override
-                                        public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                                            if (monkey == null || filer == null) {
-                                                return filerTransaction.commit(null, null);
-                                            }
-                                            // TODO consider using the provided filer in appropriate cases.
-                                            return monkey.commit(chunkStore, filerKey, null, null, filerOpener, null, filerTransaction);
-                                        }
-                                    });
-                                }
-                            });
-                    }
-
-                });
+                    });
 
             }
         });
@@ -239,59 +244,61 @@ public class TxNamedMapOfFiler<M> {
                 }
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.commit(chunkStore, chunkPower, null, null, opener, null, new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
+                return monkey.commit(chunkStore, chunkPower, null, null, MapBackedKeyedFPIndexOpener.INSTANCE,
+                    null, new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
 
-                    @Override
-                    public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                        if (monkey == null || filer == null) {
-                            return true;
-                        }
+                        @Override
+                        public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                            if (monkey == null || filer == null) {
+                                return true;
+                            }
 
-                        return monkey.commit(chunkStore, mapName, null, null, KeyedFPIndexOpener.DEFAULT, null,
-                            new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
+                            return monkey.commit(chunkStore, mapName, null, null, KeyedFPIndexOpener.DEFAULT, null,
+                                new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
 
-                                @Override
-                                public Boolean commit(final PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                                    if (monkey == null || filer == null) {
-                                        return true;
-                                    }
-                                    return monkey.stream(chunkStore, new KeysStream<Integer>() {
-
-                                        @Override
-                                        public boolean stream(Integer key) throws IOException {
-                                            Boolean result = monkey.commit(chunkStore, key, null, null, opener, null,
-                                                new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
-
-                                                    @Override
-                                                    public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                                                        if (monkey == null || filer == null) {
-                                                            return true;
-                                                        }
-                                                        return monkey.stream(chunkStore, new KeysStream<byte[]>() {
-
-                                                            @Override
-                                                            public boolean stream(final byte[] key) throws IOException {
-                                                                Boolean result = monkey.commit(chunkStore, key, null, null, filerOpener, null,
-                                                                    new ChunkTransaction<M, Boolean>() {
-
-                                                                        @Override
-                                                                        public Boolean commit(M monkey, ChunkFiler filer) throws IOException {
-                                                                            return stream.stream(key, monkey, filer);
-                                                                        }
-                                                                    });
-                                                                return result;
-                                                            }
-                                                        });
-                                                    }
-                                                });
-                                            return result;
+                                    @Override
+                                    public Boolean commit(final PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                        if (monkey == null || filer == null) {
+                                            return true;
                                         }
-                                    });
-                                }
-                            });
+                                        return monkey.stream(chunkStore, new KeysStream<Integer>() {
 
-                    }
-                });
+                                            @Override
+                                            public boolean stream(Integer key) throws IOException {
+                                                Boolean result = monkey.commit(chunkStore, key, null, null, MapBackedKeyedFPIndexOpener.INSTANCE,
+                                                    null,
+                                                    new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
+
+                                                        @Override
+                                                        public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                                            if (monkey == null || filer == null) {
+                                                                return true;
+                                                            }
+                                                            return monkey.stream(chunkStore, new KeysStream<byte[]>() {
+
+                                                                @Override
+                                                                public boolean stream(final byte[] key) throws IOException {
+                                                                    Boolean result = monkey.commit(chunkStore, key, null, null, filerOpener, null,
+                                                                        new ChunkTransaction<M, Boolean>() {
+
+                                                                            @Override
+                                                                            public Boolean commit(M monkey, ChunkFiler filer) throws IOException {
+                                                                                return stream.stream(key, monkey, filer);
+                                                                            }
+                                                                        });
+                                                                    return result;
+                                                                }
+                                                            });
+                                                        }
+                                                    });
+                                                return result;
+                                            }
+                                        });
+                                    }
+                                });
+
+                        }
+                    });
             }
         });
     }
@@ -311,52 +318,53 @@ public class TxNamedMapOfFiler<M> {
                 }
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.commit(chunkStore, chunkPower, null, null, opener, null, new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
+                return monkey.commit(chunkStore, chunkPower, null, null, MapBackedKeyedFPIndexOpener.INSTANCE,
+                    null, new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
 
-                    @Override
-                    public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                        if (monkey == null || filer == null) {
-                            return true;
-                        }
+                        @Override
+                        public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                            if (monkey == null || filer == null) {
+                                return true;
+                            }
 
-                        return monkey.commit(chunkStore, mapName, null, null, KeyedFPIndexOpener.DEFAULT, null,
-                            new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
+                            return monkey.commit(chunkStore, mapName, null, null, KeyedFPIndexOpener.DEFAULT, null,
+                                new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
 
-                                @Override
-                                public Boolean commit(final PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                                    if (monkey == null || filer == null) {
-                                        return true;
-                                    }
-                                    return monkey.stream(chunkStore, new KeysStream<Integer>() {
-
-                                        @Override
-                                        public boolean stream(Integer key) throws IOException {
-                                            Boolean result = monkey.commit(chunkStore, key, null, null, opener, null,
-                                                new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
-
-                                                    @Override
-                                                    public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                                                        if (monkey == null || filer == null) {
-                                                            return true;
-                                                        }
-                                                        Boolean result = monkey.stream(chunkStore, new KeysStream<byte[]>() {
-
-                                                            @Override
-                                                            public boolean stream(final byte[] key) throws IOException {
-                                                                return stream.stream(key);
-                                                            }
-                                                        });
-                                                        return result;
-                                                    }
-                                                });
-                                            return result;
+                                    @Override
+                                    public Boolean commit(final PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                        if (monkey == null || filer == null) {
+                                            return true;
                                         }
-                                    });
-                                }
-                            });
+                                        return monkey.stream(chunkStore, new KeysStream<Integer>() {
 
-                    }
-                });
+                                            @Override
+                                            public boolean stream(Integer key) throws IOException {
+                                                Boolean result = monkey.commit(chunkStore, key, null, null, MapBackedKeyedFPIndexOpener.INSTANCE, null,
+                                                    new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
+
+                                                        @Override
+                                                        public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                                            if (monkey == null || filer == null) {
+                                                                return true;
+                                                            }
+                                                            Boolean result = monkey.stream(chunkStore, new KeysStream<byte[]>() {
+
+                                                                @Override
+                                                                public boolean stream(final byte[] key) throws IOException {
+                                                                    return stream.stream(key);
+                                                                }
+                                                            });
+                                                            return result;
+                                                        }
+                                                    });
+                                                return result;
+                                            }
+                                        });
+                                    }
+                                });
+
+                        }
+                    });
             }
         });
 

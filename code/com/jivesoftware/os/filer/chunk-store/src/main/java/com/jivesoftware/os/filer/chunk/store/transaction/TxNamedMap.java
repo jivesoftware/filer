@@ -43,7 +43,6 @@ public class TxNamedMap {
     private final ChunkStore chunkStore;
     private final long constantFP;
 
-    private final MapBackedKeyedFPIndexOpener opener = new MapBackedKeyedFPIndexOpener();
     private final CreateFiler<Integer, MapContext, ChunkFiler> mapCreator;
     private final OpenFiler<MapContext, ChunkFiler> mapOpener;
     private final GrowFiler<Integer, MapContext, ChunkFiler> mapGrower;
@@ -77,14 +76,15 @@ public class TxNamedMap {
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
                 MapBackedKeyedFPIndexCreator creator = POWER_CREATORS[chunkPower];
-                return monkey.commit(chunkStore, chunkPower, 1, creator, opener, grower, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
+                return monkey.commit(chunkStore, chunkPower, 1, creator, MapBackedKeyedFPIndexOpener.INSTANCE,
+                    grower, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
 
-                    @Override
-                    public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                        return monkey.commit(chunkStore, mapName, 1, mapCreator, mapOpener, mapGrower, mapTransaction);
-                    }
+                        @Override
+                        public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                            return monkey.commit(chunkStore, mapName, 1, mapCreator, mapOpener, mapGrower, mapTransaction);
+                        }
 
-                });
+                    });
 
             }
         });
@@ -105,18 +105,19 @@ public class TxNamedMap {
                 }
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.commit(chunkStore, chunkPower, 1, null, opener, null, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
+                return monkey.commit(chunkStore, chunkPower, 1, null, MapBackedKeyedFPIndexOpener.INSTANCE,
+                    null, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
 
-                    @Override
-                    public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                        if (monkey != null && filer != null) {
-                            return monkey.commit(chunkStore, mapName, 1, null, mapOpener, null, mapTransaction);
-                        } else {
-                            return mapTransaction.commit(null, null);
+                        @Override
+                        public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                            if (monkey != null && filer != null) {
+                                return monkey.commit(chunkStore, mapName, 1, null, mapOpener, null, mapTransaction);
+                            } else {
+                                return mapTransaction.commit(null, null);
+                            }
                         }
-                    }
 
-                });
+                    });
 
             }
         });
@@ -137,25 +138,26 @@ public class TxNamedMap {
                 }
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.commit(chunkStore, chunkPower, null, null, opener, null, new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
+                return monkey.commit(chunkStore, chunkPower, null, null, MapBackedKeyedFPIndexOpener.INSTANCE,
+                    null, new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
 
-                    @Override
-                    public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                        if (monkey == null || filer == null) {
-                            return true;
-                        }
-                        return monkey.commit(chunkStore, mapName, null, null, mapOpener, null, new ChunkTransaction<MapContext, Boolean>() {
-
-                            @Override
-                            public Boolean commit(MapContext monkey, ChunkFiler filer) throws IOException {
-                                if (monkey == null || filer == null) {
-                                    return true;
-                                }
-                                return stream.stream(mapName, monkey, filer);
+                        @Override
+                        public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                            if (monkey == null || filer == null) {
+                                return true;
                             }
-                        });
-                    }
-                });
+                            return monkey.commit(chunkStore, mapName, null, null, mapOpener, null, new ChunkTransaction<MapContext, Boolean>() {
+
+                                @Override
+                                public Boolean commit(MapContext monkey, ChunkFiler filer) throws IOException {
+                                    if (monkey == null || filer == null) {
+                                        return true;
+                                    }
+                                    return stream.stream(mapName, monkey, filer);
+                                }
+                            });
+                        }
+                    });
             }
         });
     }

@@ -110,7 +110,7 @@ public class KeyedFPIndexUtil {
                         H hint = growFiler.grow(monkey, filer);
                         if (hint != null) {
                             final long grownFP = chunkStore.newChunk(hint, creator);
-                            chunkStore.execute(grownFP, null, new ChunkTransaction<M, Void>() {
+                            chunkStore.execute(grownFP, opener, new ChunkTransaction<M, Void>() {
 
                                 @Override
                                 public Void commit(M newMonkey, ChunkFiler newFiler) throws IOException {

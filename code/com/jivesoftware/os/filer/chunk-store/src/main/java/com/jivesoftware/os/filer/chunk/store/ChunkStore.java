@@ -346,7 +346,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
                     openChunks.put(chunkFP, chunk);
 
                     chunkFiler.seek(0);
-                    R result = chunkTransaction.commit(chunk.monkey, chunkFiler);
+                    R result = chunkTransaction.commit(monkey, chunkFiler);
                     chunk.fp = chunkFiler.getFilePointer();
 
                     return result;
