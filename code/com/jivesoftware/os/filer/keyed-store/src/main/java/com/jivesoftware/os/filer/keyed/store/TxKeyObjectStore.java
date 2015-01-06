@@ -19,9 +19,7 @@ import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMap;
-import com.jivesoftware.os.filer.chunk.store.transaction.TxPartitionedNamedMap;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStream;
-import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.KeyMarshaller;
@@ -33,96 +31,89 @@ import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
 import java.io.IOException;
 
-import static com.jivesoftware.os.filer.keyed.store.TxKeyValueStore._skyHookFP;
-
 /**
  *
  * @author jonathan.colt
+ * @param <K>
+ * @param <V>
  */
 public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
 
-    private final TxPartitionedNamedMap partitionedNamedMap;
-    private final KeyMarshaller<K> keyMarshaller;
-    private final byte[] name;
-    private Object[][] values;
+    static final long SKY_HOOK_FP = 464; // I died a little bit doing this.
+    static final byte[] EMPTY_PAYLOAD = new byte[0];
 
-    public TxKeyObjectStore(ChunkStore[] chunkStores,
+    private final KeyMarshaller<K> keyMarshaller;
+    private final byte[] mapName;
+    private final TxNamedMap namedMap;
+    private Object[] values;
+
+    public TxKeyObjectStore(ChunkStore chunkStore,
         KeyMarshaller<K> keyMarshaller,
         byte[] name,
         final int initialCapacity,
         final int keySize,
         final boolean variableKeySize) {
         this.keyMarshaller = keyMarshaller;
-        this.name = name;
-        this.values = new Object[chunkStores.length][];
+        this.mapName = name;
 
-        TxNamedMap[] namedMaps = new TxNamedMap[chunkStores.length];
-        for (int i = 0; i < chunkStores.length; i++) {
-            final int _i = i;
-            OpenFiler<MapContext, ChunkFiler> opener = new OpenFiler<MapContext, ChunkFiler>() {
+        OpenFiler<MapContext, ChunkFiler> opener = new OpenFiler<MapContext, ChunkFiler>() {
 
-                @Override
-                public MapContext open(ChunkFiler filer) throws IOException {
-                    MapContext mapContext = MapStore.INSTANCE.open(filer);
-                    values[_i] = new Object[mapContext.capacity];
-                    return mapContext;
-                }
-            };
+            @Override
+            public MapContext open(ChunkFiler filer) throws IOException {
+                MapContext mapContext = MapStore.INSTANCE.open(filer);
+                values = new Object[mapContext.capacity];
+                return mapContext;
+            }
+        };
 
-            CreateFiler<Integer, MapContext, ChunkFiler> creator = new CreateFiler<Integer, MapContext, ChunkFiler>() {
-                @Override
-                public MapContext create(Integer hint, ChunkFiler filer) throws IOException {
-                    hint += initialCapacity;
-                    hint = hint < 2 ? 2 : hint;
-                    MapContext mapContext = MapStore.INSTANCE.create(hint, keySize, variableKeySize, 0, false, filer);
-                    values[_i] = new Object[mapContext.capacity];
-                    return mapContext;
-                }
+        CreateFiler<Integer, MapContext, ChunkFiler> creator = new CreateFiler<Integer, MapContext, ChunkFiler>() {
+            @Override
+            public MapContext create(Integer hint, ChunkFiler filer) throws IOException {
+                hint += initialCapacity;
+                hint = hint < 2 ? 2 : hint;
+                MapContext mapContext = MapStore.INSTANCE.create(hint, keySize, variableKeySize, 0, false, filer);
+                values = new Object[mapContext.capacity];
+                return mapContext;
+            }
 
-                @Override
-                public long sizeInBytes(Integer hint) throws IOException {
-                    hint += initialCapacity;
-                    hint = hint < 2 ? 2 : hint;
-                    return MapStore.INSTANCE.computeFilerSize(hint, keySize, variableKeySize, 0, false);
-                }
-            };
+            @Override
+            public long sizeInBytes(Integer hint) throws IOException {
+                hint += initialCapacity;
+                hint = hint < 2 ? 2 : hint;
+                return MapStore.INSTANCE.computeFilerSize(hint, keySize, variableKeySize, 0, false);
+            }
+        };
 
-            GrowFiler<Integer, MapContext, ChunkFiler> grower = new GrowFiler<Integer, MapContext, ChunkFiler>() {
-                @Override
-                public Integer grow(MapContext monkey, ChunkFiler filer) throws IOException {
-                    synchronized (monkey) {
-                        if (MapStore.INSTANCE.isFullWithNMore(filer, monkey, 1)) {
-                            return MapStore.INSTANCE.nextGrowSize(monkey, 1);
-                        }
-                    }
-                    return null;
-                }
-
-                @Override
-                public void grow(MapContext currentMonkey, ChunkFiler currentFiler, MapContext newMonkey, ChunkFiler newFiler) throws IOException {
-                    synchronized (currentMonkey) {
-                        synchronized (newMonkey) {
-                            final Object[] newValues = new Object[newMonkey.capacity];
-                            MapStore.INSTANCE.copyTo(currentFiler, currentMonkey, newFiler, newMonkey, new MapStore.CopyToStream() {
-                                @Override
-                                public void copied(int fromIndex, int toIndex) {
-                                    newValues[toIndex] = values[fromIndex];
-                                }
-                            });
-                            values[_i] = newValues;
-
-                        }
+        GrowFiler<Integer, MapContext, ChunkFiler> grower = new GrowFiler<Integer, MapContext, ChunkFiler>() {
+            @Override
+            public Integer grow(MapContext monkey, ChunkFiler filer) throws IOException {
+                synchronized (monkey) {
+                    if (MapStore.INSTANCE.isFullWithNMore(filer, monkey, 1)) {
+                        return MapStore.INSTANCE.nextGrowSize(monkey, 1);
                     }
                 }
-            };
-            namedMaps[i] = new TxNamedMap(chunkStores[i], _skyHookFP,
-                creator,
-                opener,
-                grower);
-        }
+                return null;
+            }
 
-        this.partitionedNamedMap = new TxPartitionedNamedMap(namedMaps, new ByteArrayPartitionFunction());
+            @Override
+            public void grow(MapContext currentMonkey, ChunkFiler currentFiler, MapContext newMonkey, ChunkFiler newFiler) throws IOException {
+                synchronized (currentMonkey) {
+                    synchronized (newMonkey) {
+                        final Object[] newValues = new Object[newMonkey.capacity];
+                        MapStore.INSTANCE.copyTo(currentFiler, currentMonkey, newFiler, newMonkey, new MapStore.CopyToStream() {
+                            @Override
+                            public void copied(int fromIndex, int toIndex) {
+                                newValues[toIndex] = values[fromIndex];
+                            }
+                        });
+                        values = newValues;
 
+                    }
+                }
+            }
+        };
+
+        this.namedMap = new TxNamedMap(chunkStore, SKY_HOOK_FP, creator, opener, grower);
     }
 
     @Override
@@ -132,7 +123,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
 
         final byte[] keyBytes = keyMarshaller.keyBytes(key);
         if (createIfAbsent) {
-            return namedMap.write(keyBytes, name, new ChunkTransaction<MapContext, R>() {
+            return namedMap.write(mapName, new ChunkTransaction<MapContext, R>() {
 
                 @Override
                 public R commit(final MapContext monkey, final ChunkFiler filer) throws IOException {
@@ -141,7 +132,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
                         @Override
                         public void set(V value) throws IOException {
                             synchronized (monkey) {
-                                int ai = MapStore.INSTANCE.add(filer, monkey, (byte) 1, keyBytes, null);
+                                int ai = MapStore.INSTANCE.add(filer, monkey, (byte) 1, keyBytes, EMPTY_PAYLOAD);
                                 values[ai] = value;
                             }
                         }
@@ -169,7 +160,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
                 }
             });
         } else {
-            return namedMap.read(keyBytes, name, new ChunkTransaction<MapContext, R>() {
+            return namedMap.read(mapName, new ChunkTransaction<MapContext, R>() {
 
                 @Override
                 public R commit(final MapContext monkey, final ChunkFiler filer) throws IOException {
@@ -214,7 +205,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     @Override
     public boolean stream(final EntryStream<K, V> stream) throws IOException {
 
-        return namedMap.stream(name, new TxStream<byte[], MapContext, ChunkFiler>() {
+        return namedMap.stream(mapName, new TxStream<byte[], MapContext, ChunkFiler>() {
 
             @Override
             public boolean stream(byte[] key, MapContext monkey, ChunkFiler filer) throws IOException {
@@ -233,7 +224,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
 
     @Override
     public boolean streamKeys(final KeyStream<K> stream) throws IOException {
-        return namedMap.stream(name, new TxStream<byte[], MapContext, ChunkFiler>() {
+        return namedMap.stream(mapName, new TxStream<byte[], MapContext, ChunkFiler>() {
 
             @Override
             public boolean stream(byte[] key, MapContext monkey, ChunkFiler filer) throws IOException {

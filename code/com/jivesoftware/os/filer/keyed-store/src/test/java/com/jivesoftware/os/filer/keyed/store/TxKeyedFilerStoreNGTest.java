@@ -13,7 +13,9 @@ import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.FilerTransaction;
+import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.RewriteFilerTransaction;
+import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import java.io.IOException;
 import java.nio.file.Files;
 import org.testng.annotations.Test;
@@ -23,11 +25,13 @@ import static org.testng.Assert.assertEquals;
 /**
  * @author jonathan.colt
  */
-public class TxKeyedFilerStoreTest {
+public class TxKeyedFilerStoreNGTest {
 
     @Test
     public void keyedStoreTest() throws Exception {
-        String[] chunkPaths = new String[] { Files.createTempDirectory("testNewChunkStore").toFile().getAbsolutePath() };
+        String[] chunkPaths = new String[]{Files.createTempDirectory("testNewChunkStore")
+            .toFile()
+            .getAbsolutePath()};
         ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
@@ -60,7 +64,9 @@ public class TxKeyedFilerStoreTest {
 
     @Test
     public void rewriteTest() throws Exception {
-        String[] chunkPaths = new String[] { Files.createTempDirectory("testNewChunkStore").toFile().getAbsolutePath() };
+        String[] chunkPaths = new String[]{Files.createTempDirectory("testNewChunkStore")
+            .toFile()
+            .getAbsolutePath()};
         ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
@@ -70,7 +76,7 @@ public class TxKeyedFilerStoreTest {
 
         int newFilerInitialCapacity = 512;
 
-        byte[] key = FilerIO.intBytes(1020);
+        final byte[] key = FilerIO.intBytes(1020);
         store.execute(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
             @Override
             public Void commit(Filer filer) throws IOException {
@@ -102,6 +108,27 @@ public class TxKeyedFilerStoreTest {
                 int twenty = FilerIO.readInt(filer, "");
                 assertEquals(twenty, 20);
                 return null;
+            }
+        });
+
+        store.stream(new KeyValueStore.EntryStream<IBA, Filer>() {
+
+            @Override
+            public boolean stream(IBA k, Filer filer) throws IOException {
+                assertEquals(k.getBytes(), key);
+                filer.seek(0);
+                int twenty = FilerIO.readInt(filer, "");
+                assertEquals(twenty, 20);
+                return true;
+            }
+        });
+
+        store.streamKeys(new KeyValueStore.KeyStream<IBA>() {
+
+            @Override
+            public boolean stream(IBA k) throws IOException {
+                assertEquals(k.getBytes(), key);
+               return true;
             }
         });
     }

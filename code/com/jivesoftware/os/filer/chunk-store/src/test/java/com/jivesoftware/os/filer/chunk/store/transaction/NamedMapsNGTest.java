@@ -49,12 +49,11 @@ public class NamedMapsNGTest {
             .getAbsolutePath()};
         ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
-        ChunkStore[] chunckStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
-        TxNamedMap namedMap = new TxNamedMap(chunckStores, 464, new ByteArrayPartitionFunction(),
-            new MapCreator(2, 4, true, 8, false),
-            new MapOpener(),
-            new MapGrower<>(1));
+        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[]{
+            new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), new MapOpener(), new MapGrower<>(1)),
+            new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), new MapOpener(), new MapGrower<>(1))
+        });
 
         final Random writeRand = new Random(1234);
         for (int i = 0; i < 127; i++) {
@@ -111,13 +110,13 @@ public class NamedMapsNGTest {
             .getAbsolutePath()};
         ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
-        ChunkStore[] chunckStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
-        TxNamedMapOfFiler<Void> namedMapOfFilers = new TxNamedMapOfFiler<>(chunckStores, 464,
-            new ByteArrayPartitionFunction(),
-            new NoOpCreateFiler<ChunkFiler>(),
-            new NoOpOpenFiler<ChunkFiler>(),
-            new NoOpGrowFiler<Long, Void, ChunkFiler>());
+        TxPartitionedNamedMapOfFiler<Void> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(), new TxNamedMapOfFiler[]{
+            new TxNamedMapOfFiler(chunkStore1,
+                464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>()),
+            new TxNamedMapOfFiler(chunkStore2,
+                464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>())
+        });
 
         int tries = 1; //change back to 128
         final Random writeRand = new Random(1234);
@@ -175,18 +174,18 @@ public class NamedMapsNGTest {
             .getAbsolutePath()};
         ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
-        ChunkStore[] chunckStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
-        TxNamedMapOfFiler<Void> namedMapOfFilers = new TxNamedMapOfFiler<>(chunckStores, 464,
-            new ByteArrayPartitionFunction(),
-            new NoOpCreateFiler<ChunkFiler>(),
-            new NoOpOpenFiler<ChunkFiler>(),
-            new NoOpGrowFiler<Long, Void, ChunkFiler>());
+        TxPartitionedNamedMapOfFiler<Void> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(), new TxNamedMapOfFiler[]{
+            new TxNamedMapOfFiler(chunkStore1,
+                464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>()),
+            new TxNamedMapOfFiler(chunkStore2,
+                464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>())
+        });
 
-        TxNamedMap namedMap = new TxNamedMap(chunckStores, 464, new ByteArrayPartitionFunction(),
-            new MapCreator(2, 4, true, 8, false),
-            new MapOpener(),
-            new MapGrower<>(1));
+        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[]{
+            new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), new MapOpener(), new MapGrower<>(1)),
+            new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), new MapOpener(), new MapGrower<>(1))
+        });
 
         final int addCount = 16;
         for (int c = 0; c < 10; c++) {
@@ -298,18 +297,18 @@ public class NamedMapsNGTest {
 
         chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
         chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
-        chunckStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
-        namedMapOfFilers = new TxNamedMapOfFiler<>(chunckStores, 464,
-            new ByteArrayPartitionFunction(),
-            new NoOpCreateFiler<ChunkFiler>(),
-            new NoOpOpenFiler<ChunkFiler>(),
-            new NoOpGrowFiler<Long, Void, ChunkFiler>());
+        namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(), new TxNamedMapOfFiler[]{
+            new TxNamedMapOfFiler(chunkStore1,
+                464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>()),
+            new TxNamedMapOfFiler(chunkStore2,
+                464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>())
+        });
 
-        namedMap = new TxNamedMap(chunckStores, 464, new ByteArrayPartitionFunction(),
-            new MapCreator(2, 4, true, 8, false),
-            new MapOpener(),
-            new MapGrower<>(1));
+        namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[]{
+            new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), new MapOpener(), new MapGrower<>(1)),
+            new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), new MapOpener(), new MapGrower<>(1))
+        });
 
         for (int c = 0; c < 10; c++) {
 

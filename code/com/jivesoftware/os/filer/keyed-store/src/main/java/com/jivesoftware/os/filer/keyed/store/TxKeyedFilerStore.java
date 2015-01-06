@@ -20,6 +20,7 @@ import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.chunk.store.RewriteChunkTransaction;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFiler;
+import com.jivesoftware.os.filer.chunk.store.transaction.TxPartitionedNamedMapOfFiler;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStream;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStreamKeys;
 import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
@@ -42,12 +43,19 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
     static final long SKY_HOOK_FP = 464; // I died a little bit doing this.
 
     private final byte[] name;
-    private final TxNamedMapOfFiler<Void> namedMapOfFilers;
+    private final TxPartitionedNamedMapOfFiler<Void> namedMapOfFilers;
 
     public TxKeyedFilerStore(ChunkStore[] chunkStores, byte[] name) {
         this.name = name;
-        this.namedMapOfFilers = new TxNamedMapOfFiler<>(chunkStores, SKY_HOOK_FP, new ByteArrayPartitionFunction(),
-            new NoOpCreateFiler(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>());
+
+        // TODO consider replacing with builder pattern
+        TxNamedMapOfFiler[] stores = new TxNamedMapOfFiler[chunkStores.length];
+        for (int i = 0; i < stores.length; i++) {
+            stores[i] = new TxNamedMapOfFiler(chunkStores[i], SKY_HOOK_FP,
+                new NoOpCreateFiler(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>());
+        }
+
+        this.namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(), stores);
     }
 
     @Override

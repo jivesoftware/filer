@@ -29,7 +29,7 @@ public class TxPartitionedNamedMap {
     private final TxNamedMap[] namedMaps;
     private final PartitionFunction<byte[]> partitionFunction;
 
-    public TxPartitionedNamedMap(TxNamedMap[] namedMaps, PartitionFunction<byte[]> partitionFunction) {
+    public TxPartitionedNamedMap(PartitionFunction<byte[]> partitionFunction, TxNamedMap[] namedMaps) {
         this.namedMaps = namedMaps;
         this.partitionFunction = partitionFunction;
     }

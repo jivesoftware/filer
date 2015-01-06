@@ -22,6 +22,7 @@ import com.jivesoftware.os.filer.chunk.store.transaction.MapCreator;
 import com.jivesoftware.os.filer.chunk.store.transaction.MapGrower;
 import com.jivesoftware.os.filer.chunk.store.transaction.MapOpener;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMap;
+import com.jivesoftware.os.filer.chunk.store.transaction.TxPartitionedNamedMap;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStream;
 import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
@@ -39,20 +40,26 @@ import java.io.IOException;
  */
 public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
 
-    static final long _skyHookFP = 464; // I died a little bit doing this.
+    static final long SKY_HOOK_FP = 464; // I died a little bit doing this.
     private final KeyValueMarshaller<K, V> keyValueMarshaller;
     private final byte[] name;
-    private final TxNamedMap namedMap;
+    private final TxPartitionedNamedMap namedMap;
 
     public TxKeyValueStore(ChunkStore[] chunkStores, KeyValueMarshaller<K, V> keyValueMarshaller, byte[] name, int keySize, boolean variableKeySize,
         int payloadSize, boolean variablePayloadSize) {
         this.keyValueMarshaller = keyValueMarshaller;
         this.name = name;
-        this.namedMap = new TxNamedMap(chunkStores, _skyHookFP,
-            new ByteArrayPartitionFunction(),
-            new MapCreator(2, keySize, variableKeySize, payloadSize, variablePayloadSize),
-            new MapOpener(),
-            new MapGrower<>(1));
+
+        // TODO consider replacing with builder pattern
+        TxNamedMap[] stores = new TxNamedMap[chunkStores.length];
+        for (int i = 0; i < stores.length; i++) {
+            stores[i] = new TxNamedMap(chunkStores[i], SKY_HOOK_FP,
+                new MapCreator(2, keySize, variableKeySize, payloadSize, variablePayloadSize),
+                new MapOpener(),
+                new MapGrower<>(1));
+        }
+
+        this.namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), stores);
     }
 
     @Override
