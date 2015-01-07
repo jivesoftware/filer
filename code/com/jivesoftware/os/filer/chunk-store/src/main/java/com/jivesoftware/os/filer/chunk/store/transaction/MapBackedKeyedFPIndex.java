@@ -18,6 +18,7 @@ package com.jivesoftware.os.filer.chunk.store.transaction;
 import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
+import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.GrowFiler;
@@ -34,8 +35,9 @@ public class MapBackedKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<by
 
     private final ChunkStore backingChunkStore;
     private final long backingFP;
-    private final int numPermit = 64;
-    private final ByteArrayStripingSemaphore stripingSemaphores = new ByteArrayStripingSemaphore(64, numPermit);
+    private final int numPermit = 64; // TODO expose ?
+    private final SemaphoreAndCount semaphoreAndCount = new SemaphoreAndCount(numPermit);
+    private final ByteArrayStripingLocksProvider keyLocks = new ByteArrayStripingLocksProvider(256); // TODO expose?
     private final MapContext mapContext;
 
     public MapBackedKeyedFPIndex(ChunkStore chunkStore, long fp, MapContext mapContext) {
@@ -87,8 +89,8 @@ public class MapBackedKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<by
         OpenFiler<M, ChunkFiler> opener,
         GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction) throws IOException {
-
-        return KeyedFPIndexUtil.INSTANCE.commit(this, stripingSemaphores, chunkStore, key, hint, creator, opener, growFiler, filerTransaction);
+        Object keyLock = keyLocks.lock(key);
+        return KeyedFPIndexUtil.INSTANCE.commit(this, semaphoreAndCount, chunkStore, keyLock, key, hint, creator, opener, growFiler, filerTransaction);
     }
 
     public <M> Boolean stream(ChunkStore chunkStore, final KeysStream<byte[]> keysStream) throws IOException {

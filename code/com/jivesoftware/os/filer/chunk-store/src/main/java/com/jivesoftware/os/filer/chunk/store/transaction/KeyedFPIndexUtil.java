@@ -37,8 +37,9 @@ public class KeyedFPIndexUtil {
     }
 
     public <H, M, K, R> R commit(final BackingFPIndex<K> backingFPIndex,
-        SemaphoreProvider<K> semaphoreProvider,
+        SemaphoreAndCount semaphoreAndCount,
         final ChunkStore chunkStore,
+        final Object keyLock,
         final K key,
         H hint,
         final CreateFiler<H, M, ChunkFiler> creator,
@@ -46,10 +47,10 @@ public class KeyedFPIndexUtil {
         final GrowFiler<H, M, ChunkFiler> growFiler,
         final ChunkTransaction<M, R> filerTransaction) throws IOException {
 
-        final Semaphore semaphore = semaphoreProvider.semaphore(key);
-        final int numPermits = semaphoreProvider.getNumPermits();
+        final Semaphore semaphore = semaphoreAndCount.semaphore;
+        final int numPermits = semaphoreAndCount.numPermits;
         long fp;
-        synchronized (semaphore) {
+        synchronized (keyLock) {
             fp = backingFPIndex.get(key);
             if (fp < 0) {
                 if (creator == null) {
@@ -96,7 +97,7 @@ public class KeyedFPIndexUtil {
             semaphore.release();
         }
 
-        synchronized (semaphore) {
+        synchronized (keyLock) {
             try {
                 semaphore.acquire(numPermits);
             } catch (InterruptedException e) {

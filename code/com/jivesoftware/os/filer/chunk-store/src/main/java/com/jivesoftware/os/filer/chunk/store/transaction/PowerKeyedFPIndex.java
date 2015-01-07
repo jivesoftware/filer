@@ -28,20 +28,24 @@ import java.io.IOException;
  *
  * @author jonathan.colt
  */
-public class PowerKeyedFPIndex implements  KeyedFPIndexUtil.BackingFPIndex<Integer> {
+public class PowerKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<Integer> {
 
     private final ChunkStore backingChunkStore;
     private final long backingFP;
-    private final int numPermit = 64;
+    private final int numPermit = 64; //TODO expose?
 
-    final long[] fpIndex;
-    final IntIndexSemaphore semaphoreProvider;
+    private final long[] fpIndex;
+    private final SemaphoreAndCount semaphoreAndCount = new SemaphoreAndCount(numPermit);
+    private final Object[] keySizeLocks;
 
     PowerKeyedFPIndex(ChunkStore chunkStore, long fp, long[] fpIndex) throws IOException {
         this.backingChunkStore = chunkStore;
         this.backingFP = fp;
         this.fpIndex = fpIndex;
-        this.semaphoreProvider = new IntIndexSemaphore(fpIndex.length, numPermit);
+        this.keySizeLocks = new Object[fpIndex.length];
+        for (int i = 0; i < fpIndex.length; i++) {
+            keySizeLocks[i] = new Object();
+        }
     }
 
     @Override
@@ -72,7 +76,8 @@ public class PowerKeyedFPIndex implements  KeyedFPIndexUtil.BackingFPIndex<Integ
         GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction) throws IOException {
 
-        return KeyedFPIndexUtil.INSTANCE.commit(this, semaphoreProvider, chunkStore, keySize, hint, creator, opener, growFiler, filerTransaction);
+        return KeyedFPIndexUtil.INSTANCE.commit(this, semaphoreAndCount, chunkStore, keySizeLocks[keySize], keySize,
+            hint, creator, opener, growFiler, filerTransaction);
 
     }
 
