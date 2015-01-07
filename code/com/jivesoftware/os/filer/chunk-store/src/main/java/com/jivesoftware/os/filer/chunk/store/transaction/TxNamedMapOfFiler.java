@@ -143,7 +143,7 @@ public class TxNamedMapOfFiler<M> {
                                                 GrowFiler<Long, M, ChunkFiler> rewriteGrower = new GrowFiler<Long, M, ChunkFiler>() {
 
                                                     @Override
-                                                    public Long grow(M monkey, ChunkFiler filer) throws IOException {
+                                                    public Long acquire(M monkey, ChunkFiler filer) throws IOException {
                                                         return sizeHint;
                                                     }
 
@@ -154,6 +154,10 @@ public class TxNamedMapOfFiler<M> {
                                                         ChunkFiler newFiler) throws IOException {
                                                         filerGrower.grow(currentMonkey, currentFiler, newMonkey, newFiler);
                                                         result.set(rewriteChunkTransaction.commit(currentMonkey, currentFiler, newMonkey, newFiler));
+                                                    }
+
+                                                    @Override
+                                                    public void release(M monkey) {
                                                     }
                                                 };
                                                 return monkey.commit(chunkStore, filerKey, sizeHint, filerCreator, filerOpener, rewriteGrower,
@@ -274,7 +278,7 @@ public class TxNamedMapOfFiler<M> {
                                                             if (monkey == null || filer == null) {
                                                                 return true;
                                                             }
-                                                            return monkey.stream(chunkStore, new KeysStream<byte[]>() {
+                                                            return monkey.stream(new KeysStream<byte[]>() {
 
                                                                 @Override
                                                                 public boolean stream(final byte[] key) throws IOException {
@@ -347,7 +351,7 @@ public class TxNamedMapOfFiler<M> {
                                                             if (monkey == null || filer == null) {
                                                                 return true;
                                                             }
-                                                            Boolean result = monkey.stream(chunkStore, new KeysStream<byte[]>() {
+                                                            Boolean result = monkey.stream(new KeysStream<byte[]>() {
 
                                                                 @Override
                                                                 public boolean stream(final byte[] key) throws IOException {

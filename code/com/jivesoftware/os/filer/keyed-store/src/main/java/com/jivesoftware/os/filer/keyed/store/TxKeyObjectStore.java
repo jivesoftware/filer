@@ -86,13 +86,14 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
 
         GrowFiler<Integer, MapContext, ChunkFiler> grower = new GrowFiler<Integer, MapContext, ChunkFiler>() {
             @Override
-            public Integer grow(MapContext monkey, ChunkFiler filer) throws IOException {
+            public Integer acquire(MapContext monkey, ChunkFiler filer) throws IOException {
                 synchronized (monkey) {
-                    if (MapStore.INSTANCE.isFullWithNMore(filer, monkey, 1)) {
+                    if (MapStore.INSTANCE.acquire(monkey, 1)) {
+                        return null;
+                    } else {
                         return MapStore.INSTANCE.nextGrowSize(monkey, 1);
                     }
                 }
-                return null;
             }
 
             @Override
@@ -109,6 +110,13 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
                         values = newValues;
 
                     }
+                }
+            }
+
+            @Override
+            public void release(MapContext monkey) {
+                synchronized (monkey) {
+                    MapStore.INSTANCE.release(monkey, 1);
                 }
             }
         };

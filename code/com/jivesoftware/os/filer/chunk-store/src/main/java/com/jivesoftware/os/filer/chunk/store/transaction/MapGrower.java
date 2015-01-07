@@ -19,13 +19,14 @@ public class MapGrower<M extends MapContext> implements GrowFiler<Integer, M, Ch
     }
 
     @Override
-    public Integer grow(M monkey, ChunkFiler filer) throws IOException {
+    public Integer acquire(M monkey, ChunkFiler filer) throws IOException {
         synchronized (monkey) {
-            if (MapStore.INSTANCE.isFullWithNMore(filer, monkey, alwaysRoomForNMoreKeys)) {
+            if (MapStore.INSTANCE.acquire(monkey, alwaysRoomForNMoreKeys)) {
+                return null;
+            } else {
                 return MapStore.INSTANCE.nextGrowSize(monkey, alwaysRoomForNMoreKeys);
             }
         }
-        return null;
     }
 
     @Override
@@ -34,6 +35,13 @@ public class MapGrower<M extends MapContext> implements GrowFiler<Integer, M, Ch
             synchronized (newMonkey) {
                 MapStore.INSTANCE.copyTo(currentFiler, currentMonkey, newFiler, newMonkey, null);
             }
+        }
+    }
+
+    @Override
+    public void release(M monkey) {
+        synchronized (monkey) {
+            MapStore.INSTANCE.release(monkey, alwaysRoomForNMoreKeys);
         }
     }
 }

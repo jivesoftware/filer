@@ -49,10 +49,11 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
         this.name = name;
 
         // TODO consider replacing with builder pattern
-        TxNamedMapOfFiler[] stores = new TxNamedMapOfFiler[chunkStores.length];
+        @SuppressWarnings("unchecked")
+        TxNamedMapOfFiler<Void>[] stores = new TxNamedMapOfFiler[chunkStores.length];
         for (int i = 0; i < stores.length; i++) {
-            stores[i] = new TxNamedMapOfFiler(chunkStores[i], SKY_HOOK_FP,
-                new NoOpCreateFiler(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>());
+            stores[i] = new TxNamedMapOfFiler<>(chunkStores[i], SKY_HOOK_FP,
+                new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>());
         }
 
         this.namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(), stores);

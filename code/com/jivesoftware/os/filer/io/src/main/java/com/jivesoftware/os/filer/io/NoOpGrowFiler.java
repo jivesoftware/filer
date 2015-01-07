@@ -24,7 +24,7 @@ import java.io.IOException;
 public class NoOpGrowFiler<H, M, F extends Filer> implements GrowFiler<H, M, F> {
 
     @Override
-    public H grow(M monkey, F filer) throws IOException {
+    public H acquire(M monkey, F filer) throws IOException {
         return null;
     }
 
@@ -32,4 +32,7 @@ public class NoOpGrowFiler<H, M, F extends Filer> implements GrowFiler<H, M, F> 
     public void grow(M currentMonkey, F currentFiler, M newMonkey, F newFiler) throws IOException {
     }
 
+    @Override
+    public void release(M monkey) {
+    }
 }

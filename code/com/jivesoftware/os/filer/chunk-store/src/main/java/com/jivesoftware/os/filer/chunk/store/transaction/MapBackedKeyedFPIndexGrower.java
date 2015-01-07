@@ -33,13 +33,16 @@ public class MapBackedKeyedFPIndexGrower implements GrowFiler<Integer, MapBacked
     }
 
     @Override
-    public Integer grow(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+    public Integer acquire(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
         synchronized (monkey) {
-            if (MapStore.INSTANCE.isFullWithNMore(filer, monkey.getMapContext(), alwaysRoomForNMoreKeys)) {
+            if (MapStore.INSTANCE.acquire(monkey.getMapContext(), alwaysRoomForNMoreKeys)) {
+                // there is definitely room for N more
+                return null;
+            } else {
+                // there might not be room for N more
                 return MapStore.INSTANCE.nextGrowSize(monkey.getMapContext(), alwaysRoomForNMoreKeys);
             }
         }
-        return null;
     }
 
     @Override
@@ -48,6 +51,13 @@ public class MapBackedKeyedFPIndexGrower implements GrowFiler<Integer, MapBacked
             synchronized (newMonkey) {
                 MapStore.INSTANCE.copyTo(currentFiler, currentMonkey.getMapContext(), newFiler, newMonkey.getMapContext(), null);
             }
+        }
+    }
+
+    @Override
+    public void release(MapBackedKeyedFPIndex monkey) {
+        synchronized (monkey) {
+            MapStore.INSTANCE.release(monkey.getMapContext(), alwaysRoomForNMoreKeys);
         }
     }
 }

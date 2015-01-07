@@ -23,10 +23,10 @@ import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import java.io.IOException;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- *
  * @author jonathan.colt
  */
 public class KeyedFPIndexUtil {
@@ -56,18 +56,9 @@ public class KeyedFPIndexUtil {
                 if (creator == null) {
                     return filerTransaction.commit(null, null);
                 }
-                try {
-                    semaphore.acquire(numPermits);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException("Failed to acquire all permits.", e);
-                }
-                try {
-                    final long newFp = chunkStore.newChunk(hint, creator);
-                    backingFPIndex.set(key, newFp);
-                    fp = newFp;
-                } finally {
-                    semaphore.release(numPermits);
-                }
+                final long newFp = chunkStore.newChunk(hint, creator);
+                backingFPIndex.set(key, newFp);
+                fp = newFp;
             }
         }
 
@@ -82,12 +73,18 @@ public class KeyedFPIndexUtil {
                 @Override
                 public Bag<R> commit(M monkey, ChunkFiler filer) throws IOException {
                     if (growFiler != null) {
-                        H hint = growFiler.grow(monkey, filer);
-                        if (hint != null) {
-                            return null;
+                        H hint = growFiler.acquire(monkey, filer);
+                        try {
+                            if (hint != null) {
+                                return null;
+                            }
+                            return new Bag<>(filerTransaction.commit(monkey, filer));
+                        } finally {
+                            growFiler.release(monkey);
                         }
+                    } else {
+                        return new Bag<>(filerTransaction.commit(monkey, filer));
                     }
-                    return new Bag<>(filerTransaction.commit(monkey, filer));
                 }
             });
             if (bag != null) {
@@ -99,7 +96,10 @@ public class KeyedFPIndexUtil {
 
         synchronized (keyLock) {
             try {
-                semaphore.acquire(numPermits);
+                while (!semaphore.tryAcquire(numPermits, 5, TimeUnit.MINUTES)) {
+                    System.err.println("Deadlock due to probable case of reentrant transaction");
+                    Thread.dumpStack();
+                }
             } catch (InterruptedException e) {
                 throw new RuntimeException("Failed to acquire all permits.", e);
             }
@@ -108,34 +108,38 @@ public class KeyedFPIndexUtil {
                 return chunkStore.execute(fp, opener, new ChunkTransaction<M, R>() {
                     @Override
                     public R commit(final M monkey, final ChunkFiler filer) throws IOException {
-                        H hint = growFiler.grow(monkey, filer);
-                        if (hint != null) {
-                            final long grownFP = chunkStore.newChunk(hint, creator);
-                            chunkStore.execute(grownFP, opener, new ChunkTransaction<M, Void>() {
+                        H hint = growFiler.acquire(monkey, filer);
+                        try {
+                            if (hint != null) {
+                                final long grownFP = chunkStore.newChunk(hint, creator);
+                                chunkStore.execute(grownFP, opener, new ChunkTransaction<M, Void>() {
 
-                                @Override
-                                public Void commit(M newMonkey, ChunkFiler newFiler) throws IOException {
-                                    growFiler.grow(monkey, filer, newMonkey, newFiler);
-                                    return null;
-                                }
-                            });
-                            backingFPIndex.set(key, grownFP);
-                            chunkStore.remove(filer.getChunkFP());
+                                    @Override
+                                    public Void commit(M newMonkey, ChunkFiler newFiler) throws IOException {
+                                        growFiler.grow(monkey, filer, newMonkey, newFiler);
+                                        return null;
+                                    }
+                                });
+                                backingFPIndex.set(key, grownFP);
+                                chunkStore.remove(filer.getChunkFP());
 
-                            semaphore.release(numPermits - 1);
-                            releasablePermits.set(1);
-                            return chunkStore.execute(grownFP, opener, new ChunkTransaction<M, R>() {
-                                @Override
-                                public R commit(M monkey, ChunkFiler filer) throws IOException {
-                                    return filerTransaction.commit(monkey, filer);
-                                }
-                            });
+                                semaphore.release(numPermits - 1);
+                                releasablePermits.set(1);
+                                return chunkStore.execute(grownFP, opener, new ChunkTransaction<M, R>() {
+                                    @Override
+                                    public R commit(M monkey, ChunkFiler filer) throws IOException {
+                                        return filerTransaction.commit(monkey, filer);
+                                    }
+                                });
 
-                        } else {
-                            semaphore.release(numPermits - 1);
-                            releasablePermits.set(1);
+                            } else {
+                                semaphore.release(numPermits - 1);
+                                releasablePermits.set(1);
 
-                            return filerTransaction.commit(monkey, filer);
+                                return filerTransaction.commit(monkey, filer);
+                            }
+                        } finally {
+                            growFiler.release(monkey);
                         }
                     }
                 });

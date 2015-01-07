@@ -13,6 +13,7 @@ public class MapContext {
     public final int maxCount; // read only
     public final int entrySize; // read only
     transient long count;
+    transient long requested;
 
     public MapContext(int keySize, byte keyLengthSize, int payloadSize, byte payloadLengthSize, int capacity, int maxCount, int entrySize, long count) {
         this.keySize = keySize;
@@ -23,6 +24,7 @@ public class MapContext {
         this.maxCount = maxCount;
         this.entrySize = entrySize;
         this.count = count;
+        this.requested = 0;
     }
 
     @Override

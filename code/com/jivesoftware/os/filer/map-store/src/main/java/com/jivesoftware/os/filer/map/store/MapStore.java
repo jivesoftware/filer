@@ -172,10 +172,6 @@ public class MapStore {
         return context.count >= context.maxCount;
     }
 
-    public boolean isFullWithNMore(Filer filer, MapContext context, int nMore) throws IOException {
-        return context.count + nMore >= context.maxCount;
-    }
-
     public int nextGrowSize(MapContext context) throws IOException {
         return context.maxCount * 2;
     }
@@ -187,6 +183,16 @@ public class MapStore {
             size *= 2;
         }
         return size;
+    }
+
+    public boolean acquire(MapContext context, int n) {
+        context.requested += n;
+        //System.out.println("requested: " + context.requested + " max:" + context.maxCount + " count:" + context.count);
+        return (context.requested <= (context.maxCount - context.count));
+    }
+
+    public void release(MapContext context, int n) {
+        context.requested -= n;
     }
 
     private void setCount(MapContext context, Filer filer, long count) throws IOException {
@@ -261,9 +267,6 @@ public class MapStore {
     public int add(Filer filer, MapContext context, byte mode, long keyHash, byte[] key, int keyOffset, byte[] payload, int _payloadOffset)
         throws IOException {
         int capacity = context.capacity;
-        if (context.count >= context.maxCount) {
-            throw new OverCapacityException(context.count + " > " + context.maxCount);
-        }
         int keySize = context.keySize;
         int payloadSize = context.payloadSize;
         for (long i = keyHash % (capacity - 1), j = 0, k = capacity; // stack vars for efficiency
@@ -272,6 +275,9 @@ public class MapStore {
 
             long ai = index(i, context.entrySize);
             if (read(filer, (int) ai) == cNull || read(filer, (int) ai) == cSkip) {
+                if (context.count >= context.maxCount) {
+                    throw new OverCapacityException(context.count + " > " + context.maxCount + " ? " + context.requested);
+                }
                 write(filer, (int) ai, mode);
                 write(filer, (int) (ai + 1), context.keyLengthSize, key, keySize, keyOffset);
                 write(filer, (int) (ai + 1 + context.keyLengthSize + keySize), context.payloadLengthSize, payload, payloadSize, _payloadOffset);
