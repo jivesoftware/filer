@@ -148,11 +148,11 @@ public class TxNamedMapOfFiler<M> {
                                                     }
 
                                                     @Override
-                                                    public void grow(M currentMonkey,
+                                                    public void growAndAcquire(M currentMonkey,
                                                         ChunkFiler currentFiler,
                                                         M newMonkey,
                                                         ChunkFiler newFiler) throws IOException {
-                                                        filerGrower.grow(currentMonkey, currentFiler, newMonkey, newFiler);
+                                                        filerGrower.growAndAcquire(currentMonkey, currentFiler, newMonkey, newFiler);
                                                         result.set(rewriteChunkTransaction.commit(currentMonkey, currentFiler, newMonkey, newFiler));
                                                     }
 

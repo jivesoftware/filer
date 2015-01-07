@@ -29,7 +29,7 @@ public class NoOpGrowFiler<H, M, F extends Filer> implements GrowFiler<H, M, F> 
     }
 
     @Override
-    public void grow(M currentMonkey, F currentFiler, M newMonkey, F newFiler) throws IOException {
+    public void growAndAcquire(M currentMonkey, F currentFiler, M newMonkey, F newFiler) throws IOException {
     }
 
     @Override

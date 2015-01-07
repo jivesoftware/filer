@@ -115,19 +115,14 @@ public class KeyedFPIndexUtil {
 
                                 @Override
                                 public R commit(M newMonkey, ChunkFiler newFiler) throws IOException {
-                                    growFiler.grow(monkey, filer, newMonkey, newFiler);
-                                    H hint = growFiler.acquire(newMonkey, newFiler);
+                                    growFiler.growAndAcquire(monkey, filer, newMonkey, newFiler);
                                     try {
-                                        if (hint == null) {
-                                            backingFPIndex.set(key, grownFP);
-                                            chunkStore.remove(filer.getChunkFP());
+                                        backingFPIndex.set(key, grownFP);
+                                        chunkStore.remove(filer.getChunkFP());
 
-                                            semaphore.release(numPermits - 1);
-                                            releasablePermits.set(1);
-                                            return filerTransaction.commit(monkey, filer);
-                                        } else {
-                                            throw new RuntimeException("Newly allocated monkey did not have necessary capacity!");
-                                        }
+                                        semaphore.release(numPermits - 1);
+                                        releasablePermits.set(1);
+                                        return filerTransaction.commit(newMonkey, newFiler);
                                     } finally {
                                         growFiler.release(newMonkey);
                                     }

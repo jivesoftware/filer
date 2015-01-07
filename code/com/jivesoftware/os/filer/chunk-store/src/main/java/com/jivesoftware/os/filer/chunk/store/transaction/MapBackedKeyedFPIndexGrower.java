@@ -46,10 +46,16 @@ public class MapBackedKeyedFPIndexGrower implements GrowFiler<Integer, MapBacked
     }
 
     @Override
-    public void grow(MapBackedKeyedFPIndex currentMonkey, ChunkFiler currentFiler, MapBackedKeyedFPIndex newMonkey, ChunkFiler newFiler) throws IOException {
+    public void growAndAcquire(MapBackedKeyedFPIndex currentMonkey, ChunkFiler currentFiler, MapBackedKeyedFPIndex newMonkey, ChunkFiler newFiler)
+        throws IOException {
+
         synchronized (currentMonkey) {
             synchronized (newMonkey) {
-                MapStore.INSTANCE.copyTo(currentFiler, currentMonkey.getMapContext(), newFiler, newMonkey.getMapContext(), null);
+                if (MapStore.INSTANCE.acquire(newMonkey.getMapContext(), alwaysRoomForNMoreKeys)) {
+                    MapStore.INSTANCE.copyTo(currentFiler, currentMonkey.getMapContext(), newFiler, newMonkey.getMapContext(), null);
+                } else {
+                    throw new RuntimeException("Newly allocated MapBackedKeyedFPIndexGrower context does not have necessary capacity!");
+                }
             }
         }
     }

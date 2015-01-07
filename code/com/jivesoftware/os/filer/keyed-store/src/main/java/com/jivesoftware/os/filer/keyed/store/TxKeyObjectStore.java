@@ -97,7 +97,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
             }
 
             @Override
-            public void grow(MapContext currentMonkey, ChunkFiler currentFiler, MapContext newMonkey, ChunkFiler newFiler) throws IOException {
+            public void growAndAcquire(MapContext currentMonkey, ChunkFiler currentFiler, MapContext newMonkey, ChunkFiler newFiler) throws IOException {
                 synchronized (currentMonkey) {
                     synchronized (newMonkey) {
                         final Object[] newValues = new Object[newMonkey.capacity];

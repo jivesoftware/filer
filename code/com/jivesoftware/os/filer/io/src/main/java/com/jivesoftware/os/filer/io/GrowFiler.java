@@ -28,7 +28,7 @@ public interface GrowFiler<H, M, F extends Filer> {
 
     H acquire(M monkey, F filer) throws IOException;
 
-    void grow(M currentMonkey, F currentFiler, M newMonkey, F newFiler) throws IOException;
+    void growAndAcquire(M currentMonkey, F currentFiler, M newMonkey, F newFiler) throws IOException;
 
     void release(M monkey);
 }
