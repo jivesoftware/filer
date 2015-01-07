@@ -94,61 +94,61 @@ public class KeyedFPIndexUtil {
             semaphore.release();
         }
 
-        synchronized (keyLock) {
-            try {
-                while (!semaphore.tryAcquire(numPermits, 5, TimeUnit.MINUTES)) {
-                    System.err.println("Deadlock due to probable case of reentrant transaction");
-                    Thread.dumpStack();
-                }
-            } catch (InterruptedException e) {
-                throw new RuntimeException("Failed to acquire all permits.", e);
+        try {
+            while (!semaphore.tryAcquire(numPermits, 5, TimeUnit.MINUTES)) {
+                System.err.println("Deadlock due to probable case of reentrant transaction");
+                Thread.dumpStack();
             }
-            final AtomicInteger releasablePermits = new AtomicInteger(numPermits);
-            try {
-                return chunkStore.execute(fp, opener, new ChunkTransaction<M, R>() {
-                    @Override
-                    public R commit(final M monkey, final ChunkFiler filer) throws IOException {
-                        H hint = growFiler.acquire(monkey, filer);
-                        try {
-                            if (hint != null) {
-                                final long grownFP = chunkStore.newChunk(hint, creator);
-                                chunkStore.execute(grownFP, opener, new ChunkTransaction<M, Void>() {
-
-                                    @Override
-                                    public Void commit(M newMonkey, ChunkFiler newFiler) throws IOException {
-                                        growFiler.grow(monkey, filer, newMonkey, newFiler);
-                                        return null;
-                                    }
-                                });
-                                backingFPIndex.set(key, grownFP);
-                                chunkStore.remove(filer.getChunkFP());
-
-                                semaphore.release(numPermits - 1);
-                                releasablePermits.set(1);
-                                return chunkStore.execute(grownFP, opener, new ChunkTransaction<M, R>() {
-                                    @Override
-                                    public R commit(M monkey, ChunkFiler filer) throws IOException {
-                                        return filerTransaction.commit(monkey, filer);
-                                    }
-                                });
-
-                            } else {
-                                semaphore.release(numPermits - 1);
-                                releasablePermits.set(1);
-
-                                return filerTransaction.commit(monkey, filer);
-                            }
-                        } finally {
-                            growFiler.release(monkey);
-                        }
-                    }
-                });
-
-            } finally {
-                semaphore.release(releasablePermits.get());
-            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException("Failed to acquire all permits.", e);
         }
+        final AtomicInteger releasablePermits = new AtomicInteger(numPermits);
+        try {
+            return chunkStore.execute(fp, opener, new ChunkTransaction<M, R>() {
+                @Override
+                public R commit(final M monkey, final ChunkFiler filer) throws IOException {
+                    H hint = growFiler.acquire(monkey, filer);
+                    try {
+                        if (hint != null) {
+                            final long grownFP = chunkStore.newChunk(hint, creator);
+                            return chunkStore.execute(grownFP, opener, new ChunkTransaction<M, R>() {
 
+                                @Override
+                                public R commit(M newMonkey, ChunkFiler newFiler) throws IOException {
+                                    growFiler.grow(monkey, filer, newMonkey, newFiler);
+                                    H hint = growFiler.acquire(newMonkey, newFiler);
+                                    try {
+                                        if (hint == null) {
+                                            backingFPIndex.set(key, grownFP);
+                                            chunkStore.remove(filer.getChunkFP());
+
+                                            semaphore.release(numPermits - 1);
+                                            releasablePermits.set(1);
+                                            return filerTransaction.commit(monkey, filer);
+                                        } else {
+                                            throw new RuntimeException("Newly allocated monkey did not have necessary capacity!");
+                                        }
+                                    } finally {
+                                        growFiler.release(newMonkey);
+                                    }
+                                }
+                            });
+
+                        } else {
+                            semaphore.release(numPermits - 1);
+                            releasablePermits.set(1);
+
+                            return filerTransaction.commit(monkey, filer);
+                        }
+                    } finally {
+                        growFiler.release(monkey);
+                    }
+                }
+            });
+
+        } finally {
+            semaphore.release(releasablePermits.get());
+        }
     }
 
     public static interface BackingFPIndex<K> {
