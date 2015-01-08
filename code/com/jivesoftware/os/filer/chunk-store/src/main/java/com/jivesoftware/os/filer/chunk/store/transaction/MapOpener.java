@@ -27,7 +27,10 @@ import java.io.IOException;
  */
 public class MapOpener implements OpenFiler<MapContext, ChunkFiler> {
 
-    public static MapOpener DEFAULT = new MapOpener();
+    public static final MapOpener INSTANCE = new MapOpener();
+
+    private MapOpener() {
+    }
 
     @Override
     public MapContext open(ChunkFiler filer) throws IOException {

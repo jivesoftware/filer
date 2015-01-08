@@ -261,19 +261,25 @@ public class ChunkStore implements Copyable<ChunkStore> {
         return chunkFP;
     }
 
+    public static boolean REUSE_CHUNKS = false;
+
     /**
      * Synchronize externally on filer.lock()
      */
     private long reuseChunk(Filer filer, long position) throws IOException {
-        filer.seek(position);
-        long reuseFP = FilerIO.readLong(filer, "free");
-        if (reuseFP == -1) {
+        if (REUSE_CHUNKS) {
+            filer.seek(position);
+            long reuseFP = FilerIO.readLong(filer, "free");
+            if (reuseFP == -1) {
+                return reuseFP;
+            }
+            long nextFree = readNextFree(filer, reuseFP);
+            filer.seek(position);
+            FilerIO.writeLong(filer, nextFree, "free");
             return reuseFP;
+        } else {
+            return -1;
         }
-        long nextFree = readNextFree(filer, reuseFP);
-        filer.seek(position);
-        FilerIO.writeLong(filer, nextFree, "free");
-        return reuseFP;
     }
 
     /**
@@ -425,7 +431,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
     private static final byte[] zerosMin = new byte[(int) Math.pow(2, cMinPower)]; // never too big
     private static final byte[] zerosMax = new byte[(int) Math.pow(2, 16)]; // 65536 max used until min needed
 
-    public <M> boolean isValid(final long chunkFP) throws IOException {
+    public boolean isValid(final long chunkFP) throws IOException {
         if (openChunks.get(chunkFP) != null) {
             return true;
         }

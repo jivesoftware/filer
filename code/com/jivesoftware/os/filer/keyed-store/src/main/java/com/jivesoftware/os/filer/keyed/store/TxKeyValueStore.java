@@ -55,7 +55,7 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
         for (int i = 0; i < stores.length; i++) {
             stores[i] = new TxNamedMap(chunkStores[i], SKY_HOOK_FP,
                 new MapCreator(2, keySize, variableKeySize, payloadSize, variablePayloadSize),
-                new MapOpener(),
+                MapOpener.INSTANCE,
                 new MapGrower<>(1));
         }
 

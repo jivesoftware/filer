@@ -166,6 +166,7 @@ public class ChunkStoreTest {
 
     @Test
     public void testAddRemove() throws Exception {
+        ChunkStore.REUSE_CHUNKS = true;
         String[] chunkPaths = new String[] { Files.createTempDirectory("testAddRemove").toFile().getAbsolutePath() };
         ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPaths, "test", 0, 512, true, 8);
 

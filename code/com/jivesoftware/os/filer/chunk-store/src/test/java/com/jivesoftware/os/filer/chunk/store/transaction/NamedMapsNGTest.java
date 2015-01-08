@@ -52,8 +52,8 @@ public class NamedMapsNGTest {
         ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
 
         TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[]{
-            new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), new MapOpener(), new MapGrower<>(1)),
-            new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), new MapOpener(), new MapGrower<>(1))
+            new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
+            new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
         });
 
         int tries = 128;
@@ -240,8 +240,8 @@ public class NamedMapsNGTest {
         });
 
         TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[]{
-            new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), new MapOpener(), new MapGrower<>(1)),
-            new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), new MapOpener(), new MapGrower<>(1))
+            new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
+            new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
         });
 
         final int addCount = 16;
@@ -363,8 +363,8 @@ public class NamedMapsNGTest {
         });
 
         namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[]{
-            new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), new MapOpener(), new MapGrower<>(1)),
-            new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), new MapOpener(), new MapGrower<>(1))
+            new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
+            new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
         });
 
         for (int c = 0; c < 10; c++) {
