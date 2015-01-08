@@ -22,6 +22,7 @@ import com.jivesoftware.os.filer.io.primative.LongKeyMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Map;
@@ -40,11 +41,10 @@ public class TxKeyObjectStoreNGTest {
 
     @BeforeTest
     public void init() throws IOException, Exception {
-        String[] chunkPaths = new String[]{Files.createTempDirectory("testNewChunkStore")
-            .toFile()
-            .getAbsolutePath()};
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
+        File dir = Files.createTempDirectory("testNewChunkStore")
+            .toFile();
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8);
 
         store = new TxPartitionedKeyObjectStore<>(new PartitionFunction<Long>() {
 

@@ -9,17 +9,18 @@ import java.nio.channels.FileChannel;
 import org.apache.commons.io.Charsets;
 
 /**
- * TODO this implementation of ByteBufferFactory is inherently unsafe because its allocate() method is only capable of
- *      growing an existing buffer rather than handing out a new one. Eventually we need to extend ByteBufferFactory
- *      to formalize notions of create(), open(), copy(), resize().
+ * TODO this implementation of ByteBufferFactory is inherently unsafe because its allocate() method is only capable of growing an existing buffer rather than
+ * handing out a new one. Eventually we need to extend ByteBufferFactory to formalize notions of create(), open(), copy(), resize().
  *
  * @author jonathan.colt
  */
 public class FileBackedMemMappedByteBufferFactory implements ByteBufferFactory {
 
+    private final String prefix;
     private final File[] directories;
 
-    public FileBackedMemMappedByteBufferFactory(File... directories) {
+    public FileBackedMemMappedByteBufferFactory(String prefix, File... directories) {
+        this.prefix = prefix;
         this.directories = directories;
     }
 
@@ -32,17 +33,26 @@ public class FileBackedMemMappedByteBufferFactory implements ByteBufferFactory {
             //System.out.println(String.format("Open key=%s for directories=%s", key, Arrays.toString(directories)));
             File directory = getDirectory(key);
             ensureDirectory(directory);
-            File file = new File(directory, key);
-            MappedByteBuffer buf;
+            File file = new File(directory, prefix + "-" + key);
             try (RandomAccessFile raf = new RandomAccessFile(file, "rw")) {
                 raf.seek(0);
-                FileChannel channel = raf.getChannel();
-                buf = channel.map(FileChannel.MapMode.READ_WRITE, 0, (int) channel.size());
+                try (FileChannel channel = raf.getChannel()) {
+                    return channel.map(FileChannel.MapMode.READ_WRITE, 0, (int) channel.size());
+                }
             }
-            return buf;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public boolean exists(byte[] key) {
+        String name = new String(key, Charsets.UTF_8);
+        File directory = getDirectory(name);
+        if (directory.exists()) {
+            return new File(directory, prefix + "-" + name).exists();
+        }
+        return false;
     }
 
     @Override
@@ -52,13 +62,17 @@ public class FileBackedMemMappedByteBufferFactory implements ByteBufferFactory {
             String name = new String(key, Charsets.UTF_8);
             File directory = getDirectory(name);
             ensureDirectory(directory);
-            File file = new File(directory, name);
-            RandomAccessFile raf = new RandomAccessFile(file, "rw");
-            raf.seek(length);
-            raf.write(0);
-            raf.seek(0);
-            FileChannel channel = raf.getChannel();
-            return channel.map(FileChannel.MapMode.READ_WRITE, 0, (int) channel.size());
+            File file = new File(directory, prefix + "-" + name);
+            try (RandomAccessFile raf = new RandomAccessFile(file, "rw")) {
+                if (length > raf.length()) {
+                    raf.seek(length - 1);
+                    raf.write(0);
+                }
+                raf.seek(0);
+                try (FileChannel channel = raf.getChannel()) {
+                    return channel.map(FileChannel.MapMode.READ_WRITE, 0, (int) channel.size());
+                }
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -79,4 +93,5 @@ public class FileBackedMemMappedByteBufferFactory implements ByteBufferFactory {
             }
         }
     }
+
 }

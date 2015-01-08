@@ -16,6 +16,7 @@ import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.RewriteFilerTransaction;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import org.testng.annotations.Test;
@@ -29,11 +30,10 @@ public class TxKeyedFilerStoreNGTest {
 
     @Test
     public void keyedStoreTest() throws Exception {
-        String[] chunkPaths = new String[]{Files.createTempDirectory("testNewChunkStore")
-            .toFile()
-            .getAbsolutePath()};
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
+        File dir = Files.createTempDirectory("testNewChunkStore")
+            .toFile();
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores,
@@ -64,11 +64,11 @@ public class TxKeyedFilerStoreNGTest {
 
     @Test
     public void rewriteTest() throws Exception {
-        String[] chunkPaths = new String[]{Files.createTempDirectory("testNewChunkStore")
+        File dir = Files.createTempDirectory("testNewChunkStore")
             .toFile()
-            .getAbsolutePath()};
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
+;
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores,

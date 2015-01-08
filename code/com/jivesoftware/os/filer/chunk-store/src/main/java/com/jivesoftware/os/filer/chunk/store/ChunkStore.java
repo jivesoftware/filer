@@ -1,23 +1,40 @@
+/*
+ * Copyright 2015 Jive Software.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.jivesoftware.os.filer.chunk.store;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkMetrics.ChunkMetric;
+import com.jivesoftware.os.filer.io.AutoGrowingByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
-import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.io.OpenFiler;
-import com.jivesoftware.os.filer.io.ResizableByteBuffer;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ *
+ * @author jonathan.colt
+ */
 public class ChunkStore implements Copyable<ChunkStore> {
 
     private static final int maxChunkPower = 32;
-    private static ChunkMetric[] allocates = new ChunkMetric[maxChunkPower];
-    private static ChunkMetric[] gets = new ChunkMetric[maxChunkPower];
-    private static ChunkMetric[] reuses = new ChunkMetric[maxChunkPower];
-    private static ChunkMetric[] removes = new ChunkMetric[maxChunkPower];
+    private static ChunkMetrics.ChunkMetric[] allocates = new ChunkMetrics.ChunkMetric[maxChunkPower];
+    private static ChunkMetrics.ChunkMetric[] gets = new ChunkMetrics.ChunkMetric[maxChunkPower];
+    private static ChunkMetrics.ChunkMetric[] reuses = new ChunkMetrics.ChunkMetric[maxChunkPower];
+    private static ChunkMetrics.ChunkMetric[] removes = new ChunkMetrics.ChunkMetric[maxChunkPower];
 
     static {
         for (int i = 0; i < maxChunkPower; i++) {
@@ -38,11 +55,11 @@ public class ChunkStore implements Copyable<ChunkStore> {
     private long referenceNumber = 0;
 
     private final Object headerLock = new Object();
-    private ResizableByteBuffer resizableByteBuffer;
+    private AutoGrowingByteBufferBackedFiler filer;
 
     /*
      New Call Sequence
-     ChunkStore chunks = ChunkStore();
+     FixedSizeChunkStore chunks = FixedSizeChunkStore();
      chunks.setup(100);
      open(_filer);
      */
@@ -63,78 +80,51 @@ public class ChunkStore implements Copyable<ChunkStore> {
         referenceNumber = _referenceNumber;
     }
 
-    private final FilerTransaction<Filer, Long> sizeInBytesTransaction = new FilerTransaction<Filer, Long>() {
-        @Override
-        public Long commit(Filer filer) throws IOException {
-            return filer.length();
-        }
-    };
-
+    /**
+     * Approximate length (Doesn't lock filer)
+     *
+     * @return
+     * @throws IOException
+     */
     public long sizeInBytes() throws IOException {
-        return resizableByteBuffer.execute(-1, false, sizeInBytesTransaction);
+        return filer.length();
     }
 
-    public void createAndOpen(ResizableByteBuffer resizableByteBuffer) throws Exception {
-        this.resizableByteBuffer = resizableByteBuffer;
-
-        int size = (2 + 65 - cMinPower) * 8;
+    public void createAndOpen(AutoGrowingByteBufferBackedFiler filer) throws Exception {
+        this.filer = filer;
         synchronized (headerLock) {
-            resizableByteBuffer.execute(size, true, new FilerTransaction<Filer, Void>() {
-                @Override
-                public Void commit(Filer filer) throws IOException {
-                    filer.seek(0);
-                    FilerIO.writeLong(filer, lengthOfFile, "lengthOfFile");
-                    FilerIO.writeLong(filer, referenceNumber, "referenceNumber");
-                    for (int i = cMinPower; i < 65; i++) {
-                        FilerIO.writeLong(filer, -1, "free");
-                    }
-                    filer.flush();
-                    return null;
-                }
-            });
+            filer.seek(0);
+            FilerIO.writeLong(filer, lengthOfFile, "lengthOfFile");
+            FilerIO.writeLong(filer, referenceNumber, "referenceNumber");
+            for (int i = cMinPower; i < 65; i++) {
+                FilerIO.writeLong(filer, -1, "free");
+            }
+            filer.flush();
         }
     }
 
-    public ChunkStore(ResizableByteBuffer resizableByteBuffer) throws Exception {
-        this.resizableByteBuffer = resizableByteBuffer;
+    public ChunkStore(AutoGrowingByteBufferBackedFiler filer) throws Exception {
+        this.filer = filer;
     }
 
     public void open() throws IOException {
         synchronized (headerLock) {
-            resizableByteBuffer.execute(-1, true, new FilerTransaction<Filer, Void>() {
-                @Override
-                public Void commit(Filer filer) throws IOException {
-                    filer.seek(0);
-                    lengthOfFile = FilerIO.readLong(filer, "lengthOfFile");
-                    referenceNumber = FilerIO.readLong(filer, "referenceNumber");
-                    return null;
-                }
-            });
+            filer.seek(0);
+            lengthOfFile = FilerIO.readLong(filer, "lengthOfFile");
+            referenceNumber = FilerIO.readLong(filer, "referenceNumber");
         }
     }
 
     public void delete() throws IOException {
-        resizableByteBuffer.delete();
+
     }
 
     @Override
     public void copyTo(final ChunkStore to) throws IOException {
-        resizableByteBuffer.execute(-1, true, new FilerTransaction<Filer, Void>() {
-            @Override
-            public Void commit(final Filer fromFiler) throws IOException {
-                to.resizableByteBuffer.execute(fromFiler.length(), true, new FilerTransaction<Filer, Void>() {
-                    @Override
-                    public Void commit(Filer toFiler) throws IOException {
-                        fromFiler.seek(0);
-                        toFiler.seek(0);
-                        //TODO if these filers are both byte buffer backed then it's much faster to do an NIO ByteBuffer.put()
-                        FilerIO.copy(fromFiler, toFiler, -1);
-                        return null;
-                    }
-                });
-                return null;
-            }
-        });
+        filer.seek(0);
+        to.filer.seek(0);
+        //TODO if these filers are both byte buffer backed then it's much faster to do an NIO ByteBuffer.put()
+        FilerIO.copy(filer, to.filer, -1);
         to.open();
     }
 
@@ -143,32 +133,26 @@ public class ChunkStore implements Copyable<ChunkStore> {
     }
 
     public void allChunks(final ChunkIdStream chunkIdStream) throws IOException {
-        resizableByteBuffer.execute(-1, false, new FilerTransaction<Filer, Void>() {
-            @Override
-            public Void commit(Filer filer) throws IOException {
-                filer.seek(8 + 8 + (8 * (64 - cMinPower)));
-                long size = filer.length();
-                while (filer.getFilePointer() < size) {
-                    long chunkFP = filer.getFilePointer();
-                    long magicNumber = FilerIO.readLong(filer, "magicNumber");
-                    if (magicNumber != cMagicNumber) {
-                        throw new IOException("Invalid chunkFP " + chunkFP);
-                    }
-                    long chunkPower = FilerIO.readLong(filer, "chunkPower");
-                    FilerIO.readLong(filer, "chunkNexFreeChunkFP");
-                    long chunkLength = FilerIO.readLong(filer, "chunkLength");
-                    long fp = filer.getFilePointer();
-                    if (chunkLength > 0) {
-                        long more = chunkIdStream.stream(chunkFP);
-                        if (more != chunkFP) {
-                            break;
-                        }
-                    }
-                    filer.seek(fp + FilerIO.chunkLength((int) chunkPower));
-                }
-                return null;
+        filer.seek(8 + 8 + (8 * (64 - cMinPower)));
+        long size = filer.length();
+        while (filer.getFilePointer() < size) {
+            long chunkFP = filer.getFilePointer();
+            long magicNumber = FilerIO.readLong(filer, "magicNumber");
+            if (magicNumber != cMagicNumber) {
+                throw new IOException("Invalid chunkFP " + chunkFP);
             }
-        });
+            long chunkPower = FilerIO.readLong(filer, "chunkPower");
+            FilerIO.readLong(filer, "chunkNexFreeChunkFP");
+            long chunkLength = FilerIO.readLong(filer, "chunkLength");
+            long fp = filer.getFilePointer();
+            if (chunkLength > 0) {
+                long more = chunkIdStream.stream(chunkFP);
+                if (more != chunkFP) {
+                    break;
+                }
+            }
+            filer.seek(fp + FilerIO.chunkLength((int) chunkPower));
+        }
     }
 
     /**
@@ -181,7 +165,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
      */
     public <M, H> long newChunk(final H hint, final CreateFiler<H, M, ChunkFiler> createFiler) throws IOException {
         long _capacity = createFiler.sizeInBytes(hint);
-        final int chunkPower = FilerIO.chunkPower(_capacity, cMinPower);
+        int chunkPower = FilerIO.chunkPower(_capacity, cMinPower);
         final long chunkLength = FilerIO.chunkLength(chunkPower)
             + 8 // add magicNumber
             + 8 // add chunkPower
@@ -193,32 +177,22 @@ public class ChunkStore implements Copyable<ChunkStore> {
 
         // first try to reuse
         synchronized (headerLock) {
-            chunkFP = resizableByteBuffer.execute(-1, false, new FilerTransaction<Filer, Long>() {
-                @Override
-                public Long commit(Filer filer) throws IOException {
-                    return reuseChunk(filer, chunkPosition);
-                }
-            });
+            chunkFP = reuseChunk(filer, chunkPosition);
+
             if (chunkFP == -1) {
                 final long newChunkFP = lengthOfFile;
                 long newSize = newChunkFP + chunkLength;
-                resizableByteBuffer.execute(newSize, false, new FilerTransaction<Filer, Void>() {
-                    @Override
-                    public Void commit(Filer filer) throws IOException {
-                        filer.seek(newChunkFP + chunkLength - 1); // last byte in chunk
-                        filer.write(0); // cause file backed ChunkStore to grow file on disk. Use setLength()?
-                        filer.seek(newChunkFP);
-                        FilerIO.writeLong(filer, cMagicNumber, "magicNumber");
-                        FilerIO.writeLong(filer, chunkPower, "chunkPower");
-                        FilerIO.writeLong(filer, -1, "chunkNexFreeChunkFP");
-                        FilerIO.writeLong(filer, chunkLength, "chunkLength");
-                        lengthOfFile += chunkLength;
-                        filer.seek(0);
-                        FilerIO.writeLong(filer, lengthOfFile, "lengthOfFile");
-                        filer.flush();
-                        return null;
-                    }
-                });
+                filer.seek(newChunkFP + chunkLength - 1); // last byte in chunk
+                filer.write(0); // cause file backed ChunkStore to grow file on disk. Use setLength()?
+                filer.seek(newChunkFP);
+                FilerIO.writeLong(filer, cMagicNumber, "magicNumber");
+                FilerIO.writeLong(filer, chunkPower, "chunkPower");
+                FilerIO.writeLong(filer, -1, "chunkNexFreeChunkFP");
+                FilerIO.writeLong(filer, chunkLength, "chunkLength");
+                lengthOfFile += chunkLength;
+                filer.seek(0);
+                FilerIO.writeLong(filer, lengthOfFile, "lengthOfFile");
+                filer.flush();
                 chunkFP = newChunkFP;
                 reused = true;
             }
@@ -230,34 +204,27 @@ public class ChunkStore implements Copyable<ChunkStore> {
             allocates[chunkPower].inc(1);
         }
 
-        final long _chunkFP = chunkFP;
-        resizableByteBuffer.execute(-1, false, new FilerTransaction<Filer, Void>() {
-            @Override
-            public Void commit(Filer filer) throws IOException {
-                filer.seek(_chunkFP);
-                long magicNumber = FilerIO.readLong(filer, "magicNumber");
-                if (magicNumber != cMagicNumber) {
-                    throw new IOException("Invalid chunkFP " + _chunkFP);
-                }
-                int chunkPower = (int) FilerIO.readLong(filer, "chunkPower");
-                long nextFreeChunkFP = FilerIO.readLong(filer, "chunkNexFreeChunkFP");
-                long length = FilerIO.readLong(filer, "chunkLength");
-
-                long startOfFP = filer.getFilePointer();
-                long endOfFP = startOfFP + FilerIO.chunkLength(chunkPower);
-                ChunkFiler chunkFiler = new ChunkFiler(ChunkStore.this, filer, _chunkFP, startOfFP, endOfFP);
-                chunkFiler.seek(0);
-                //TODO if this throws an IOException we should free up the chunkFP
-                M monkey = null;
-                if (createFiler != null) {
-                    monkey = createFiler.create(hint, chunkFiler);
-                }
-                Chunk<M> chunk = new Chunk<>(monkey, _chunkFP, startOfFP, endOfFP);
-                chunk.fp = chunkFiler.getFilePointer();
-                openChunks.put(_chunkFP, chunk);
-                return null;
+        long _chunkFP = chunkFP;
+        long startOfFP;
+        long endOfFP;
+        synchronized (headerLock) {
+            filer.seek(_chunkFP);
+            long magicNumber = FilerIO.readLong(filer, "magicNumber");
+            if (magicNumber != cMagicNumber) {
+                throw new IOException("Invalid chunkFP " + _chunkFP);
             }
-        });
+            chunkPower = (int) FilerIO.readLong(filer, "chunkPower");
+            FilerIO.readLong(filer, "chunkNexFreeChunkFP");
+            FilerIO.readLong(filer, "chunkLength");
+            startOfFP = filer.getFilePointer();
+            endOfFP = startOfFP + FilerIO.chunkLength(chunkPower);
+        }
+        ChunkFiler chunkFiler = new ChunkFiler(this, filer, _chunkFP, startOfFP, endOfFP);
+        chunkFiler.seek(0);
+        M monkey = createFiler.create(hint, chunkFiler);
+        Chunk<M> chunk = new Chunk<>(monkey, _chunkFP, startOfFP, endOfFP);
+        chunk.fp = chunkFiler.getFilePointer();
+        openChunks.put(_chunkFP, chunk);
         return chunkFP;
     }
 
@@ -303,21 +270,16 @@ public class ChunkStore implements Copyable<ChunkStore> {
     }
 
     public boolean isUsed(final long chunkFP) throws IOException {
-        return resizableByteBuffer.execute(-1, false, new FilerTransaction<Filer, Boolean>() {
-            @Override
-            public Boolean commit(Filer filer) throws IOException {
-                filer.seek(chunkFP);
-                long magicNumber = FilerIO.readLong(filer, "magicNumber");
-                return (magicNumber == cMagicNumber);
-            }
-        });
+        filer.seek(chunkFP);
+        long magicNumber = FilerIO.readLong(filer, "magicNumber");
+        return (magicNumber == cMagicNumber);
     }
 
     /**
      * @param <M>
      * @param <R>
      * @param chunkFP
-     * @param openFiler        Nullable
+     * @param openFiler Nullable
      * @param chunkTransaction
      * @return
      * @throws IOException
@@ -325,101 +287,90 @@ public class ChunkStore implements Copyable<ChunkStore> {
     public <M, R> R execute(final long chunkFP, final OpenFiler<M, ChunkFiler> openFiler, final ChunkTransaction<M, R> chunkTransaction) throws IOException {
 
         @SuppressWarnings("unchecked")
-        final Chunk<M> chunk = (Chunk<M>) openChunks.get(chunkFP);
+        Chunk<M> chunk = (Chunk<M>) openChunks.get(chunkFP);
         if (chunk == null) {
-            return resizableByteBuffer.execute(-1, false, new FilerTransaction<Filer, R>() {
-                @Override
-                public R commit(Filer filer) throws IOException {
-                    filer.seek(chunkFP);
-                    long magicNumber = FilerIO.readLong(filer, "magicNumber");
-                    if (magicNumber != cMagicNumber) {
-                        throw new IOException("Invalid chunkFP " + chunkFP);
-                    }
-                    int chunkPower = (int) FilerIO.readLong(filer, "chunkPower");
-                    long nextFreeChunkFP = FilerIO.readLong(filer, "chunkNexFreeChunkFP");
-                    long length = FilerIO.readLong(filer, "chunkLength");
-
-                    long startOfFP = filer.getFilePointer();
-                    long endOfFP = startOfFP + FilerIO.chunkLength(chunkPower);
-                    ChunkFiler chunkFiler = new ChunkFiler(ChunkStore.this, filer, chunkFP, startOfFP, endOfFP);
-                    chunkFiler.seek(0);
-
-                    M monkey = null;
-                    if (openFiler != null) {
-                        monkey = openFiler.open(chunkFiler);
-                    }
-                    Chunk<M> chunk = new Chunk<>(monkey, chunkFP, startOfFP, endOfFP);
-                    openChunks.put(chunkFP, chunk);
-
-                    chunkFiler.seek(0);
-                    R result = chunkTransaction.commit(monkey, chunkFiler);
-                    chunk.fp = chunkFiler.getFilePointer();
-
-                    return result;
+            int chunkPower;
+            long startOfFP;
+            synchronized (headerLock) {
+                filer.seek(chunkFP);
+                long magicNumber = FilerIO.readLong(filer, "magicNumber");
+                if (magicNumber != cMagicNumber) {
+                    throw new IOException("Invalid chunkFP " + chunkFP);
                 }
-            });
+                chunkPower = (int) FilerIO.readLong(filer, "chunkPower");
+                FilerIO.readLong(filer, "chunkNexFreeChunkFP");
+                FilerIO.readLong(filer, "chunkLength");
+                startOfFP = filer.getFilePointer();
+            }
+
+            long endOfFP = startOfFP + FilerIO.chunkLength(chunkPower);
+            ChunkFiler chunkFiler = new ChunkFiler(this, filer.duplicate(startOfFP, endOfFP), chunkFP, startOfFP, endOfFP);
+            chunkFiler.seek(0);
+
+            M monkey = null;
+            if (openFiler != null) {
+                monkey = openFiler.open(chunkFiler);
+            }
+            chunk = new Chunk<>(monkey, chunkFP, startOfFP, endOfFP);
+            openChunks.put(chunkFP, chunk);
+
+            chunkFiler.seek(0);
+            R result = chunkTransaction.commit(monkey, chunkFiler);
+            chunk.fp = chunkFiler.getFilePointer();
+
+            return result;
+
         } else {
-            return resizableByteBuffer.execute(-1, false, new FilerTransaction<Filer, R>() {
-                @Override
-                public R commit(Filer filer) throws IOException {
-                    ChunkFiler chunkFiler = new ChunkFiler(ChunkStore.this, filer, chunkFP, chunk.startOfFP, chunk.endOfFP);
-                    chunkFiler.seek(chunk.fp);
-                    R result = chunkTransaction.commit(chunk.monkey, chunkFiler);
-                    chunk.fp = chunkFiler.getFilePointer();
-                    return result;
-                }
-            });
+            ChunkFiler chunkFiler = new ChunkFiler(ChunkStore.this, filer.duplicate(chunk.startOfFP, chunk.endOfFP), chunkFP, chunk.startOfFP, chunk.endOfFP);
+            chunkFiler.seek(chunk.fp);
+            R result = chunkTransaction.commit(chunk.monkey, chunkFiler);
+            chunk.fp = chunkFiler.getFilePointer();
+            return result;
         }
     }
 
     public void remove(final long _chunkFP) throws IOException {
-        final int chunkPower;
+        int chunkPower;
         openChunks.remove(_chunkFP);
         synchronized (headerLock) {
-            chunkPower = resizableByteBuffer.execute(-1, false, new FilerTransaction<Filer, Integer>() {
-                @Override
-                public Integer commit(Filer filer) throws IOException {
-                    filer.seek(_chunkFP);
-                    long magicNumber = FilerIO.readLong(filer, "magicNumber");
-                    if (magicNumber != cMagicNumber) {
-                        throw new IOException("Invalid chunkFP " + _chunkFP);
-                    }
-                    int chunkPower = (int) FilerIO.readLong(filer, "chunkPower");
-                    FilerIO.readLong(filer, "chunkNexFreeChunkFP");
-                    FilerIO.writeLong(filer, -1, "chunkLength");
-                    long chunkLength = FilerIO.chunkLength(chunkPower); // bytes
-                    // fill with zeros
-                    while (chunkLength >= zerosMax.length) {
-                        filer.write(zerosMax);
-                        chunkLength -= zerosMax.length;
-                    }
-                    while (chunkLength >= zerosMin.length) {
-                        filer.write(zerosMin);
-                        chunkLength -= zerosMin.length;
-                    }
-                    filer.flush();
-                    // save as free chunk
-                    long position = freeSeek(chunkPower);
+            filer.seek(_chunkFP);
+            long magicNumber = FilerIO.readLong(filer, "magicNumber");
+            if (magicNumber != cMagicNumber) {
+                throw new IOException("Invalid chunkFP " + _chunkFP);
+            }
+            chunkPower = (int) FilerIO.readLong(filer, "chunkPower");
+            FilerIO.readLong(filer, "chunkNexFreeChunkFP");
+            FilerIO.writeLong(filer, -1, "chunkLength");
+            long chunkLength = FilerIO.chunkLength(chunkPower); // bytes
+            // fill with zeros
+            while (chunkLength >= zerosMax.length) {
+                filer.write(zerosMax);
+                chunkLength -= zerosMax.length;
+            }
+            while (chunkLength >= zerosMin.length) {
+                filer.write(zerosMin);
+                chunkLength -= zerosMin.length;
+            }
+            filer.flush();
+            // save as free chunk
+            long position = freeSeek(chunkPower);
+            filer.seek(position);
+            long freeFP = FilerIO.readLong(filer, "free");
+            if (freeFP == -1) {
+                filer.seek(position);
+                FilerIO.writeLong(filer, _chunkFP, "free");
+            } else {
+                if (_chunkFP != freeFP) {
                     filer.seek(position);
-                    long freeFP = FilerIO.readLong(filer, "free");
-                    if (freeFP == -1) {
-                        filer.seek(position);
-                        FilerIO.writeLong(filer, _chunkFP, "free");
-                    } else {
-                        if (_chunkFP != freeFP) {
-                            filer.seek(position);
-                            FilerIO.writeLong(filer, _chunkFP, "free");
-                        } else {
-                            System.err.println("WARNING: Some one is removing the same chunk more than once. chunkFP:" + _chunkFP);
-                            new RuntimeException().printStackTrace();
-                        }
-                    }
-                    writeNextFree(filer, _chunkFP, freeFP);
-                    filer.flush();
-
-                    return chunkPower;
+                    FilerIO.writeLong(filer, _chunkFP, "free");
+                } else {
+                    System.err.println("WARNING: Some one is removing the same chunk more than once. chunkFP:" + _chunkFP);
+                    new RuntimeException().printStackTrace();
                 }
-            });
+            }
+            writeNextFree(filer, _chunkFP, freeFP);
+            filer.flush();
+
         }
         removes[chunkPower].inc(1);
     }
@@ -435,14 +386,12 @@ public class ChunkStore implements Copyable<ChunkStore> {
         if (openChunks.get(chunkFP) != null) {
             return true;
         }
-        return resizableByteBuffer.execute(-1, false, new FilerTransaction<Filer, Boolean>() {
-            @Override
-            public Boolean commit(Filer filer) throws IOException {
-                filer.seek(chunkFP);
-                long magicNumber = FilerIO.readLong(filer, "magicNumber");
-                return magicNumber == cMagicNumber;
-            }
-        });
+        synchronized (headerLock) {
+            filer.seek(chunkFP);
+            long magicNumber = FilerIO.readLong(filer, "magicNumber");
+            return magicNumber == cMagicNumber;
+        }
+
     }
 
 }

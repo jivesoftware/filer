@@ -23,4 +23,9 @@ public class HeapByteBufferFactory implements ByteBufferFactory {
         }
         return newBuffer;
     }
+
+    @Override
+    public boolean exists(byte[] key) {
+        return false;
+    }
 }

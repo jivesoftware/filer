@@ -8,6 +8,13 @@ import java.nio.ByteBuffer;
 public interface ByteBufferFactory {
 
     /**
+     *
+     * @param key
+     * @return
+     */
+    boolean exists(byte[] key);
+
+    /**
      * @param key
      * @param size
      * @return

@@ -37,4 +37,9 @@ public class DirectByteBufferFactory implements ByteBufferFactory {
         }
         return newBuffer;
     }
+
+    @Override
+    public boolean exists(byte[] key) {
+        return false;
+    }
 }

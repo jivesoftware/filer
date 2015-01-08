@@ -28,6 +28,7 @@ import com.jivesoftware.os.filer.io.NoOpGrowFiler;
 import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.map.store.MapContext;
 import com.jivesoftware.os.filer.map.store.MapStore;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Random;
@@ -45,11 +46,10 @@ public class NamedMapsNGTest {
     @Test
     public void testVariableMapNameSizesCommit() throws Exception {
 
-        String[] chunkPaths = new String[]{Files.createTempDirectory("testNewChunkStore")
-            .toFile()
-            .getAbsolutePath()};
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
+        File dir = Files.createTempDirectory("testNewChunkStore")
+            .toFile();
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8);
 
         TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[]{
             new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
@@ -158,11 +158,10 @@ public class NamedMapsNGTest {
 
     @Test
     public void testVariableNamedMapOfFilers() throws Exception {
-        String[] chunkPaths = new String[]{Files.createTempDirectory("testNewChunkStore")
-            .toFile()
-            .getAbsolutePath()};
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
+        File dir = Files.createTempDirectory("testVariableNamedMapOfFilers")
+            .toFile();
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8);
 
         TxPartitionedNamedMapOfFiler<Void> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(), new TxNamedMapOfFiler[]{
             new TxNamedMapOfFiler(chunkStore1,
@@ -226,11 +225,10 @@ public class NamedMapsNGTest {
     @Test
     public void testCommit() throws Exception {
 
-        String[] chunkPaths = new String[]{Files.createTempDirectory("testNewChunkStore")
-            .toFile()
-            .getAbsolutePath()};
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
+        File dir = Files.createTempDirectory("testCommit")
+            .toFile();
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8);
 
         TxPartitionedNamedMapOfFiler<Void> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(), new TxNamedMapOfFiler[]{
             new TxNamedMapOfFiler(chunkStore1,
@@ -352,8 +350,8 @@ public class NamedMapsNGTest {
 
         }
 
-        chunkStore1 = new ChunkStoreInitializer().initialize(chunkPaths, "data1", 0, 10, true, 8);
-        chunkStore2 = new ChunkStoreInitializer().initialize(chunkPaths, "data2", 0, 10, true, 8);
+        chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8);
+        chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8);
 
         namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(), new TxNamedMapOfFiler[]{
             new TxNamedMapOfFiler(chunkStore1,

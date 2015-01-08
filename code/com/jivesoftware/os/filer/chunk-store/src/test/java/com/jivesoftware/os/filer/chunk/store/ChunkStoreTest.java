@@ -8,8 +8,6 @@
  */
 package com.jivesoftware.os.filer.chunk.store;
 
-import com.jivesoftware.os.filer.io.ByteBufferProvider;
-import com.jivesoftware.os.filer.io.FileBackedMemMappedByteBufferFactory;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.NoOpCreateFiler;
 import com.jivesoftware.os.filer.io.NoOpOpenFiler;
@@ -49,13 +47,7 @@ public class ChunkStoreTest {
         for (int loop = 0; loop < numLoops; loop++) {
             chunkFile.createNewFile();
 
-            final ChunkStore chunkStore = new ChunkStoreInitializer().create(
-                new ByteBufferProvider(
-                    chunkFile.getName().getBytes(),
-                    new FileBackedMemMappedByteBufferFactory(chunkFile.getParentFile())),
-                filerSize,
-                true,
-                8);
+            final ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[]{chunkFile.getParentFile()}, "data", 1024);
 
             long start = System.currentTimeMillis();
             List<Future<?>> futures = new ArrayList<>(numThreads);
@@ -84,8 +76,9 @@ public class ChunkStoreTest {
     @Test
     public void testNewChunkStore() throws Exception {
         int size = 1024 * 10;
-        String[] chunkPaths = new String[] { Files.createTempDirectory("testNewChunkStore").toFile().getAbsolutePath() };
-        ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPaths, "data", 0, size, false, 8);
+
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[]{Files.createTempDirectory("testNewChunkStore")
+            .toFile()}, "data", size);
 
         long chunk10 = chunkStore.newChunk(10L, createFiler);
         System.out.println("chunkId:" + chunk10);
@@ -119,15 +112,16 @@ public class ChunkStoreTest {
     @Test
     public void testExistingChunkStore() throws Exception {
         int size = 1024 * 10;
-        String[] chunkPaths = new String[] { Files.createTempDirectory("testExistingChunkStore").toFile().getAbsolutePath() };
-        ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPaths, "data", 0, size, false, 8);
+        File dir = Files.createTempDirectory("testExistingChunkStore")
+            .toFile();
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data", size);
 
         long chunk10 = chunkStore.newChunk(10L, createFiler);
         writeIntToChunk(chunkStore, chunk10, 10);
 
         long expectedReferenceNumber = chunkStore.getReferenceNumber();
 
-        chunkStore = new ChunkStoreInitializer().initialize(chunkPaths, "data", 0, size, false, 8);
+        chunkStore = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data", 1024);
         assertEquals(chunkStore.getReferenceNumber(), expectedReferenceNumber);
 
         assertIntInChunk(chunkStore, chunk10, 10);
@@ -136,8 +130,9 @@ public class ChunkStoreTest {
     @Test
     public void testResizingChunkStore() throws Exception {
         final int size = 512;
-        String[] chunkPaths = new String[] { Files.createTempDirectory("testResizingChunkStore").toFile().getAbsolutePath() };
-        ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPaths, "data", 0, size, true, 8);
+        File dir = Files.createTempDirectory("testResizingChunkStore")
+            .toFile();
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data", size);
 
         long chunk10 = chunkStore.newChunk(size * 4L, createFiler);
         chunkStore.execute(chunk10, openFiler, new ChunkTransaction<Void, Void>() {
@@ -166,9 +161,9 @@ public class ChunkStoreTest {
 
     @Test
     public void testAddRemove() throws Exception {
-        ChunkStore.REUSE_CHUNKS = true;
-        String[] chunkPaths = new String[] { Files.createTempDirectory("testAddRemove").toFile().getAbsolutePath() };
-        ChunkStore chunkStore = new ChunkStoreInitializer().initialize(chunkPaths, "test", 0, 512, true, 8);
+        File dir = Files.createTempDirectory("testAddRemove")
+            .toFile();
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data", 1024);
 
         List<Long> fps1 = new ArrayList<>();
         for (int i = 0; i < 2; i++) {
