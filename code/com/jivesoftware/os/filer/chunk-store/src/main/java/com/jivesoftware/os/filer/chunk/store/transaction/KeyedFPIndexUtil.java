@@ -50,17 +50,6 @@ public class KeyedFPIndexUtil {
         final Semaphore semaphore = semaphoreAndCount.semaphore;
         final int numPermits = semaphoreAndCount.numPermits;
         long fp;
-        synchronized (keyLock) {
-            fp = backingFPIndex.get(key);
-            if (fp < 0) {
-                if (creator == null) {
-                    return filerTransaction.commit(null, null);
-                }
-                final long newFp = chunkStore.newChunk(hint, creator);
-                backingFPIndex.set(key, newFp);
-                fp = newFp;
-            }
-        }
 
         try {
             semaphore.acquire();
@@ -69,6 +58,18 @@ public class KeyedFPIndexUtil {
         }
 
         try {
+            synchronized (keyLock) {
+                fp = backingFPIndex.get(key);
+                if (fp < 0) {
+                    if (creator == null) {
+                        return filerTransaction.commit(null, null);
+                    }
+                    final long newFp = chunkStore.newChunk(hint, creator);
+                    backingFPIndex.set(key, newFp);
+                    fp = newFp;
+                }
+            }
+
             Bag<R> bag = chunkStore.execute(fp, opener, new ChunkTransaction<M, Bag<R>>() {
                 @Override
                 public Bag<R> commit(M monkey, ChunkFiler filer) throws IOException {
@@ -104,6 +105,10 @@ public class KeyedFPIndexUtil {
         }
         final AtomicInteger releasablePermits = new AtomicInteger(numPermits);
         try {
+            fp = backingFPIndex.get(key);
+            if (fp < 0) {
+                throw new RuntimeException("Chunk disappeared!");
+            }
             return chunkStore.execute(fp, opener, new ChunkTransaction<M, R>() {
                 @Override
                 public R commit(final M monkey, final ChunkFiler filer) throws IOException {
