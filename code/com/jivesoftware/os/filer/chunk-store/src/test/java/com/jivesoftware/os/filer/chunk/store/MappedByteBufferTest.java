@@ -18,7 +18,7 @@ public class MappedByteBufferTest {
     @Test(enabled = false, description = "Tests whether stale buffers are still accurate, and that maps to the same file don't use extra FDs")
     public void testRemappedBuffers() throws Exception {
         File baseDir = Files.createTempDirectory("maps").toFile();
-        FileBackedMemMappedByteBufferFactory factory = new FileBackedMemMappedByteBufferFactory(baseDir);
+        FileBackedMemMappedByteBufferFactory factory = new FileBackedMemMappedByteBufferFactory("f", baseDir);
 
         ByteBuffer buf1 = factory.allocate("test".getBytes(), 1_000);
         ByteBufferBackedFiler filer1 = new ByteBufferBackedFiler(buf1);
