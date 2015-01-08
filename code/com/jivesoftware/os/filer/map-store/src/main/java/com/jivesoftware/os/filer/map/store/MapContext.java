@@ -25,6 +25,11 @@ public class MapContext {
         this.entrySize = entrySize;
         this.count = count;
         this.requested = 0;
+        if (keySize == 0 || capacity == 0 || maxCount == 0 || entrySize == 0) {
+            System.out.println("Bad state for " + toString());
+            Thread.dumpStack();
+            throw new RuntimeException("Bad state for " + toString());
+        }
     }
 
     @Override

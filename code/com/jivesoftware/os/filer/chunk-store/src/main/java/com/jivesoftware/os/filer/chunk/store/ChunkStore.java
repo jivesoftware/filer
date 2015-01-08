@@ -261,7 +261,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
         return chunkFP;
     }
 
-    public static boolean REUSE_CHUNKS = false;
+    public static boolean REUSE_CHUNKS = true;
 
     /**
      * Synchronize externally on filer.lock()
