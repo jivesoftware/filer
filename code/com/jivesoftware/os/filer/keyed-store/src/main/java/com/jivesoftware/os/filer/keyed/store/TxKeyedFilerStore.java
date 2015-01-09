@@ -24,8 +24,8 @@ import com.jivesoftware.os.filer.chunk.store.transaction.TxPartitionedNamedMapOf
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStream;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStreamKeys;
 import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
-import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.Filer;
+import com.jivesoftware.os.filer.io.FilerLock;
 import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.NoOpCreateFiler;
@@ -36,7 +36,6 @@ import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import java.io.IOException;
 
 /**
- *
  * @author jonathan.colt
  */
 public class TxKeyedFilerStore implements KeyedFilerStore {
@@ -44,42 +43,42 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
     static final long SKY_HOOK_FP = 464; // I died a little bit doing this.
 
     private final byte[] name;
-    private final TxPartitionedNamedMapOfFiler<Void> namedMapOfFilers;
-
-    private final ByteArrayStripingLocksProvider locksProvider = new ByteArrayStripingLocksProvider(64); //TODO pass in
+    private final TxPartitionedNamedMapOfFiler<FilerLock> namedMapOfFilers;
 
     public TxKeyedFilerStore(ChunkStore[] chunkStores, byte[] name) {
-        this.name = name;
-
         // TODO consider replacing with builder pattern
         @SuppressWarnings("unchecked")
-        TxNamedMapOfFiler<Void>[] stores = new TxNamedMapOfFiler[chunkStores.length];
+        TxNamedMapOfFiler<FilerLock>[] stores = new TxNamedMapOfFiler[chunkStores.length];
         for (int i = 0; i < stores.length; i++) {
             stores[i] = new TxNamedMapOfFiler<>(chunkStores[i], SKY_HOOK_FP,
-                new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>());
+                new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, FilerLock, ChunkFiler>());
         }
 
+        this.name = name;
         this.namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(), stores);
     }
 
     @Override
-    public <R> R execute(final byte[] keyBytes, long newFilerInitialCapacity, final FilerTransaction<Filer, R> transaction) throws IOException {
+    public <R> R execute(byte[] keyBytes, long newFilerInitialCapacity, final FilerTransaction<Filer, R> transaction) throws IOException {
         if (newFilerInitialCapacity < 0) {
-            return namedMapOfFilers.read(keyBytes, name, keyBytes, new ChunkTransaction<Void, R>() {
+            return namedMapOfFilers.read(keyBytes, name, keyBytes, new ChunkTransaction<FilerLock, R>() {
 
                 @Override
-                public R commit(Void monkey, ChunkFiler filer) throws IOException {
-                    synchronized (locksProvider.lock(keyBytes)) {
+                public R commit(FilerLock monkey, ChunkFiler filer) throws IOException {
+                    if (monkey == null || filer == null) {
+                        return transaction.commit(null);
+                    }
+                    synchronized (monkey) {
                         return transaction.commit(filer);
                     }
                 }
             });
         } else {
-            return namedMapOfFilers.overwrite(keyBytes, name, keyBytes, newFilerInitialCapacity, new ChunkTransaction<Void, R>() {
+            return namedMapOfFilers.overwrite(keyBytes, name, keyBytes, newFilerInitialCapacity, new ChunkTransaction<FilerLock, R>() {
 
                 @Override
-                public R commit(Void monkey, ChunkFiler filer) throws IOException {
-                    synchronized (locksProvider.lock(keyBytes)) {
+                public R commit(FilerLock monkey, ChunkFiler filer) throws IOException {
+                    synchronized (monkey) {
                         return transaction.commit(filer);
                     }
                 }
@@ -88,16 +87,18 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
     }
 
     @Override
-    public <R> R executeRewrite(final byte[] keyBytes, long newFilerInitialCapacity, final RewriteFilerTransaction<Filer, R> transaction) throws IOException {
+    public <R> R executeRewrite(byte[] keyBytes, long newFilerInitialCapacity, final RewriteFilerTransaction<Filer, R> transaction) throws IOException {
         if (newFilerInitialCapacity < 0) {
             throw new IllegalArgumentException("newFilerInitialCapacity must be greater than -1");
         } else {
-            return namedMapOfFilers.rewrite(keyBytes, name, keyBytes, newFilerInitialCapacity, new RewriteChunkTransaction<Void, R>() {
+            return namedMapOfFilers.rewrite(keyBytes, name, keyBytes, newFilerInitialCapacity, new RewriteChunkTransaction<FilerLock, R>() {
 
                 @Override
-                public R commit(Void currentMonkey, ChunkFiler currentFiler, Void newMonkey, ChunkFiler newFiler) throws IOException {
-                    synchronized (locksProvider.lock(keyBytes)) {
-                        return transaction.commit(currentFiler, newFiler);
+                public R commit(FilerLock currentMonkey, ChunkFiler currentFiler, FilerLock newMonkey, ChunkFiler newFiler) throws IOException {
+                    synchronized (currentMonkey) {
+                        synchronized (newMonkey) {
+                            return transaction.commit(currentFiler, newFiler);
+                        }
                     }
                 }
             });
@@ -106,11 +107,11 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
 
     @Override
     public boolean stream(final KeyValueStore.EntryStream<IBA, Filer> stream) throws IOException {
-        return namedMapOfFilers.stream(name, new TxStream<byte[], Void, ChunkFiler>() {
+        return namedMapOfFilers.stream(name, new TxStream<byte[], FilerLock, ChunkFiler>() {
 
             @Override
-            public boolean stream(byte[] key, Void monkey, ChunkFiler filer) throws IOException {
-                synchronized (locksProvider.lock(key)) {
+            public boolean stream(byte[] key, FilerLock monkey, ChunkFiler filer) throws IOException {
+                synchronized (monkey) {
                     return stream.stream(new IBA(key), filer);
                 }
             }
@@ -123,9 +124,7 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
 
             @Override
             public boolean stream(byte[] key) throws IOException {
-                synchronized (locksProvider.lock(key)) {
-                    return stream.stream(new IBA(key));
-                }
+                return stream.stream(new IBA(key));
             }
         });
     }

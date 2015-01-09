@@ -17,6 +17,7 @@ package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
+import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.io.primative.LongLongKeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
@@ -31,7 +32,6 @@ import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
 /**
- *
  * @author jonathan.colt
  */
 public class TxKeyValueStoreNGTest {
@@ -39,12 +39,12 @@ public class TxKeyValueStoreNGTest {
     TxKeyValueStore<Long, Long> store;
 
     @BeforeTest
-    public void init() throws IOException, Exception {
-        File dir = Files.createTempDirectory("testNewChunkStore")
-            .toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8);
-        ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
+    public void init() throws Exception {
+        File dir = Files.createTempDirectory("testNewChunkStore").toFile();
+        StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data1", 8, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data2", 8, locksProvider);
+        ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
 
         store = new TxKeyValueStore<>(chunkStores, new LongLongKeyValueMarshaller(), "booya".getBytes(), 8, false, 8, false);
     }

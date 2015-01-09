@@ -15,6 +15,7 @@ import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.RewriteFilerTransaction;
+import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import java.io.File;
 import java.io.IOException;
@@ -30,10 +31,10 @@ public class TxKeyedFilerStoreNGTest {
 
     @Test
     public void keyedStoreTest() throws Exception {
-        File dir = Files.createTempDirectory("testNewChunkStore")
-            .toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8);
+        File dir = Files.createTempDirectory("testNewChunkStore").toFile();
+        StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8, locksProvider);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores,
@@ -64,11 +65,10 @@ public class TxKeyedFilerStoreNGTest {
 
     @Test
     public void rewriteTest() throws Exception {
-        File dir = Files.createTempDirectory("testNewChunkStore")
-            .toFile()
-;
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8);
+        File dir = Files.createTempDirectory("testNewChunkStore").toFile();
+        StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8, locksProvider);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores,

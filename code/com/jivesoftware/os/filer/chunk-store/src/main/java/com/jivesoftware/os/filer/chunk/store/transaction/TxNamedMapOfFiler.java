@@ -88,14 +88,15 @@ public class TxNamedMapOfFiler<M> {
                                     public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
                                         int chunkPower = FilerIO.chunkPower(filerKey.length, 0);
                                         MapBackedKeyedFPIndexCreator creator = POWER_CREATORS[chunkPower];
-                                        return monkey.commit(chunkStore, chunkPower, 2, creator, MapBackedKeyedFPIndexOpener.INSTANCE,
-                                            grower, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
-                                            @Override
-                                            public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                                                // TODO consider using the provided filer in appropriate cases.
-                                                return monkey.commit(chunkStore, filerKey, sizeHint, filerCreator, filerOpener, filerGrower, filerTransaction);
-                                            }
-                                        });
+                                        return monkey.commit(chunkStore, chunkPower, 2, creator, MapBackedKeyedFPIndexOpener.INSTANCE, grower,
+                                            new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
+                                                @Override
+                                                public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                                    // TODO consider using the provided filer in appropriate cases.
+                                                    return monkey.commit(chunkStore, filerKey, sizeHint, filerCreator, filerOpener, filerGrower,
+                                                        filerTransaction);
+                                                }
+                                            });
                                     }
                                 });
                         }
@@ -133,43 +134,43 @@ public class TxNamedMapOfFiler<M> {
                                     public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
                                         int chunkPower = FilerIO.chunkPower(filerKey.length, 0);
                                         MapBackedKeyedFPIndexCreator creator = POWER_CREATORS[chunkPower];
-                                        return monkey.commit(chunkStore, chunkPower, 1, creator, MapBackedKeyedFPIndexOpener.INSTANCE,
-                                            grower, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
+                                        return monkey.commit(chunkStore, chunkPower, 1, creator, MapBackedKeyedFPIndexOpener.INSTANCE, grower,
+                                            new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
 
-                                            @Override
-                                            public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                                                // TODO consider using the provided filer in appropriate cases.
-                                                final AtomicReference<R> result = new AtomicReference<>();
-                                                GrowFiler<Long, M, ChunkFiler> rewriteGrower = new GrowFiler<Long, M, ChunkFiler>() {
-
-                                                    @Override
-                                                    public Long acquire(M monkey, ChunkFiler filer) throws IOException {
-                                                        return sizeHint;
-                                                    }
-
-                                                    @Override
-                                                    public void growAndAcquire(M currentMonkey,
-                                                        ChunkFiler currentFiler,
-                                                        M newMonkey,
-                                                        ChunkFiler newFiler) throws IOException {
-                                                        filerGrower.growAndAcquire(currentMonkey, currentFiler, newMonkey, newFiler);
-                                                        result.set(rewriteChunkTransaction.commit(currentMonkey, currentFiler, newMonkey, newFiler));
-                                                    }
-
-                                                    @Override
-                                                    public void release(M monkey) {
-                                                    }
-                                                };
-                                                return monkey.commit(chunkStore, filerKey, sizeHint, filerCreator, filerOpener, rewriteGrower,
-                                                    new ChunkTransaction<M, R>() {
+                                                @Override
+                                                public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                                    // TODO consider using the provided filer in appropriate cases.
+                                                    final AtomicReference<R> result = new AtomicReference<>();
+                                                    GrowFiler<Long, M, ChunkFiler> rewriteGrower = new GrowFiler<Long, M, ChunkFiler>() {
 
                                                         @Override
-                                                        public R commit(M monkey, ChunkFiler filer) throws IOException {
-                                                            return result.get();
+                                                        public Long acquire(M monkey, ChunkFiler filer) throws IOException {
+                                                            return sizeHint;
                                                         }
-                                                    });
-                                            }
-                                        });
+
+                                                        @Override
+                                                        public void growAndAcquire(M currentMonkey,
+                                                            ChunkFiler currentFiler,
+                                                            M newMonkey,
+                                                            ChunkFiler newFiler) throws IOException {
+                                                            filerGrower.growAndAcquire(currentMonkey, currentFiler, newMonkey, newFiler);
+                                                            result.set(rewriteChunkTransaction.commit(currentMonkey, currentFiler, newMonkey, newFiler));
+                                                        }
+
+                                                        @Override
+                                                        public void release(M monkey) {
+                                                        }
+                                                    };
+                                                    return monkey.commit(chunkStore, filerKey, sizeHint, filerCreator, filerOpener, rewriteGrower,
+                                                        new ChunkTransaction<M, R>() {
+
+                                                            @Override
+                                                            public R commit(M monkey, ChunkFiler filer) throws IOException {
+                                                                return result.get();
+                                                            }
+                                                        });
+                                                }
+                                            });
                                     }
                                 });
                         }
@@ -193,8 +194,8 @@ public class TxNamedMapOfFiler<M> {
                 }
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.commit(chunkStore, chunkPower, 1, null, MapBackedKeyedFPIndexOpener.INSTANCE,
-                    null, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
+                return monkey.commit(chunkStore, chunkPower, 1, null, MapBackedKeyedFPIndexOpener.INSTANCE, null,
+                    new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
 
                         @Override
                         public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
@@ -211,24 +212,22 @@ public class TxNamedMapOfFiler<M> {
                                         }
 
                                         int chunkPower = FilerIO.chunkPower(filerKey.length, 0);
-                                        return monkey.commit(chunkStore, chunkPower, 1, null, MapBackedKeyedFPIndexOpener.INSTANCE,
-                                            null, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
+                                        return monkey.commit(chunkStore, chunkPower, 1, null, MapBackedKeyedFPIndexOpener.INSTANCE, null,
+                                            new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
 
-                                            @Override
-                                            public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                                                if (monkey == null || filer == null) {
-                                                    return filerTransaction.commit(null, null);
+                                                @Override
+                                                public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
+                                                    if (monkey == null || filer == null) {
+                                                        return filerTransaction.commit(null, null);
+                                                    }
+                                                    // TODO consider using the provided filer in appropriate cases.
+                                                    return monkey.commit(chunkStore, filerKey, null, null, filerOpener, null, filerTransaction);
                                                 }
-                                                // TODO consider using the provided filer in appropriate cases.
-                                                return monkey.commit(chunkStore, filerKey, null, null, filerOpener, null, filerTransaction);
-                                            }
-                                        });
+                                            });
                                     }
                                 });
                         }
-
                     });
-
             }
         });
     }
@@ -248,8 +247,8 @@ public class TxNamedMapOfFiler<M> {
                 }
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.commit(chunkStore, chunkPower, null, null, MapBackedKeyedFPIndexOpener.INSTANCE,
-                    null, new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
+                return monkey.commit(chunkStore, chunkPower, null, null, MapBackedKeyedFPIndexOpener.INSTANCE, null,
+                    new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
 
                         @Override
                         public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
@@ -269,8 +268,7 @@ public class TxNamedMapOfFiler<M> {
 
                                             @Override
                                             public boolean stream(Integer key) throws IOException {
-                                                Boolean result = monkey.commit(chunkStore, key, null, null, MapBackedKeyedFPIndexOpener.INSTANCE,
-                                                    null,
+                                                Boolean result = monkey.commit(chunkStore, key, null, null, MapBackedKeyedFPIndexOpener.INSTANCE, null,
                                                     new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
 
                                                         @Override
@@ -322,8 +320,8 @@ public class TxNamedMapOfFiler<M> {
                 }
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.commit(chunkStore, chunkPower, null, null, MapBackedKeyedFPIndexOpener.INSTANCE,
-                    null, new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
+                return monkey.commit(chunkStore, chunkPower, null, null, MapBackedKeyedFPIndexOpener.INSTANCE, null,
+                    new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
 
                         @Override
                         public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {

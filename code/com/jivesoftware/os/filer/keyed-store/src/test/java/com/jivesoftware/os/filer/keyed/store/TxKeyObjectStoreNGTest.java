@@ -18,6 +18,7 @@ package com.jivesoftware.os.filer.keyed.store;
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
 import com.jivesoftware.os.filer.io.PartitionFunction;
+import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.io.primative.LongKeyMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
@@ -32,7 +33,6 @@ import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
 /**
- *
  * @author jonathan.colt
  */
 public class TxKeyObjectStoreNGTest {
@@ -41,22 +41,23 @@ public class TxKeyObjectStoreNGTest {
 
     @BeforeTest
     public void init() throws IOException, Exception {
-        File dir = Files.createTempDirectory("testNewChunkStore")
-            .toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8);
+        File dir = Files.createTempDirectory("testNewChunkStore").toFile();
+        StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data1", 8, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data2", 8, locksProvider);
 
-        store = new TxPartitionedKeyObjectStore<>(new PartitionFunction<Long>() {
+        store = new TxPartitionedKeyObjectStore<>(
+            new PartitionFunction<Long>() {
 
-            @Override
-            public int partition(int partitionCount, Long key) {
-                return Math.abs(key.hashCode()) % partitionCount;
-            }
-        }, new TxKeyObjectStore[]{
-            new TxKeyObjectStore<>(chunkStore1, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false),
-            new TxKeyObjectStore<>(chunkStore2, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false)
-        }
-        );
+                @Override
+                public int partition(int partitionCount, Long key) {
+                    return Math.abs(key.hashCode()) % partitionCount;
+                }
+            },
+            (TxKeyObjectStore<Long, Long>[]) new TxKeyObjectStore[] {
+                new TxKeyObjectStore<>(chunkStore1, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false),
+                new TxKeyObjectStore<>(chunkStore2, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false)
+            });
     }
 
     @Test

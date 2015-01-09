@@ -9,7 +9,6 @@ public class Chunk<M> {
     final long chunkFP;
     final long startOfFP;
     final long endOfFP;
-    long fp;
 
     public Chunk(M monkey, long chunkFP, long startOfFP, long endOfFP) {
         this.monkey = monkey;

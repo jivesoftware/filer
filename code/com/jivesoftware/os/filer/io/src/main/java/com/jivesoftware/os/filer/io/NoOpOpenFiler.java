@@ -4,10 +4,10 @@ package com.jivesoftware.os.filer.io;
  *
  * @param <F>
  */
-public class NoOpOpenFiler<F extends Filer> implements OpenFiler<Void, F> {
+public class NoOpOpenFiler<F extends Filer> implements OpenFiler<FilerLock, F> {
 
     @Override
-    public Void open(F filer) {
-        return null;
+    public FilerLock open(F filer) {
+        return new FilerLock();
     }
 }

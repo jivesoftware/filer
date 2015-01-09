@@ -22,10 +22,11 @@ import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.chunk.store.RewriteChunkTransaction;
 import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
 import com.jivesoftware.os.filer.io.FilerIO;
-import com.jivesoftware.os.filer.io.IBA;
+import com.jivesoftware.os.filer.io.FilerLock;
 import com.jivesoftware.os.filer.io.NoOpCreateFiler;
 import com.jivesoftware.os.filer.io.NoOpGrowFiler;
 import com.jivesoftware.os.filer.io.NoOpOpenFiler;
+import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.map.store.MapContext;
 import com.jivesoftware.os.filer.map.store.MapStore;
 import java.io.File;
@@ -38,7 +39,6 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
- *
  * @author jonathan.colt
  */
 public class NamedMapsNGTest {
@@ -46,12 +46,12 @@ public class NamedMapsNGTest {
     @Test
     public void testVariableMapNameSizesCommit() throws Exception {
 
-        File dir = Files.createTempDirectory("testNewChunkStore")
-            .toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8);
+        StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
+        File dir = Files.createTempDirectory("testNewChunkStore").toFile();
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data1", 8, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data2", 8, locksProvider);
 
-        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[]{
+        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[] {
             new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
             new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
         });
@@ -158,17 +158,18 @@ public class NamedMapsNGTest {
 
     @Test
     public void testVariableNamedMapOfFilers() throws Exception {
-        File dir = Files.createTempDirectory("testVariableNamedMapOfFilers")
-            .toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8);
+        StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
+        File dir = Files.createTempDirectory("testVariableNamedMapOfFilers").toFile();
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data1", 8, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data2", 8, locksProvider);
 
-        TxPartitionedNamedMapOfFiler<Void> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(), new TxNamedMapOfFiler[]{
-            new TxNamedMapOfFiler(chunkStore1,
-            464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>()),
-            new TxNamedMapOfFiler(chunkStore2,
-            464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>())
-        });
+        TxPartitionedNamedMapOfFiler<FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(),
+            (TxNamedMapOfFiler<FilerLock>[]) new TxNamedMapOfFiler[] {
+                new TxNamedMapOfFiler<>(chunkStore1,
+                    464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, FilerLock, ChunkFiler>()),
+                new TxNamedMapOfFiler<>(chunkStore2,
+                    464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, FilerLock, ChunkFiler>())
+            });
 
         int tries = 128;
 
@@ -185,10 +186,10 @@ public class NamedMapsNGTest {
                     rand.nextBytes(filerName);
                     filerName[0] = (byte) f;
 
-                    namedMapOfFilers.overwrite(mapName, mapName, filerName, 8L, new ChunkTransaction<Void, Void>() {
+                    namedMapOfFilers.overwrite(mapName, mapName, filerName, 8L, new ChunkTransaction<FilerLock, Void>() {
 
                         @Override
-                        public Void commit(Void monkey, ChunkFiler filer) throws IOException {
+                        public Void commit(FilerLock monkey, ChunkFiler filer) throws IOException {
                             FilerIO.writeLong(filer, rand.nextLong(), "value");
                             return null;
                         }
@@ -207,13 +208,12 @@ public class NamedMapsNGTest {
                 byte[] filerName = new byte[1 + readRandom.nextInt(1024)];
                 readRandom.nextBytes(filerName);
                 filerName[0] = (byte) f;
-                namedMapOfFilers.read(mapName, mapName, filerName, new ChunkTransaction<Void, Void>() {
+                namedMapOfFilers.read(mapName, mapName, filerName, new ChunkTransaction<FilerLock, Void>() {
 
                     @Override
-                    public Void commit(Void monkey, ChunkFiler filer) throws IOException {
+                    public Void commit(FilerLock monkey, ChunkFiler filer) throws IOException {
                         Assert.assertNotNull(filer);
                         long expected = readRandom.nextLong();
-                        filer.seek(0);
                         Assert.assertEquals(FilerIO.readLong(filer, "value"), expected);
                         return null;
                     }
@@ -224,20 +224,20 @@ public class NamedMapsNGTest {
 
     @Test
     public void testCommit() throws Exception {
+        StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
+        File dir = Files.createTempDirectory("testCommit").toFile();
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data1", 8, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data2", 8, locksProvider);
 
-        File dir = Files.createTempDirectory("testCommit")
-            .toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8);
+        TxPartitionedNamedMapOfFiler<FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(),
+            (TxNamedMapOfFiler<FilerLock>[]) new TxNamedMapOfFiler[] {
+                new TxNamedMapOfFiler<>(chunkStore1,
+                    464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, FilerLock, ChunkFiler>()),
+                new TxNamedMapOfFiler<>(chunkStore2,
+                    464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, FilerLock, ChunkFiler>())
+            });
 
-        TxPartitionedNamedMapOfFiler<Void> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(), new TxNamedMapOfFiler[]{
-            new TxNamedMapOfFiler(chunkStore1,
-            464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>()),
-            new TxNamedMapOfFiler(chunkStore2,
-            464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>())
-        });
-
-        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[]{
+        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[] {
             new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
             new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
         });
@@ -261,36 +261,33 @@ public class NamedMapsNGTest {
                 });
 
                 namedMapOfFilers.overwrite(FilerIO.intBytes(c), "filer1".getBytes(), (c + "overwrite").getBytes(), 8L,
-                    new ChunkTransaction<Void, ChunkFiler>() {
+                    new ChunkTransaction<FilerLock, ChunkFiler>() {
 
                         @Override
-                        public ChunkFiler commit(Void monkey, ChunkFiler filer) throws IOException {
-                            filer.seek(0);
+                        public ChunkFiler commit(FilerLock monkey, ChunkFiler filer) throws IOException {
                             FilerIO.writeLong(filer, key, "value");
-                            System.out.println("Overwrite:" + key + " " + filer.getChunkFP());
+                            //System.out.println("Overwrite:" + key + " " + filer.getChunkFP());
                             return null;
                         }
                     });
 
                 namedMapOfFilers.rewrite(FilerIO.intBytes(c), "filer2".getBytes(), (c + "rewrite").getBytes(), 8L,
-                    new RewriteChunkTransaction<Void, ChunkFiler>() {
+                    new RewriteChunkTransaction<FilerLock, ChunkFiler>() {
 
                         @Override
-                        public ChunkFiler commit(Void oldMonkey, ChunkFiler oldFiler, Void newMonkey, ChunkFiler newFiler) throws IOException {
+                        public ChunkFiler commit(FilerLock oldMonkey, ChunkFiler oldFiler, FilerLock newMonkey, ChunkFiler newFiler) throws IOException {
                             long oldValue = 0;
                             if (oldFiler != null) {
-                                oldFiler.seek(0);
                                 oldValue = FilerIO.readLong(oldFiler, "value");
-                                System.out.println("Old value:" + oldValue);
+                                //System.out.println("Old value:" + oldValue);
                             }
-                            newFiler.seek(0);
                             FilerIO.writeLong(newFiler, oldValue + key, "value");
-                            System.out.println("Rewrite:" + (oldValue + key) + " " + newFiler.getChunkFP());
+                            //System.out.println("Rewrite:" + (oldValue + key) + " " + newFiler.getChunkFP());
                             return null;
                         }
                     });
 
-                System.out.println("Accum:" + accum);
+                //System.out.println("Accum:" + accum);
             }
 
             final AtomicBoolean failed = new AtomicBoolean();
@@ -307,37 +304,35 @@ public class NamedMapsNGTest {
                         long value = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey, i));
                         //System.out.println("expected:" + key + " got:" + value + " from " + context.filer.getChunkFP());
                         if (value != key) {
-                            System.out.println("mapRead FAILED. " + value + " vs " + key);
+                            //System.out.println("mapRead FAILED. " + value + " vs " + key);
                             failed.set(true);
                         }
                         return null;
                     }
                 });
 
-                namedMapOfFilers.read(FilerIO.intBytes(c), "filer1".getBytes(), (c + "overwrite").getBytes(), new ChunkTransaction<Void, ChunkFiler>() {
+                namedMapOfFilers.read(FilerIO.intBytes(c), "filer1".getBytes(), (c + "overwrite").getBytes(), new ChunkTransaction<FilerLock, ChunkFiler>() {
 
                     @Override
-                    public ChunkFiler commit(Void monkey, ChunkFiler filer) throws IOException {
-                        filer.seek(0);
+                    public ChunkFiler commit(FilerLock monkey, ChunkFiler filer) throws IOException {
                         long v = FilerIO.readLong(filer, "value");
                         //System.out.println("OR:" + v);
                         if (v != addCount - 1) {
-                            System.out.println("filerReadOverwrite FAILED. " + v + " vs " + (addCount - 1));
+                            //System.out.println("filerReadOverwrite FAILED. " + v + " vs " + (addCount - 1));
                             failed.set(true);
                         }
                         return null;
                     }
                 });
 
-                namedMapOfFilers.read(FilerIO.intBytes(c), "filer2".getBytes(), (c + "rewrite").getBytes(), new ChunkTransaction<Void, ChunkFiler>() {
+                namedMapOfFilers.read(FilerIO.intBytes(c), "filer2".getBytes(), (c + "rewrite").getBytes(), new ChunkTransaction<FilerLock, ChunkFiler>() {
 
                     @Override
-                    public ChunkFiler commit(Void monkey, ChunkFiler filer) throws IOException {
-                        filer.seek(0);
+                    public ChunkFiler commit(FilerLock monkey, ChunkFiler filer) throws IOException {
                         long v = FilerIO.readLong(filer, "value");
-                        System.out.println("RR:" + v + " from " + filer.getChunkFP());
+                        //System.out.println("RR:" + v + " from " + filer.getChunkFP());
                         if (v != expectedAccum) {
-                            System.out.println("filerReadRewrite FAILED. " + v + " vs " + expectedAccum);
+                            //System.out.println("filerReadRewrite FAILED. " + v + " vs " + expectedAccum);
                             failed.set(true);
                         }
                         return null;
@@ -350,17 +345,18 @@ public class NamedMapsNGTest {
 
         }
 
-        chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8);
-        chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8);
+        chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data1", 8, locksProvider);
+        chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data2", 8, locksProvider);
 
-        namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(), new TxNamedMapOfFiler[]{
-            new TxNamedMapOfFiler(chunkStore1,
-            464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>()),
-            new TxNamedMapOfFiler(chunkStore2,
-            464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, Void, ChunkFiler>())
-        });
+        namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(),
+            (TxNamedMapOfFiler<FilerLock>[]) new TxNamedMapOfFiler[] {
+                new TxNamedMapOfFiler<>(chunkStore1,
+                    464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, FilerLock, ChunkFiler>()),
+                new TxNamedMapOfFiler<>(chunkStore2,
+                    464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, FilerLock, ChunkFiler>())
+            });
 
-        namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[]{
+        namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[] {
             new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
             new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
         });
@@ -384,37 +380,35 @@ public class NamedMapsNGTest {
                         long value = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey, i));
                         //System.out.println("expected:" + key + " got:" + value + " from " + context.filer.getChunkFP());
                         if (value != key) {
-                            System.out.println("on re-open mapRead FAILED. " + value + " vs " + key);
+                            //System.out.println("on re-open mapRead FAILED. " + value + " vs " + key);
                             failed.set(true);
                         }
                         return null;
                     }
                 });
 
-                namedMapOfFilers.read(FilerIO.intBytes(c), "filer1".getBytes(), (c + "overwrite").getBytes(), new ChunkTransaction<Void, ChunkFiler>() {
+                namedMapOfFilers.read(FilerIO.intBytes(c), "filer1".getBytes(), (c + "overwrite").getBytes(), new ChunkTransaction<FilerLock, ChunkFiler>() {
 
                     @Override
-                    public ChunkFiler commit(Void monkey, ChunkFiler filer) throws IOException {
-                        filer.seek(0);
+                    public ChunkFiler commit(FilerLock monkey, ChunkFiler filer) throws IOException {
                         long v = FilerIO.readLong(filer, "value");
                         //System.out.println("OR:" + v);
                         if (v != addCount - 1) {
-                            System.out.println("filerReadOverwrite FAILED. " + v + " vs " + (addCount - 1));
+                            //System.out.println("filerReadOverwrite FAILED. " + v + " vs " + (addCount - 1));
                             failed.set(true);
                         }
                         return null;
                     }
                 });
 
-                namedMapOfFilers.read(FilerIO.intBytes(c), "filer2".getBytes(), (c + "rewrite").getBytes(), new ChunkTransaction<Void, ChunkFiler>() {
+                namedMapOfFilers.read(FilerIO.intBytes(c), "filer2".getBytes(), (c + "rewrite").getBytes(), new ChunkTransaction<FilerLock, ChunkFiler>() {
 
                     @Override
-                    public ChunkFiler commit(Void monkey, ChunkFiler filer) throws IOException {
-                        filer.seek(0);
+                    public ChunkFiler commit(FilerLock monkey, ChunkFiler filer) throws IOException {
                         long v = FilerIO.readLong(filer, "value");
-                        System.out.println("RR:" + v + " from " + filer.getChunkFP());
+                        //System.out.println("RR:" + v + " from " + filer.getChunkFP());
                         if (v != expectedAccum) {
-                            System.out.println("filerReadRewrite FAILED. " + v + " vs " + expectedAccum);
+                            //System.out.println("filerReadRewrite FAILED. " + v + " vs " + expectedAccum);
                             failed.set(true);
                         }
                         return null;
@@ -426,11 +420,11 @@ public class NamedMapsNGTest {
 
         }
 
-        namedMapOfFilers.stream("filer2".getBytes(), new TxStream<byte[], Void, ChunkFiler>() {
+        namedMapOfFilers.stream("filer2".getBytes(), new TxStream<byte[], FilerLock, ChunkFiler>() {
 
             @Override
-            public boolean stream(byte[] key, Void monkey, ChunkFiler filer) throws IOException {
-                System.out.println(new IBA(key) + " " + filer);
+            public boolean stream(byte[] key, FilerLock monkey, ChunkFiler filer) throws IOException {
+                //System.out.println(new IBA(key) + " " + filer);
                 return true;
             }
         });
@@ -439,7 +433,7 @@ public class NamedMapsNGTest {
 
             @Override
             public boolean stream(byte[] key) throws IOException {
-                System.out.println(new IBA(key));
+                //System.out.println(new IBA(key));
                 return true;
             }
         });
@@ -452,7 +446,7 @@ public class NamedMapsNGTest {
 
                     @Override
                     public boolean stream(byte[] key) throws IOException {
-                        System.out.println(new IBA(key));
+                        //System.out.println(new IBA(key));
                         return true;
                     }
                 });

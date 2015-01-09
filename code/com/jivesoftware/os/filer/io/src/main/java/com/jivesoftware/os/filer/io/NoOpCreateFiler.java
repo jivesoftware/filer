@@ -6,19 +6,20 @@ import java.io.IOException;
  *
  * @param <F>
  */
-public class NoOpCreateFiler<F extends Filer> implements CreateFiler<Long, Void, F> {
+public class NoOpCreateFiler<F extends Filer> implements CreateFiler<Long, FilerLock, F> {
 
 
     public NoOpCreateFiler() {
     }
 
     @Override
-    public Void create(Long hint, F filer) {
-        return null;
+    public FilerLock create(Long hint, F filer) {
+        return new FilerLock();
     }
 
     @Override
     public long sizeInBytes(Long hint) throws IOException {
         return hint;
     }
+
 }
