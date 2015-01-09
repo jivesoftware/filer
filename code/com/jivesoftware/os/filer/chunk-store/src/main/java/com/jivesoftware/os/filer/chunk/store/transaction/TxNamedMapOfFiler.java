@@ -265,7 +265,7 @@ public class TxNamedMapOfFiler<M> {
                                         if (monkey == null || filer == null) {
                                             return true;
                                         }
-                                        return monkey.stream(chunkStore, new KeysStream<Integer>() {
+                                        return monkey.stream(new KeysStream<Integer>() {
 
                                             @Override
                                             public boolean stream(Integer key) throws IOException {
@@ -339,7 +339,7 @@ public class TxNamedMapOfFiler<M> {
                                         if (monkey == null || filer == null) {
                                             return true;
                                         }
-                                        return monkey.stream(chunkStore, new KeysStream<Integer>() {
+                                        return monkey.stream(new KeysStream<Integer>() {
 
                                             @Override
                                             public boolean stream(Integer key) throws IOException {

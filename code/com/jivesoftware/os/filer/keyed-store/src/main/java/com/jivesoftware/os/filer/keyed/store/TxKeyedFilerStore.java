@@ -24,6 +24,7 @@ import com.jivesoftware.os.filer.chunk.store.transaction.TxPartitionedNamedMapOf
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStream;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStreamKeys;
 import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
+import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.io.IBA;
@@ -45,6 +46,8 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
     private final byte[] name;
     private final TxPartitionedNamedMapOfFiler<Void> namedMapOfFilers;
 
+    private final ByteArrayStripingLocksProvider locksProvider = new ByteArrayStripingLocksProvider(64); //TODO pass in
+
     public TxKeyedFilerStore(ChunkStore[] chunkStores, byte[] name) {
         this.name = name;
 
@@ -60,13 +63,15 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
     }
 
     @Override
-    public <R> R execute(byte[] keyBytes, long newFilerInitialCapacity, final FilerTransaction<Filer, R> transaction) throws IOException {
+    public <R> R execute(final byte[] keyBytes, long newFilerInitialCapacity, final FilerTransaction<Filer, R> transaction) throws IOException {
         if (newFilerInitialCapacity < 0) {
             return namedMapOfFilers.read(keyBytes, name, keyBytes, new ChunkTransaction<Void, R>() {
 
                 @Override
                 public R commit(Void monkey, ChunkFiler filer) throws IOException {
-                    return transaction.commit(filer);
+                    synchronized (locksProvider.lock(keyBytes)) {
+                        return transaction.commit(filer);
+                    }
                 }
             });
         } else {
@@ -74,14 +79,16 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
 
                 @Override
                 public R commit(Void monkey, ChunkFiler filer) throws IOException {
-                    return transaction.commit(filer);
+                    synchronized (locksProvider.lock(keyBytes)) {
+                        return transaction.commit(filer);
+                    }
                 }
             });
         }
     }
 
     @Override
-    public <R> R executeRewrite(byte[] keyBytes, long newFilerInitialCapacity, final RewriteFilerTransaction<Filer, R> transaction) throws IOException {
+    public <R> R executeRewrite(final byte[] keyBytes, long newFilerInitialCapacity, final RewriteFilerTransaction<Filer, R> transaction) throws IOException {
         if (newFilerInitialCapacity < 0) {
             throw new IllegalArgumentException("newFilerInitialCapacity must be greater than -1");
         } else {
@@ -89,7 +96,9 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
 
                 @Override
                 public R commit(Void currentMonkey, ChunkFiler currentFiler, Void newMonkey, ChunkFiler newFiler) throws IOException {
-                    return transaction.commit(currentFiler, newFiler);
+                    synchronized (locksProvider.lock(keyBytes)) {
+                        return transaction.commit(currentFiler, newFiler);
+                    }
                 }
             });
         }
@@ -101,7 +110,9 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
 
             @Override
             public boolean stream(byte[] key, Void monkey, ChunkFiler filer) throws IOException {
-                return stream.stream(new IBA(key), filer);
+                synchronized (locksProvider.lock(key)) {
+                    return stream.stream(new IBA(key), filer);
+                }
             }
         });
     }
@@ -112,7 +123,9 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
 
             @Override
             public boolean stream(byte[] key) throws IOException {
-                return stream.stream(new IBA(key));
+                synchronized (locksProvider.lock(key)) {
+                    return stream.stream(new IBA(key));
+                }
             }
         });
     }
