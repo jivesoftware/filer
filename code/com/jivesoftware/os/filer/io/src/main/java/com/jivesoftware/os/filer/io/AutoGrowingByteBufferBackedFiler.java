@@ -25,6 +25,9 @@ import java.nio.charset.StandardCharsets;
  */
 public class AutoGrowingByteBufferBackedFiler implements Filer {
 
+    public static final long MAX_BUFFER_SEGMENT_SIZE = FilerIO.chunkLength(30);
+    public static long MAX_POSITION = MAX_BUFFER_SEGMENT_SIZE * 100;
+
     private final ByteBufferFactory byteBufferFactory;
     private final long initialBufferSegmentSize;
     private final long maxBufferSegmentSize;
@@ -37,7 +40,7 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         long maxBufferSegmentSize) throws IOException {
         this.byteBufferFactory = byteBufferFactory;
         this.initialBufferSegmentSize = FilerIO.chunkLength(FilerIO.chunkPower(initialBufferSegmentSize, 0));
-        this.maxBufferSegmentSize = FilerIO.chunkLength(FilerIO.chunkPower(maxBufferSegmentSize, 0));
+        this.maxBufferSegmentSize = Math.min(FilerIO.chunkLength(FilerIO.chunkPower(maxBufferSegmentSize, 0)), MAX_BUFFER_SEGMENT_SIZE);
         this.filers = new ByteBufferBackedFiler[0];
     }
 
@@ -47,13 +50,12 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         this.maxBufferSegmentSize = maxBufferSegmentSize;
         this.filers = filers;
         this.fpFilerIndex = -1;
-
     }
 
     public AutoGrowingByteBufferBackedFiler duplicate(long startFP, long endFp) {
         ByteBufferBackedFiler[] duplicate = new ByteBufferBackedFiler[filers.length];
         for (int i = 0; i < duplicate.length; i++) {
-            if ((i + 1) * maxBufferSegmentSize < startFP || i * maxBufferSegmentSize > endFp) {
+            if ((i + 1) * maxBufferSegmentSize < startFP || (i - 1) * maxBufferSegmentSize > endFp) {
                 continue;
             }
             duplicate[i] = new ByteBufferBackedFiler(filers[i].buffer.duplicate());
@@ -68,6 +70,9 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
     }
 
     final void position(long position) throws IOException {
+        if (position > MAX_POSITION) {
+            throw new IllegalStateException("Encountered a likely runaway file position! position=" + position);
+        }
         int f = (int) (position / maxBufferSegmentSize); // TODO can/should convert to bitshifts?
         long fseek = position % maxBufferSegmentSize; // TODO can/should  convert to bitshifts?
         if (f >= filers.length) {

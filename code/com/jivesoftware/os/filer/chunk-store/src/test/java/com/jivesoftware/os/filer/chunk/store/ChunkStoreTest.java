@@ -19,6 +19,7 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -110,6 +111,43 @@ public class ChunkStoreTest {
                 return null;
             }
         });
+    }
+
+    @Test
+    public void testBoundaryCase() throws Exception {
+        int size = 1024 * 10;
+        File dir = Files.createTempDirectory("testExistingChunkStore").toFile();
+        StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data", size, locksProvider);
+
+        final byte[] bytes = new byte[257];
+        new Random().nextBytes(bytes);
+
+        for (int i = 0; i < 1_000; i++) {
+            long chunk257 = chunkStore.newChunk(257L, createFiler);
+            chunkStore.execute(chunk257, new NoOpOpenFiler<ChunkFiler>(), new ChunkTransaction<FilerLock, Void>() {
+                @Override
+                public Void commit(FilerLock monkey, ChunkFiler filer) throws IOException {
+                    synchronized (monkey) {
+                        filer.seek(0);
+                        filer.write(bytes);
+                    }
+                    return null;
+                }
+            });
+            chunkStore.execute(chunk257, new NoOpOpenFiler<ChunkFiler>(), new ChunkTransaction<FilerLock, Void>() {
+                @Override
+                public Void commit(FilerLock monkey, ChunkFiler filer) throws IOException {
+                    synchronized (monkey) {
+                        filer.seek(0);
+                        byte[] actual = new byte[257];
+                        filer.read(actual);
+                        assertEquals(actual, bytes);
+                    }
+                    return null;
+                }
+            });
+        }
     }
 
     @Test

@@ -29,7 +29,6 @@ import com.jivesoftware.os.filer.io.FilerLock;
 import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.NoOpCreateFiler;
-import com.jivesoftware.os.filer.io.NoOpGrowFiler;
 import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.io.RewriteFilerTransaction;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
@@ -51,7 +50,7 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
         TxNamedMapOfFiler<FilerLock>[] stores = new TxNamedMapOfFiler[chunkStores.length];
         for (int i = 0; i < stores.length; i++) {
             stores[i] = new TxNamedMapOfFiler<>(chunkStores[i], SKY_HOOK_FP,
-                new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>(), new NoOpGrowFiler<Long, FilerLock, ChunkFiler>());
+                new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>());
         }
 
         this.name = name;

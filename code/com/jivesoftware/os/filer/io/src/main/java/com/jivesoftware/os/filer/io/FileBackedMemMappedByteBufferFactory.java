@@ -70,7 +70,7 @@ public class FileBackedMemMappedByteBufferFactory implements ByteBufferFactory {
                 }
                 raf.seek(0);
                 try (FileChannel channel = raf.getChannel()) {
-                    return channel.map(FileChannel.MapMode.READ_WRITE, 0, (int) channel.size());
+                    return channel.map(FileChannel.MapMode.READ_WRITE, 0, channel.size());
                 }
             }
         } catch (IOException e) {

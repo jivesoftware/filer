@@ -3,7 +3,6 @@ package com.jivesoftware.os.filer.chunk.store;
 import com.jivesoftware.os.filer.io.AutoGrowingByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.FileBackedMemMappedByteBufferFactory;
-import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import java.io.File;
 import java.io.IOException;
@@ -17,7 +16,8 @@ public class ChunkStoreInitializer {
 
     public ChunkStore openOrCreate(File[] dirs, String chunkName, long initialSize, StripingLocksProvider<Long> locksProvider) throws Exception {
         FileBackedMemMappedByteBufferFactory factory = new FileBackedMemMappedByteBufferFactory(chunkName, dirs);
-        AutoGrowingByteBufferBackedFiler filer = new AutoGrowingByteBufferBackedFiler(factory, initialSize, FilerIO.chunkLength(32));
+        AutoGrowingByteBufferBackedFiler filer = new AutoGrowingByteBufferBackedFiler(factory, initialSize,
+            AutoGrowingByteBufferBackedFiler.MAX_BUFFER_SEGMENT_SIZE);
         if (filer.exists()) {
             return open(filer, locksProvider);
         } else {
@@ -27,7 +27,7 @@ public class ChunkStoreInitializer {
 
     public boolean checkExists(File[] dirs, String chunkName) throws IOException {
         FileBackedMemMappedByteBufferFactory factory = new FileBackedMemMappedByteBufferFactory(chunkName, dirs);
-        return new AutoGrowingByteBufferBackedFiler(factory, 1024, FilerIO.chunkLength(32)).exists();
+        return new AutoGrowingByteBufferBackedFiler(factory, 1024, AutoGrowingByteBufferBackedFiler.MAX_BUFFER_SEGMENT_SIZE).exists();
     }
 
     public ChunkStore open(ByteBufferFactory filer, long segmentSize, StripingLocksProvider<Long> locksProvider) throws Exception {

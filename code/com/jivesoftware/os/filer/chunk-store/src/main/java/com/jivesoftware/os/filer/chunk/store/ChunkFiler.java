@@ -120,7 +120,7 @@ public class ChunkFiler implements Filer {
     public void write(byte b[], int _offset, int _len) throws IOException {
         long fp = filer.getFilePointer();
         if (fp < startOfFP || fp > (endOfFP - _len)) {
-            throw new IndexOutOfBoundsException("A write starting at fp:" + fp + " with a  len:" + length() + " will overflow  bounds. " + this);
+            throw new IndexOutOfBoundsException("A write starting at fp:" + fp + " with a len:" + _len + " will overflow  bounds. " + this);
         }
         filer.write(b, _offset, _len);
     }

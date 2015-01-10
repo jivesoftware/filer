@@ -43,20 +43,17 @@ public class TxNamedMapOfFiler<M> {
     private final long constantFP;
     private final CreateFiler<Long, M, ChunkFiler> filerCreator;
     private final OpenFiler<M, ChunkFiler> filerOpener;
-    private final GrowFiler<Long, M, ChunkFiler> filerGrower;
 
     private final MapBackedKeyedFPIndexGrower grower = new MapBackedKeyedFPIndexGrower(1);
 
     public TxNamedMapOfFiler(ChunkStore chunkStore,
         long constantFP,
         CreateFiler<Long, M, ChunkFiler> filerCreator,
-        OpenFiler<M, ChunkFiler> filerOpener,
-        GrowFiler<Long, M, ChunkFiler> filerGrower) {
+        OpenFiler<M, ChunkFiler> filerOpener) {
         this.chunkStore = chunkStore;
         this.constantFP = constantFP;
         this.filerCreator = filerCreator;
         this.filerOpener = filerOpener;
-        this.filerGrower = filerGrower;
     }
 
     public <R> R overwrite(final byte[] mapName,
@@ -93,7 +90,32 @@ public class TxNamedMapOfFiler<M> {
                                                 @Override
                                                 public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
                                                     // TODO consider using the provided filer in appropriate cases.
-                                                    return monkey.commit(chunkStore, filerKey, sizeHint, filerCreator, filerOpener, filerGrower,
+                                                    GrowFiler<Long, M, ChunkFiler> overwriteGrower = new GrowFiler<Long, M, ChunkFiler>() {
+
+                                                        @Override
+                                                        public Long acquire(M monkey, ChunkFiler filer) throws IOException {
+                                                            return filer.length() < sizeHint ? sizeHint : null;
+                                                        }
+
+                                                        @Override
+                                                        public void growAndAcquire(M currentMonkey,
+                                                            ChunkFiler currentFiler,
+                                                            M newMonkey,
+                                                            ChunkFiler newFiler) throws IOException {
+                                                            synchronized (currentMonkey) {
+                                                                synchronized (newMonkey) {
+                                                                    currentFiler.seek(0);
+                                                                    newFiler.seek(0);
+                                                                    FilerIO.copy(currentFiler, newFiler, -1);
+                                                                }
+                                                            }
+                                                        }
+
+                                                        @Override
+                                                        public void release(M monkey) {
+                                                        }
+                                                    };
+                                                    return monkey.commit(chunkStore, filerKey, sizeHint, filerCreator, filerOpener, overwriteGrower,
                                                         filerTransaction);
                                                 }
                                             });
@@ -153,7 +175,6 @@ public class TxNamedMapOfFiler<M> {
                                                             ChunkFiler currentFiler,
                                                             M newMonkey,
                                                             ChunkFiler newFiler) throws IOException {
-                                                            filerGrower.growAndAcquire(currentMonkey, currentFiler, newMonkey, newFiler);
                                                             result.set(rewriteChunkTransaction.commit(currentMonkey, currentFiler, newMonkey, newFiler));
                                                         }
 
