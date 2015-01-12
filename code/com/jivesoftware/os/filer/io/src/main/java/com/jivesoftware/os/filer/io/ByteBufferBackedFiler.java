@@ -66,7 +66,8 @@ public class ByteBufferBackedFiler implements Filer {
         if (remaining == 0) {
             return -1;
         }
-        return buffer.get();
+        byte b = buffer.get();
+        return b & 0xFF;
     }
 
     @Override
@@ -84,7 +85,6 @@ public class ByteBufferBackedFiler implements Filer {
         buffer.get(b, _offset, count);
         return count;
     }
-
 
     @Override
     public void close() throws IOException {

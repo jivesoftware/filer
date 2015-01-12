@@ -274,7 +274,8 @@ public class MapStore {
             i = (++i) % k, j++) { // wraps around table
 
             long ai = index(i, context.entrySize);
-            if (read(filer, (int) ai) == cNull || read(filer, (int) ai) == cSkip) {
+            byte currentMode = read(filer, (int) ai);
+            if (currentMode == cNull || currentMode == cSkip) {
                 if (context.count >= context.maxCount) {
                     throw new OverCapacityException(context.count + " > " + context.maxCount + " ? " + context.requested);
                 }
@@ -326,10 +327,8 @@ public class MapStore {
             throw new RuntimeException("Requested index (" + i + ") is out of bounds (0->" + (getCapacity(filer) - 1) + ")");
         }
         long ai = index(i, context.entrySize);
-        if (read(filer, (int) ai) == cSkip) {
-            return null;
-        }
-        if (read(filer, (int) ai) == cNull) {
+        byte mode = read(filer, (int) ai);
+        if (mode == cSkip || mode == cNull) {
             return null;
         }
         return getKey(filer, context, i);
@@ -345,10 +344,8 @@ public class MapStore {
             throw new RuntimeException("Requested index (" + i + ") is out of bounds (0->" + (getCapacity(filer) - 1) + ")");
         }
         long ai = index(i, context.entrySize);
-        if (read(filer, (int) ai) == cSkip) {
-            return null;
-        }
-        if (read(filer, (int) ai) == cNull) {
+        byte mode = read(filer, (int) ai);
+        if (mode == cSkip || mode == cNull) {
             return null;
         }
         return getPayload(filer, context, i);
@@ -360,10 +357,8 @@ public class MapStore {
             throw new RuntimeException("Requested index (" + i + ") is out of bounds (0->" + (getCapacity(filer) - 1) + ")");
         }
         long ai = index(i, context.entrySize);
-        if (read(filer, (int) ai) == cSkip) {
-            return;
-        }
-        if (read(filer, (int) ai) == cNull) {
+        byte mode = read(filer, (int) ai);
+        if (mode == cSkip || mode == cNull) {
             return;
         }
         write(filer, (int) (ai + 1 + context.keyLengthSize + context.keySize) + _destOffset, context.payloadLengthSize, payload, context.payloadSize, _poffset);
@@ -468,10 +463,11 @@ public class MapStore {
             i = (++i) % k, j++) { // wraps around table
 
             long ai = index(i, context.entrySize);
-            if (read(filer, (int) ai) == cSkip) {
+            byte mode = read(filer, (int) ai);
+            if (mode == cSkip) {
                 continue;
             }
-            if (read(filer, (int) ai) == cNull) {
+            if (mode == cNull) {
                 return -1;
             }
             if (equals(filer, ai, context.keyLengthSize, key.length, key, keyOffset)) {
@@ -678,9 +674,11 @@ public class MapStore {
         } else {
             throw new RuntimeException("Unsupported keylength=" + keyLength);
         }
+        byte[] currentKey = new byte[keySize];
+        filer.seek(start);
+        filer.read(currentKey);
         for (int i = 0; i < keySize; i++) {
-            int contextIndex = (int) (start + i);
-            if (read(filer, contextIndex) != b[boffset + i]) {
+            if (currentKey[i] != b[boffset + i]) {
                 return false;
             }
         }
@@ -688,11 +686,6 @@ public class MapStore {
     }
 
     byte read(Filer filer, long start) throws IOException {
-        filer.seek(start);
-        return (byte) filer.read();
-    }
-
-    int readUnsignedByte(Filer filer, long start) throws IOException {
         filer.seek(start);
         return (byte) filer.read();
     }

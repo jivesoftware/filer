@@ -17,6 +17,8 @@ package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
+import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.io.primative.LongLongKeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
@@ -25,8 +27,15 @@ import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
@@ -36,17 +45,87 @@ import org.testng.annotations.Test;
  */
 public class TxKeyValueStoreNGTest {
 
-    TxKeyValueStore<Long, Long> store;
+    Random rand = new Random(1234);
+    TxKeyValueStore<Long, Long> store1;
+    TxKeyValueStore<Long, Long> store2;
 
     @BeforeTest
     public void init() throws Exception {
-        File dir = Files.createTempDirectory("testNewChunkStore").toFile();
+        File dir = Files.createTempDirectory("testNewChunkStore")
+            .toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data1", 8, locksProvider);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data2", 8, locksProvider);
-        ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
+        //ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8, locksProvider);
+        //ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8, locksProvider);
 
-        store = new TxKeyValueStore<>(chunkStores, new LongLongKeyValueMarshaller(), "booya".getBytes(), 8, false, 8, false);
+        ByteBufferFactory  bbf = new HeapByteBufferFactory();
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, locksProvider);
+        ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
+
+        store1 = new TxKeyValueStore<>(chunkStores, new LongLongKeyValueMarshaller(), "booya1".getBytes(), 8, false, 8, false);
+        store2 = new TxKeyValueStore<>(chunkStores, new LongLongKeyValueMarshaller(), "booya2".getBytes(), 8, false, 8, false);
+    }
+
+    @Test(enabled = false)
+    public void testConcurrency() throws IOException, InterruptedException {
+        ExecutorService executor = Executors.newFixedThreadPool(24);
+        AtomicBoolean stop = new AtomicBoolean();
+        for (int i = 0; i < 100; i++) {
+            List<Long> keys = new ArrayList<>();
+            int keyCount = 5 + rand.nextInt(10);
+            for (int j = 0; j < keyCount; j++) {
+                keys.add((long) rand.nextInt(5));
+            }
+            executor.execute(new ConcurrencyRunnable(stop, keys));
+        }
+        Thread.sleep(30_000);
+        stop.set(true);
+        executor.shutdown();
+        executor.awaitTermination(1, TimeUnit.DAYS);
+        System.out.println("Done.");
+    }
+
+    private class ConcurrencyRunnable implements Runnable {
+
+        AtomicBoolean stop;
+        List<Long> keys;
+
+        public ConcurrencyRunnable(AtomicBoolean stop, List<Long> keys) {
+            this.stop = stop;
+            this.keys = keys;
+        }
+
+        @Override
+        public void run() {
+
+            while (!stop.get()) {
+                try {
+                    TxKeyValueStore<Long, Long> store = rand.nextBoolean() ? store1 : store2;
+                    Long key = keys.get(rand.nextInt(keys.size()));
+                    Boolean got = store.execute(key, false, new KeyValueTransaction<Long, Boolean>() {
+
+                        @Override
+                        public Boolean commit(KeyValueContext<Long> context) throws IOException {
+                            return context.get() != null;
+                        }
+                    });
+
+                    store.execute(key, true, new KeyValueTransaction<Long, Boolean>() {
+
+                        @Override
+                        public Boolean commit(KeyValueContext<Long> context) throws IOException {
+                            context.set(rand.nextLong());
+                            return true;
+                        }
+                    });
+                } catch (IOException x) {
+                    x.printStackTrace();
+                }
+            }
+
+            System.out.println("Thread " + Thread.currentThread() + " done.");
+        }
+
     }
 
     @Test
@@ -54,8 +133,9 @@ public class TxKeyValueStoreNGTest {
         for (int i = 0; i < 16; i++) {
             final long k = i;
             final long v = i;
+            System.out.println(k+" "+v);
 
-            store.execute(k, false, new KeyValueTransaction<Long, Void>() {
+            store1.execute(k, false, new KeyValueTransaction<Long, Void>() {
 
                 @Override
                 public Void commit(KeyValueContext<Long> context) throws IOException {
@@ -65,7 +145,7 @@ public class TxKeyValueStoreNGTest {
                 }
             });
 
-            store.execute(k, true, new KeyValueTransaction<Long, Void>() {
+            store1.execute(k, true, new KeyValueTransaction<Long, Void>() {
 
                 @Override
                 public Void commit(KeyValueContext<Long> context) throws IOException {
@@ -82,7 +162,7 @@ public class TxKeyValueStoreNGTest {
                 }
             });
 
-            store.execute(k, false, new KeyValueTransaction<Long, Void>() {
+            store1.execute(k, false, new KeyValueTransaction<Long, Void>() {
 
                 @Override
                 public Void commit(KeyValueContext<Long> context) throws IOException {
@@ -102,7 +182,7 @@ public class TxKeyValueStoreNGTest {
         for (int i = 0; i < 16; i++) {
             final long k = i;
             final long v = i;
-            store.execute(k, true, new KeyValueTransaction<Long, Void>() {
+            store1.execute(k, true, new KeyValueTransaction<Long, Void>() {
 
                 @Override
                 public Void commit(KeyValueContext<Long> context) throws IOException {
@@ -113,7 +193,7 @@ public class TxKeyValueStoreNGTest {
             });
         }
 
-        store.stream(new KeyValueStore.EntryStream<Long, Long>() {
+        store1.stream(new KeyValueStore.EntryStream<Long, Long>() {
 
             @Override
             public boolean stream(Long key, Long value) throws IOException {
@@ -135,7 +215,7 @@ public class TxKeyValueStoreNGTest {
         for (int i = 0; i < 16; i++) {
             final long k = i;
             final long v = i;
-            store.execute(k, true, new KeyValueTransaction<Long, Void>() {
+            store1.execute(k, true, new KeyValueTransaction<Long, Void>() {
 
                 @Override
                 public Void commit(KeyValueContext<Long> context) throws IOException {
@@ -146,7 +226,7 @@ public class TxKeyValueStoreNGTest {
             });
         }
 
-        store.streamKeys(new KeyValueStore.KeyStream<Long>() {
+        store1.streamKeys(new KeyValueStore.KeyStream<Long>() {
 
             @Override
             public boolean stream(Long key) throws IOException {
