@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.jivesoftware.os.filer.inheritance.poms</groupId>
         <artifactId>global-repo-management</artifactId>
-        <version>0.40-SNAPSHOT</version>
+        <version>0.40</version>
         <relativePath>../global-repo-management/pom.xml</relativePath>
     </parent>
     <artifactId>global-version-management</artifactId>
@@ -17,37 +17,37 @@
             <dependency>
                 <groupId>com.jivesoftware.os.filer</groupId>
                 <artifactId>io</artifactId>
-                <version>0.40-SNAPSHOT</version>
+                <version>0.40</version>
             </dependency>
             <dependency>
                 <groupId>com.jivesoftware.os.filer</groupId>
                 <artifactId>queue-processor</artifactId>
-                <version>0.40-SNAPSHOT</version>
+                <version>0.40</version>
             </dependency>
             <dependency>
                 <groupId>com.jivesoftware.os.filer</groupId>
                 <artifactId>queue-store</artifactId>
-                <version>0.40-SNAPSHOT</version>
+                <version>0.40</version>
             </dependency>
             <dependency>
                 <groupId>com.jivesoftware.os.filer</groupId>
                 <artifactId>queue-guaranteed-delivery</artifactId>
-                <version>0.40-SNAPSHOT</version>
+                <version>0.40</version>
             </dependency>
             <dependency>
                 <groupId>com.jivesoftware.os.filer</groupId>
                 <artifactId>map-store</artifactId>
-                <version>0.40-SNAPSHOT</version>
+                <version>0.40</version>
             </dependency>
             <dependency>
                 <groupId>com.jivesoftware.os.filer</groupId>
                 <artifactId>keyed-store</artifactId>
-                <version>0.40-SNAPSHOT</version>
+                <version>0.40</version>
             </dependency>
             <dependency>
                 <groupId>com.jivesoftware.os.filer</groupId>
                 <artifactId>chunk-store</artifactId>
-                <version>0.40-SNAPSHOT</version>
+                <version>0.40</version>
             </dependency>
             <dependency>
                 <groupId>com.jivesoftware.os.jive.utils</groupId>
