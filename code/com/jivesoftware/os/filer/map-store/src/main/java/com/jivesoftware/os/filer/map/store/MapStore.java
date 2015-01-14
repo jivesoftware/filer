@@ -168,6 +168,10 @@ public class MapStore {
         return readInt(filer, cCountOffset);
     }
 
+    public long getApproxCount(MapContext context) throws IOException {
+        return context.count;
+    }
+
     public boolean isFull(MapContext context) throws IOException {
         return context.count >= context.maxCount;
     }

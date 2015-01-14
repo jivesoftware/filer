@@ -40,6 +40,14 @@ public class ChunkCache {
         this.bufferFactory = bufferFactory;
     }
 
+    public long approxSize() throws IOException {
+        MapContext _mapContext = mapContext;
+        if ( _mapContext == null) {
+            return 0;
+        }
+        return MapStore.INSTANCE.getApproxCount(mapContext);
+    }
+
     public <M> void set(long chunkFP, long startOfFP, long endOfFP, M monkey) throws IOException {
         synchronized (this) {
             ensureCapacity();
