@@ -39,6 +39,33 @@ public class FilerIO {
 
     /**
      *
+     * @param _from
+     * @param _to
+     * @param _bufferSize
+     * @return
+     * @throws Exception
+     */
+    public static long copy(Readable _from, Writeable _to, long _maxBytes, long _bufferSize) throws IOException {
+        long byteCount = _bufferSize;
+        if (_bufferSize < 1) {
+            byteCount = 1024 * 1024; //1MB
+        }
+        byteCount = Math.min(byteCount, _maxBytes);
+
+        byte[] chunk = new byte[(int) byteCount];
+        int remaining = (int) _maxBytes;
+        int bytesRead;
+        long size = 0;
+        while (remaining > 0 && (bytesRead = _from.read(chunk, 0, (int) Math.min(remaining, byteCount))) > -1) {
+            _to.write(chunk, 0, bytesRead);
+            size += bytesRead;
+            remaining -= bytesRead;
+        }
+        return size;
+    }
+
+    /**
+     *
      * @param _in
      * @param _bufferSize
      * @return

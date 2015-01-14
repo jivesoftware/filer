@@ -57,10 +57,10 @@ public class TxKeyValueStoreNGTest {
         //ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8, locksProvider);
         //ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8, locksProvider);
 
-        ByteBufferFactory  bbf = new HeapByteBufferFactory();
+        ByteBufferFactory bbf = new HeapByteBufferFactory();
         ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, locksProvider);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, locksProvider);
-        ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
+        ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
 
         store1 = new TxKeyValueStore<>(chunkStores, new LongLongKeyValueMarshaller(), "booya1".getBytes(), 8, false, 8, false);
         store2 = new TxKeyValueStore<>(chunkStores, new LongLongKeyValueMarshaller(), "booya2".getBytes(), 8, false, 8, false);
@@ -133,7 +133,7 @@ public class TxKeyValueStoreNGTest {
         for (int i = 0; i < 16; i++) {
             final long k = i;
             final long v = i;
-            System.out.println(k+" "+v);
+            System.out.println(k + " " + v);
 
             store1.execute(k, false, new KeyValueTransaction<Long, Void>() {
 

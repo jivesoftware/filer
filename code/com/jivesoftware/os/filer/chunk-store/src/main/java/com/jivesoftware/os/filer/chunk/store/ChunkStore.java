@@ -135,7 +135,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
                 filer.seek(0);
                 to.filer.seek(0);
                 //TODO if these filers are both byte buffer backed then it's much faster to do an NIO ByteBuffer.put()
-                FilerIO.copy(filer, to.filer, -1);
+                FilerIO.copy(filer, to.filer, lengthOfFile, -1);
                 to.open();
             }
         }
