@@ -17,15 +17,17 @@ import org.apache.commons.io.Charsets;
 public class FileBackedMemMappedByteBufferFactory implements ByteBufferFactory {
 
     private final String prefix;
+    private final int directoryOffset;
     private final File[] directories;
 
-    public FileBackedMemMappedByteBufferFactory(String prefix, File... directories) {
+    public FileBackedMemMappedByteBufferFactory(String prefix, int directoryOffset, File... directories) {
         this.prefix = prefix;
+        this.directoryOffset = directoryOffset;
         this.directories = directories;
     }
 
     private File getDirectory(String key) {
-        return directories[Math.abs(key.hashCode()) % directories.length];
+        return directories[Math.abs(key.hashCode() + directoryOffset) % directories.length];
     }
 
     public MappedByteBuffer open(String key) {

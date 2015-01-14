@@ -51,7 +51,7 @@ public class ChunkStoreTest {
             chunkFile.createNewFile();
 
             File[] dirs = { chunkFile.getParentFile() };
-            final ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(dirs, "data", 1024, locksProvider);
+            final ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(dirs, 0, "data", 1024, locksProvider);
 
             long start = System.currentTimeMillis();
             List<Future<?>> futures = new ArrayList<>(numThreads);
@@ -83,7 +83,7 @@ public class ChunkStoreTest {
 
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         File[] dirs = { Files.createTempDirectory("testNewChunkStore").toFile() };
-        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(dirs, "data", size, locksProvider);
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(dirs, 0, "data", size, locksProvider);
 
         long chunk10 = chunkStore.newChunk(10L, createFiler);
         System.out.println("chunkId:" + chunk10);
@@ -118,7 +118,7 @@ public class ChunkStoreTest {
         int size = 1024 * 10;
         File dir = Files.createTempDirectory("testExistingChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
-        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data", size, locksProvider);
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", size, locksProvider);
 
         final byte[] bytes = new byte[257];
         new Random().nextBytes(bytes);
@@ -155,14 +155,14 @@ public class ChunkStoreTest {
         int size = 1024 * 10;
         File dir = Files.createTempDirectory("testExistingChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
-        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data", size, locksProvider);
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", size, locksProvider);
 
         long chunk10 = chunkStore.newChunk(10L, createFiler);
         writeIntToChunk(chunkStore, chunk10, 10);
 
         long expectedReferenceNumber = chunkStore.getReferenceNumber();
 
-        chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data", 1024, locksProvider);
+        chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", 1024, locksProvider);
         assertEquals(chunkStore.getReferenceNumber(), expectedReferenceNumber);
 
         assertIntInChunk(chunkStore, chunk10, 10);
@@ -173,7 +173,7 @@ public class ChunkStoreTest {
         final int size = 512;
         File dir = Files.createTempDirectory("testResizingChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
-        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data", size, locksProvider);
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", size, locksProvider);
 
         long chunk10 = chunkStore.newChunk(size * 4L, createFiler);
         chunkStore.execute(chunk10, openFiler, new ChunkTransaction<FilerLock, Void>() {
@@ -203,7 +203,7 @@ public class ChunkStoreTest {
     public void testAddRemove() throws Exception {
         File dir = Files.createTempDirectory("testAddRemove").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
-        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data", 1024, locksProvider);
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", 1024, locksProvider);
 
         List<Long> fps1 = new ArrayList<>();
         for (int i = 0; i < 2; i++) {

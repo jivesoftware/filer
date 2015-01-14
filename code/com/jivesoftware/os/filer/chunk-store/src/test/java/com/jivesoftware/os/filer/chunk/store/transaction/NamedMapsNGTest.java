@@ -47,8 +47,8 @@ public class NamedMapsNGTest {
 
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data1", 8, locksProvider);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data2", 8, locksProvider);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, locksProvider);
 
         TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[] {
             new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
@@ -159,8 +159,8 @@ public class NamedMapsNGTest {
     public void testVariableNamedMapOfFilers() throws Exception {
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         File dir = Files.createTempDirectory("testVariableNamedMapOfFilers").toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data1", 8, locksProvider);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data2", 8, locksProvider);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, locksProvider);
 
         TxPartitionedNamedMapOfFiler<FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(),
             (TxNamedMapOfFiler<FilerLock>[]) new TxNamedMapOfFiler[] {
@@ -225,8 +225,8 @@ public class NamedMapsNGTest {
     public void testCommit() throws Exception {
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         File dir = Files.createTempDirectory("testCommit").toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data1", 8, locksProvider);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data2", 8, locksProvider);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, locksProvider);
 
         TxPartitionedNamedMapOfFiler<FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(),
             (TxNamedMapOfFiler<FilerLock>[]) new TxNamedMapOfFiler[] {
@@ -344,8 +344,8 @@ public class NamedMapsNGTest {
 
         }
 
-        chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data1", 8, locksProvider);
-        chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data2", 8, locksProvider);
+        chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, locksProvider);
+        chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, locksProvider);
 
         namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(),
             (TxNamedMapOfFiler<FilerLock>[]) new TxNamedMapOfFiler[] {

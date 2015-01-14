@@ -22,7 +22,6 @@ import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -48,7 +47,7 @@ public class TxKeyedFilerStoreNGTest {
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, locksProvider);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, locksProvider);
-        final ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
+        final ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
 
         int numThread = 24;
         ConcurrentHashMap<Long, TxKeyedFilerStore> namedStores = new ConcurrentHashMap<>();
@@ -70,7 +69,6 @@ public class TxKeyedFilerStoreNGTest {
         ConcurrentHashMap<Long, TxKeyedFilerStore> namedStores;
         ChunkStore[] chunkStores;
         AtomicBoolean stop;
-        List<Long> keys;
 
         public ConcurrencyRunnable(Random rand, ConcurrentHashMap<Long, TxKeyedFilerStore> namedStores, ChunkStore[] chunkStores, AtomicBoolean stop) {
             this.rand = rand;
@@ -160,12 +158,11 @@ public class TxKeyedFilerStoreNGTest {
 
     @Test
     public void keyedStoreTest() throws Exception {
-        File dir = Files.createTempDirectory("testNewChunkStore")
-            .toFile();
+        File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8, locksProvider);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8, locksProvider);
-        ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, locksProvider);
+        ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
 
         TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores,
             "booya".getBytes());
@@ -195,12 +192,11 @@ public class TxKeyedFilerStoreNGTest {
 
     @Test
     public void rewriteTest() throws Exception {
-        File dir = Files.createTempDirectory("testNewChunkStore")
-            .toFile();
+        File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8, locksProvider);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8, locksProvider);
-        ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, locksProvider);
+        ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
 
         TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores,
             "booya".getBytes());

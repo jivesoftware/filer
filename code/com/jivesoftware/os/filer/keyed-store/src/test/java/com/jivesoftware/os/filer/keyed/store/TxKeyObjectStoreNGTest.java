@@ -40,11 +40,11 @@ public class TxKeyObjectStoreNGTest {
     TxPartitionedKeyObjectStore<Long, Long> store;
 
     @BeforeTest
-    public void init() throws IOException, Exception {
+    public void init() throws Exception {
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data1", 8, locksProvider);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, "data2", 8, locksProvider);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, locksProvider);
 
         store = new TxPartitionedKeyObjectStore<>(
             new PartitionFunction<Long>() {

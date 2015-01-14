@@ -14,8 +14,13 @@ public class ChunkStoreInitializer {
 
     private static final long referenceNumber = 1;
 
-    public ChunkStore openOrCreate(File[] dirs, String chunkName, long initialSize, StripingLocksProvider<Long> locksProvider) throws Exception {
-        FileBackedMemMappedByteBufferFactory factory = new FileBackedMemMappedByteBufferFactory(chunkName, dirs);
+    public ChunkStore openOrCreate(File[] dirs,
+        int directoryOffset,
+        String chunkName,
+        long initialSize,
+        StripingLocksProvider<Long> locksProvider) throws Exception {
+
+        FileBackedMemMappedByteBufferFactory factory = new FileBackedMemMappedByteBufferFactory(chunkName, directoryOffset, dirs);
         AutoGrowingByteBufferBackedFiler filer = new AutoGrowingByteBufferBackedFiler(factory, initialSize,
             AutoGrowingByteBufferBackedFiler.MAX_BUFFER_SEGMENT_SIZE);
         if (filer.exists()) {
@@ -25,8 +30,8 @@ public class ChunkStoreInitializer {
         }
     }
 
-    public boolean checkExists(File[] dirs, String chunkName) throws IOException {
-        FileBackedMemMappedByteBufferFactory factory = new FileBackedMemMappedByteBufferFactory(chunkName, dirs);
+    public boolean checkExists(File[] dirs, int directoryOffset, String chunkName) throws IOException {
+        FileBackedMemMappedByteBufferFactory factory = new FileBackedMemMappedByteBufferFactory(chunkName, directoryOffset, dirs);
         return new AutoGrowingByteBufferBackedFiler(factory, 1024, AutoGrowingByteBufferBackedFiler.MAX_BUFFER_SEGMENT_SIZE).exists();
     }
 

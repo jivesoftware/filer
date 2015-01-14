@@ -34,7 +34,7 @@ public class AutoGrowingByteBufferBackedFilerNGTest {
             ByteBufferFactory[] bufferFactorys = new ByteBufferFactory[]{
                 new HeapByteBufferFactory(),
                 new DirectByteBufferFactory(),
-                new FileBackedMemMappedByteBufferFactory("f", createTempDirectory.toFile())
+                new FileBackedMemMappedByteBufferFactory("f", 0, createTempDirectory.toFile())
             };
             for (ByteBufferFactory bf : bufferFactorys) {
 
@@ -56,7 +56,7 @@ public class AutoGrowingByteBufferBackedFilerNGTest {
             ByteBufferFactory[] bufferFactorys = new ByteBufferFactory[]{
                 new HeapByteBufferFactory(),
                 new DirectByteBufferFactory(),
-                new FileBackedMemMappedByteBufferFactory("f", createTempDirectory.toFile())
+                new FileBackedMemMappedByteBufferFactory("f", 0, createTempDirectory.toFile())
             };
             for (ByteBufferFactory bf : bufferFactorys) {
 
@@ -80,7 +80,7 @@ public class AutoGrowingByteBufferBackedFilerNGTest {
             ByteBufferFactory[] bufferFactorys = new ByteBufferFactory[]{
                 new HeapByteBufferFactory(),
                 new DirectByteBufferFactory(),
-                new FileBackedMemMappedByteBufferFactory("f", createTempDirectory.toFile())
+                new FileBackedMemMappedByteBufferFactory("f", 0, createTempDirectory.toFile())
             };
             for (ByteBufferFactory bf : bufferFactorys) {
 
@@ -101,7 +101,7 @@ public class AutoGrowingByteBufferBackedFilerNGTest {
             System.out.println("b:" + b);
             Path createTempDirectory = Files.createTempDirectory("writeIntsTest");
 
-            FileBackedMemMappedByteBufferFactory bf = new FileBackedMemMappedByteBufferFactory("f", createTempDirectory.toFile());
+            FileBackedMemMappedByteBufferFactory bf = new FileBackedMemMappedByteBufferFactory("f", 0, createTempDirectory.toFile());
 
             AutoGrowingByteBufferBackedFiler filer = new AutoGrowingByteBufferBackedFiler(bf, 1, b);
             for (int i = 0; i < b * 4; i++) {
