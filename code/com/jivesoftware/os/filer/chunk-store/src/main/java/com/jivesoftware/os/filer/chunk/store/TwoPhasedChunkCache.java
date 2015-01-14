@@ -17,7 +17,6 @@ package com.jivesoftware.os.filer.chunk.store;
 
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import java.io.IOException;
-import java.util.concurrent.Semaphore;
 
 /**
  *
@@ -28,77 +27,43 @@ public class TwoPhasedChunkCache {
     private static final byte[] name = new byte[]{0};
 
     private final ByteBufferFactory bufferFactory;
-    private  ChunkCache oldCache;
-    private  ChunkCache newCache;
-    private final int numPermits;
-    private final Semaphore semaphore;
+    private ChunkCache oldCache;
+    private ChunkCache newCache;
     private final int maxNewCacheSize;
 
     public TwoPhasedChunkCache(ByteBufferFactory bufferFactory,
-        int numPermits,
         int maxNewCacheSize) {
         this.bufferFactory = bufferFactory;
         this.oldCache = new ChunkCache(name, bufferFactory);
         this.newCache = new ChunkCache(name, bufferFactory);
-        this.numPermits = numPermits;
-        this.semaphore = new Semaphore(numPermits, true);
         this.maxNewCacheSize = maxNewCacheSize;
     }
 
     public <M> void set(long chunkFP, long startOfFP, long endOfFP, M monkey) throws IOException {
-        if (newCache.approxSize() > maxNewCacheSize) {
-            // TODO add metrics around number of swaps and size of old cache
-            try {
-                semaphore.acquire(numPermits);
-            } catch (InterruptedException ex) {
-                throw new IOException("Failed to aquire semaphore during contains", ex);
-            }
-            try {
+        synchronized (this) {
+            if (newCache.approxSize() > maxNewCacheSize) {
+                // TODO add metrics around number of swaps and size of old cache
                 oldCache = newCache;
                 newCache = new ChunkCache(name, bufferFactory);
-            } finally {
-                semaphore.release(numPermits);
             }
-        }
 
-        try {
-            semaphore.acquire();
-        } catch (InterruptedException ex) {
-            throw new IOException("Failed to aquire semaphore during contains", ex);
-        }
-        try {
             newCache.set(chunkFP, startOfFP, endOfFP, monkey);
             oldCache.remove(chunkFP);
-        } finally {
-            semaphore.release();
         }
-
     }
 
     public boolean contains(long chunkFP) throws IOException {
-        try {
-            semaphore.acquire();
-        } catch (InterruptedException ex) {
-            throw new IOException("Failed to aquire semaphore during contains", ex);
-        }
-        try {
+        synchronized (this) {
             boolean had = newCache.contains(chunkFP);
             if (had == false) {
                 return oldCache.contains(chunkFP);
             }
             return true;
-        } finally {
-            semaphore.release();
         }
     }
 
     public <M> Chunk<M> get(long chunkFP) throws IOException {
-        try {
-            semaphore.acquire();
-        } catch (InterruptedException ex) {
-            throw new IOException("Failed to aquire semaphore during removal", ex);
-        }
-        try {
+        synchronized (this) {
             Chunk<M> chunk = newCache.get(chunkFP);
             if (chunk == null) {
                 chunk = oldCache.get(chunkFP);
@@ -109,23 +74,13 @@ public class TwoPhasedChunkCache {
             }
             return chunk;
 
-        } finally {
-            semaphore.release();
         }
     }
 
     public void remove(long chunkFP) throws IOException {
-        try {
-            semaphore.acquire();
-        } catch (InterruptedException ex) {
-            throw new IOException("Failed to aquire semaphore during removal", ex);
-        }
-        try {
+        synchronized (this) {
             oldCache.remove(chunkFP);
             newCache.remove(chunkFP);
-        } finally {
-            semaphore.release();
         }
     }
-
 }

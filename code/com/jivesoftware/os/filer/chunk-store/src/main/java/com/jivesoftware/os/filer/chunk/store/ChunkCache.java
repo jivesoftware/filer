@@ -42,48 +42,40 @@ public class ChunkCache {
 
     public long approxSize() throws IOException {
         MapContext _mapContext = mapContext;
-        if ( _mapContext == null) {
+        if (_mapContext == null) {
             return 0;
         }
         return MapStore.INSTANCE.getApproxCount(mapContext);
     }
 
     public <M> void set(long chunkFP, long startOfFP, long endOfFP, M monkey) throws IOException {
-        synchronized (this) {
-            ensureCapacity();
-            int ai = MapStore.INSTANCE.add(mapFiler, mapContext, (byte) 1, FilerIO.longBytes(chunkFP), FilerIO.longsBytes(new long[]{startOfFP, endOfFP}));
-            monkeys[ai] = monkey;
-        }
+        ensureCapacity();
+        int ai = MapStore.INSTANCE.add(mapFiler, mapContext, (byte) 1, FilerIO.longBytes(chunkFP), FilerIO.longsBytes(new long[]{startOfFP, endOfFP}));
+        monkeys[ai] = monkey;
     }
 
     public boolean contains(long chunkFP) throws IOException {
-        synchronized (this) {
-            ensureCapacity();
-            long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
-            return ai > -1;
-        }
+        ensureCapacity();
+        long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
+        return ai > -1;
     }
 
     public <M> Chunk<M> get(long chunkFP) throws IOException {
-        synchronized (this) {
-            ensureCapacity();
-            long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
-            if (ai == -1) {
-                return null;
-            }
-            long[] startAndEnd = FilerIO.bytesLongs(MapStore.INSTANCE.getPayload(mapFiler, mapContext, ai));
-            return new Chunk<>((M) monkeys[(int) ai], chunkFP, startAndEnd[0], startAndEnd[1]);
-
+        ensureCapacity();
+        long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
+        if (ai == -1) {
+            return null;
         }
+        long[] startAndEnd = FilerIO.bytesLongs(MapStore.INSTANCE.getPayload(mapFiler, mapContext, ai));
+        return new Chunk<>((M) monkeys[(int) ai], chunkFP, startAndEnd[0], startAndEnd[1]);
+
     }
 
     public void remove(long chunkFP) throws IOException {
-        synchronized (this) {
-            ensureCapacity();
-            long ai = MapStore.INSTANCE.remove(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
-            if (ai > -1) {
-                monkeys[(int) ai] = null;
-            }
+        ensureCapacity();
+        long ai = MapStore.INSTANCE.remove(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
+        if (ai > -1) {
+            monkeys[(int) ai] = null;
         }
     }
 

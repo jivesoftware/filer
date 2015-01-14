@@ -50,7 +50,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
     private static final int cMinPower = 8;
 
     //private final ConcurrentHashMap<Long, Chunk<?>> openChunks = new ConcurrentHashMap<>();
-    private final TwoPhasedChunkCache openChunks = new TwoPhasedChunkCache(new HeapByteBufferFactory(), 1024, 5_000); // Consider Direct
+    private final TwoPhasedChunkCache openChunks = new TwoPhasedChunkCache(new HeapByteBufferFactory(), 5_000); // Consider Direct
     private final StripingLocksProvider<Long> locksProvider;
 
     private long lengthOfFile = 8 + 8 + (8 * (64 - cMinPower));
