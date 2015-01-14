@@ -20,10 +20,10 @@ import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author jonathan.colt
@@ -49,7 +49,8 @@ public class ChunkStore implements Copyable<ChunkStore> {
     private static final long cMagicNumber = Long.MAX_VALUE;
     private static final int cMinPower = 8;
 
-    private final ConcurrentHashMap<Long, Chunk<?>> openChunks = new ConcurrentHashMap<>();
+    //private final ConcurrentHashMap<Long, Chunk<?>> openChunks = new ConcurrentHashMap<>();
+    private final ChunkCache openChunks = new ChunkCache(new byte[]{0}, new HeapByteBufferFactory()); // Consider Direct
     private final StripingLocksProvider<Long> locksProvider;
 
     private long lengthOfFile = 8 + 8 + (8 * (64 - cMinPower));
@@ -237,8 +238,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
         if (monkey == null) {
             throw new IllegalStateException("Monkey cannot be null");
         }
-        Chunk<M> chunk = new Chunk<>(monkey, _chunkFP, startOfFP, endOfFP);
-        openChunks.put(_chunkFP, chunk);
+        openChunks.set(_chunkFP, startOfFP, endOfFP, monkey);
         return chunkFP;
     }
 
@@ -313,8 +313,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
             synchronized (locksProvider.lock(chunkFP)) {
                 if (!openChunks.contains(chunkFP)) {
                     M monkey = openFiler.open(chunkFiler);
-                    chunk = new Chunk<>(monkey, chunkFP, startOfFP, endOfFP);
-                    openChunks.put(chunkFP, chunk);
+                    openChunks.set(chunkFP, startOfFP, endOfFP, monkey);
                 }
             }
         }

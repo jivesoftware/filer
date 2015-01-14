@@ -83,7 +83,7 @@ public class MapStoreTest {
         MapContext context = MapStore.INSTANCE.create(2, 1, false, 1, false, filer);
 
         for (int i = 0; i < 128; i++) {
-            if (MapStore.INSTANCE.isFull(filer, context)) {
+            if (MapStore.INSTANCE.isFull(context)) {
                 int nextSize = MapStore.INSTANCE.nextGrowSize(context);
                 System.out.println("nextSize:" + nextSize);
                 filerSize = MapStore.INSTANCE.computeFilerSize(nextSize, 1, false, 1, false);

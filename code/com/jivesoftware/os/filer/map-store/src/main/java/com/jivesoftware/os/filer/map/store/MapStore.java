@@ -168,7 +168,7 @@ public class MapStore {
         return readInt(filer, cCountOffset);
     }
 
-    public boolean isFull(Filer filer, MapContext context) throws IOException {
+    public boolean isFull(MapContext context) throws IOException {
         return context.count >= context.maxCount;
     }
 
