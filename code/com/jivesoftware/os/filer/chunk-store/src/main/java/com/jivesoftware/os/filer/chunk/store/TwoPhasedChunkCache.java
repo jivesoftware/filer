@@ -24,6 +24,11 @@ import java.io.IOException;
  */
 public class TwoPhasedChunkCache {
 
+    private static final ChunkMetrics.ChunkMetric EVICTED = ChunkMetrics.get("chunkCache", "evicted");
+    private static final ChunkMetrics.ChunkMetric EVICTIONS = ChunkMetrics.get("chunkCache", "evictions");
+    private static final ChunkMetrics.ChunkMetric REVIVALS = ChunkMetrics.get("chunkCache", "revivals");
+
+
     private static final byte[] name = new byte[]{0};
 
     private final ByteBufferFactory bufferFactory;
@@ -42,7 +47,8 @@ public class TwoPhasedChunkCache {
     public <M> void set(long chunkFP, long startOfFP, long endOfFP, M monkey) throws IOException {
         synchronized (this) {
             if (newCache.approxSize() > maxNewCacheSize) {
-                // TODO add metrics around number of swaps and size of old cache
+                EVICTIONS.inc(1);
+                EVICTED.inc((int)oldCache.approxSize());
                 oldCache = newCache;
                 newCache = new ChunkCache(name, bufferFactory);
             }
@@ -63,17 +69,24 @@ public class TwoPhasedChunkCache {
     }
 
     public <M> Chunk<M> get(long chunkFP) throws IOException {
-        synchronized (this) {
-            Chunk<M> chunk = newCache.get(chunkFP);
-            if (chunk == null) {
-                chunk = oldCache.get(chunkFP);
-                if (chunk != null) {
-                    newCache.set(chunkFP, chunk.startOfFP, chunk.endOfFP, chunk.monkey);
-                    oldCache.remove(chunkFP);
+        boolean revived = false;
+        try {
+            synchronized (this) {
+                Chunk<M> chunk = newCache.get(chunkFP);
+                if (chunk == null) {
+                    chunk = oldCache.get(chunkFP);
+                    if (chunk != null) {
+                        newCache.set(chunkFP, chunk.startOfFP, chunk.endOfFP, chunk.monkey);
+                        oldCache.remove(chunkFP);
+                        revived = true;
+                    }
                 }
+                return chunk;
             }
-            return chunk;
-
+        } finally {
+            if (revived) {
+                REVIVALS.inc(1);
+            }
         }
     }
 
