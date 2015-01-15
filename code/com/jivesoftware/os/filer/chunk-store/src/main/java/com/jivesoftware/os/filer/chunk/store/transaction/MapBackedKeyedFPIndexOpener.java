@@ -16,26 +16,27 @@
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
+import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.map.store.MapContext;
 import com.jivesoftware.os.filer.map.store.MapStore;
 import java.io.IOException;
 
 /**
- *
  * @author jonathan.colt
  */
 public class MapBackedKeyedFPIndexOpener implements OpenFiler<MapBackedKeyedFPIndex, ChunkFiler> {
 
-    public static final MapBackedKeyedFPIndexOpener INSTANCE = new MapBackedKeyedFPIndexOpener();
+    private final ByteArrayStripingLocksProvider keyLocks;
 
-    private MapBackedKeyedFPIndexOpener() {
+    public MapBackedKeyedFPIndexOpener(ByteArrayStripingLocksProvider keyLocks) {
+        this.keyLocks = keyLocks;
     }
 
     @Override
     public MapBackedKeyedFPIndex open(ChunkFiler filer) throws IOException {
         MapContext mapContext = MapStore.INSTANCE.open(filer);
-        return new MapBackedKeyedFPIndex(filer.getChunkStore(), filer.getChunkFP(), mapContext);
+        return new MapBackedKeyedFPIndex(filer.getChunkStore(), filer.getChunkFP(), mapContext, this, keyLocks);
     }
 
 }

@@ -19,7 +19,6 @@ import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import java.io.IOException;
 
 /**
- *
  * @author jonathan.colt
  */
 public class TwoPhasedChunkCache {
@@ -28,8 +27,7 @@ public class TwoPhasedChunkCache {
     private static final ChunkMetrics.ChunkMetric EVICTIONS = ChunkMetrics.get("chunkCache", "evictions");
     private static final ChunkMetrics.ChunkMetric REVIVALS = ChunkMetrics.get("chunkCache", "revivals");
 
-
-    private static final byte[] name = new byte[]{0};
+    private static final byte[] name = new byte[] { 0 };
 
     private final ByteBufferFactory bufferFactory;
     private ChunkCache oldCache;
@@ -48,7 +46,7 @@ public class TwoPhasedChunkCache {
         synchronized (this) {
             if (newCache.approxSize() > maxNewCacheSize) {
                 EVICTIONS.inc(1);
-                EVICTED.inc((int)oldCache.approxSize());
+                EVICTED.inc((int) oldCache.approxSize());
                 oldCache = newCache;
                 newCache = new ChunkCache(name, bufferFactory);
             }
@@ -61,7 +59,7 @@ public class TwoPhasedChunkCache {
     public boolean contains(long chunkFP) throws IOException {
         synchronized (this) {
             boolean had = newCache.contains(chunkFP);
-            if (had == false) {
+            if (!had) {
                 return oldCache.contains(chunkFP);
             }
             return true;

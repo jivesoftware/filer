@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.util.concurrent.Semaphore;
 
 /**
- *
  * @author jonathan.colt
  */
 public class MapBackedKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<byte[]> {
@@ -38,14 +37,21 @@ public class MapBackedKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<by
     private final long backingFP;
     private final int numPermits = 64; // TODO expose ?
     private final Semaphore semaphore = new Semaphore(numPermits, true);
-    private final ByteArrayStripingLocksProvider keyLocks = new ByteArrayStripingLocksProvider(256); // TODO expose?
     private final MapContext mapContext;
+    private final MapBackedKeyedFPIndexOpener opener;
+    private final ByteArrayStripingLocksProvider keyLocks;
 
-    public MapBackedKeyedFPIndex(ChunkStore chunkStore, long fp, MapContext mapContext) {
+    public MapBackedKeyedFPIndex(ChunkStore chunkStore,
+        long fp,
+        MapContext mapContext,
+        MapBackedKeyedFPIndexOpener opener,
+        ByteArrayStripingLocksProvider keyLocks) {
+
         this.backingChunkStore = chunkStore;
         this.backingFP = fp;
         this.mapContext = mapContext;
-
+        this.opener = opener;
+        this.keyLocks = keyLocks;
     }
 
     MapContext getMapContext() {
@@ -54,7 +60,7 @@ public class MapBackedKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<by
 
     @Override
     public long get(final byte[] key) throws IOException {
-        return backingChunkStore.execute(backingFP, MapBackedKeyedFPIndexOpener.INSTANCE, new ChunkTransaction<MapBackedKeyedFPIndex, Long>() {
+        return backingChunkStore.execute(backingFP, opener, new ChunkTransaction<MapBackedKeyedFPIndex, Long>() {
 
             @Override
             public Long commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
@@ -71,7 +77,7 @@ public class MapBackedKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<by
 
     @Override
     public void set(final byte[] key, final long fp) throws IOException {
-        backingChunkStore.execute(backingFP,  MapBackedKeyedFPIndexOpener.INSTANCE, new ChunkTransaction<MapBackedKeyedFPIndex, Void>() {
+        backingChunkStore.execute(backingFP, opener, new ChunkTransaction<MapBackedKeyedFPIndex, Void>() {
 
             @Override
             public Void commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {

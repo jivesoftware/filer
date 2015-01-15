@@ -23,7 +23,6 @@ import com.jivesoftware.os.filer.map.store.MapStore;
 import java.io.IOException;
 
 /**
- *
  * @author jonathan.colt
  */
 public class ChunkCache {
@@ -50,7 +49,7 @@ public class ChunkCache {
 
     public <M> void set(long chunkFP, long startOfFP, long endOfFP, M monkey) throws IOException {
         ensureCapacity();
-        int ai = MapStore.INSTANCE.add(mapFiler, mapContext, (byte) 1, FilerIO.longBytes(chunkFP), FilerIO.longsBytes(new long[]{startOfFP, endOfFP}));
+        int ai = MapStore.INSTANCE.add(mapFiler, mapContext, (byte) 1, FilerIO.longBytes(chunkFP), FilerIO.longsBytes(new long[] { startOfFP, endOfFP }));
         monkeys[ai] = monkey;
     }
 

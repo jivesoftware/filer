@@ -25,6 +25,9 @@ public class ByteArrayPartitionFunction implements PartitionFunction<byte[]> {
 
     public static final ByteArrayPartitionFunction INSTANCE = new ByteArrayPartitionFunction();
 
+    private ByteArrayPartitionFunction() {
+    }
+
     @Override
     public int partition(int partitionCount, byte[] key) {
         return Math.abs(Arrays.hashCode(key)) % partitionCount;

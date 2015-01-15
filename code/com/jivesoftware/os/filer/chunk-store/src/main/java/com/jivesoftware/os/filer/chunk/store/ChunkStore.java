@@ -288,7 +288,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
      */
     public <M, R> R execute(final long chunkFP, final OpenFiler<M, ChunkFiler> openFiler, final ChunkTransaction<M, R> chunkTransaction) throws IOException {
 
-        Chunk<M> chunk = (Chunk<M>) openChunks.get(chunkFP);
+        Chunk<M> chunk = openChunks.get(chunkFP);
         ChunkFiler chunkFiler = null;
         if (chunk == null) {
             int chunkPower;
@@ -318,7 +318,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
             }
         }
         if (chunk == null) {
-            chunk = (Chunk<M>) openChunks.get(chunkFP);
+            chunk = openChunks.get(chunkFP);
         }
         if (chunkFiler == null) {
             chunkFiler = new ChunkFiler(ChunkStore.this, filer.duplicate(chunk.startOfFP, chunk.endOfFP), chunkFP, chunk.startOfFP, chunk.endOfFP);

@@ -26,19 +26,13 @@ import com.jivesoftware.os.filer.map.store.MapContext;
 import java.io.IOException;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.jivesoftware.os.filer.chunk.store.transaction.TxPowerConstants.SKY_HOOK_POWER_CREATORS;
+import static com.jivesoftware.os.filer.chunk.store.transaction.TxPowerConstants.SKY_HOOK_POWER_OPENER;
 
 /**
  * @author jonathan.colt
  */
 public class TxNamedMap {
-
-    private static final MapBackedKeyedFPIndexCreator[] POWER_CREATORS = new MapBackedKeyedFPIndexCreator[16];
-
-    static {
-        for (int i = 0; i < POWER_CREATORS.length; i++) {
-            POWER_CREATORS[i] = new MapBackedKeyedFPIndexCreator(2, (int) FilerIO.chunkLength(i), true, 8, false);
-        }
-    }
 
     private final ChunkStore chunkStore;
     private final long constantFP;
@@ -75,9 +69,8 @@ public class TxNamedMap {
             public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                MapBackedKeyedFPIndexCreator creator = POWER_CREATORS[chunkPower];
-                return monkey.commit(chunkStore, chunkPower, 1, creator, MapBackedKeyedFPIndexOpener.INSTANCE,
-                    grower, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
+                return monkey.commit(chunkStore, chunkPower, 1, SKY_HOOK_POWER_CREATORS[chunkPower], SKY_HOOK_POWER_OPENER, grower,
+                    new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
 
                         @Override
                         public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
@@ -105,8 +98,8 @@ public class TxNamedMap {
                 }
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.commit(chunkStore, chunkPower, 1, null, MapBackedKeyedFPIndexOpener.INSTANCE,
-                    null, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
+                return monkey.commit(chunkStore, chunkPower, 1, null, SKY_HOOK_POWER_OPENER, null,
+                    new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
 
                         @Override
                         public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
@@ -138,8 +131,8 @@ public class TxNamedMap {
                 }
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.commit(chunkStore, chunkPower, null, null, MapBackedKeyedFPIndexOpener.INSTANCE,
-                    null, new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
+                return monkey.commit(chunkStore, chunkPower, null, null, SKY_HOOK_POWER_OPENER, null,
+                    new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
 
                         @Override
                         public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {

@@ -50,7 +50,7 @@ public class NamedMapsNGTest {
         ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, locksProvider);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, locksProvider);
 
-        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[] {
+        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[] {
             new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
             new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
         });
@@ -162,7 +162,7 @@ public class NamedMapsNGTest {
         ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, locksProvider);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, locksProvider);
 
-        TxPartitionedNamedMapOfFiler<FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(),
+        TxPartitionedNamedMapOfFiler<FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE,
             (TxNamedMapOfFiler<FilerLock>[]) new TxNamedMapOfFiler[] {
                 new TxNamedMapOfFiler<>(chunkStore1,
                     464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>()),
@@ -228,7 +228,7 @@ public class NamedMapsNGTest {
         ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, locksProvider);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, locksProvider);
 
-        TxPartitionedNamedMapOfFiler<FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(),
+        TxPartitionedNamedMapOfFiler<FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE,
             (TxNamedMapOfFiler<FilerLock>[]) new TxNamedMapOfFiler[] {
                 new TxNamedMapOfFiler<>(chunkStore1,
                     464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>()),
@@ -236,7 +236,7 @@ public class NamedMapsNGTest {
                     464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>())
             });
 
-        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[] {
+        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[] {
             new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
             new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
         });
@@ -347,7 +347,7 @@ public class NamedMapsNGTest {
         chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, locksProvider);
         chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, locksProvider);
 
-        namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(),
+        namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE,
             (TxNamedMapOfFiler<FilerLock>[]) new TxNamedMapOfFiler[] {
                 new TxNamedMapOfFiler<>(chunkStore1,
                     464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>()),
@@ -355,7 +355,7 @@ public class NamedMapsNGTest {
                     464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>())
             });
 
-        namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), new TxNamedMap[] {
+        namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[] {
             new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
             new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
         });

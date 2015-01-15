@@ -55,7 +55,7 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
         }
 
         this.name = name;
-        this.namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(new ByteArrayPartitionFunction(), stores);
+        this.namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE, stores);
     }
 
     @Override

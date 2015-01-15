@@ -59,7 +59,7 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
                 new MapGrower<>(1));
         }
 
-        this.namedMap = new TxPartitionedNamedMap(new ByteArrayPartitionFunction(), stores);
+        this.namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, stores);
     }
 
     @Override
