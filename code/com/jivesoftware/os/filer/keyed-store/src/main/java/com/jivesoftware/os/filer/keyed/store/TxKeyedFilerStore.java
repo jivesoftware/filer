@@ -18,6 +18,9 @@ package com.jivesoftware.os.filer.keyed.store;
 import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
+import com.jivesoftware.os.filer.chunk.store.CreateChunkFilerStripedLock;
+import com.jivesoftware.os.filer.chunk.store.FPStripingLocksProvider;
+import com.jivesoftware.os.filer.chunk.store.OpenChunkFilerStripedLock;
 import com.jivesoftware.os.filer.chunk.store.RewriteChunkTransaction;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFiler;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxPartitionedNamedMapOfFiler;
@@ -28,8 +31,6 @@ import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerLock;
 import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.io.IBA;
-import com.jivesoftware.os.filer.io.NoOpCreateFiler;
-import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.io.RewriteFilerTransaction;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import java.io.IOException;
@@ -44,13 +45,13 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
     private final byte[] name;
     private final TxPartitionedNamedMapOfFiler<FilerLock> namedMapOfFilers;
 
-    public TxKeyedFilerStore(ChunkStore[] chunkStores, byte[] name) {
+    public TxKeyedFilerStore(ChunkStore[] chunkStores, byte[] name, FPStripingLocksProvider locksProvider) {
         // TODO consider replacing with builder pattern
         @SuppressWarnings("unchecked")
         TxNamedMapOfFiler<FilerLock>[] stores = new TxNamedMapOfFiler[chunkStores.length];
         for (int i = 0; i < stores.length; i++) {
             stores[i] = new TxNamedMapOfFiler<>(chunkStores[i], SKY_HOOK_FP,
-                new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>());
+                new CreateChunkFilerStripedLock(locksProvider), new OpenChunkFilerStripedLock(locksProvider));
         }
 
         this.name = name;
