@@ -23,5 +23,5 @@ import java.io.IOException;
  */
 public interface RewriteChunkTransaction<M, R> {
 
-    R commit(M currentMonkey, ChunkFiler currentFiler, M newMonkey, ChunkFiler newFiler) throws IOException;
+    R commit(M currentMonkey, ChunkFiler currentFiler, M newMonkey, ChunkFiler newFiler, Object currentLock, Object newLock) throws IOException;
 }

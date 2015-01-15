@@ -9,7 +9,7 @@
 package com.jivesoftware.os.filer.chunk.store;
 
 import com.jivesoftware.os.filer.io.FilerIO;
-import com.jivesoftware.os.filer.io.FilerLock;
+import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.NoOpCreateFiler;
 import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
@@ -42,6 +42,7 @@ public class ChunkStoreTest {
         final int numThreads = 16;
         final ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
+        HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
 
         final int numLoops = 100;
         final int numIterations = 100_000;
@@ -51,7 +52,7 @@ public class ChunkStoreTest {
             chunkFile.createNewFile();
 
             File[] dirs = { chunkFile.getParentFile() };
-            final ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(dirs, 0, "data", 1024, locksProvider);
+            final ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(dirs, 0, "data", 1024, byteBufferFactory, locksProvider);
 
             long start = System.currentTimeMillis();
             List<Future<?>> futures = new ArrayList<>(numThreads);
@@ -82,8 +83,9 @@ public class ChunkStoreTest {
         int size = 1024 * 10;
 
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
+        HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
         File[] dirs = { Files.createTempDirectory("testNewChunkStore").toFile() };
-        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(dirs, 0, "data", size, locksProvider);
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(dirs, 0, "data", size, byteBufferFactory, locksProvider);
 
         long chunk10 = chunkStore.newChunk(10L, createFiler);
         System.out.println("chunkId:" + chunk10);
@@ -92,23 +94,27 @@ public class ChunkStoreTest {
     }
 
     private void writeIntToChunk(ChunkStore chunkStore, long chunkFP, final int value) throws IOException {
-        chunkStore.execute(chunkFP, openFiler, new ChunkTransaction<FilerLock, Void>() {
+        chunkStore.execute(chunkFP, openFiler, new ChunkTransaction<Void, Void>() {
             @Override
-            public Void commit(FilerLock monkey, ChunkFiler filer) throws IOException {
-                FilerIO.writeInt(filer, value, "");
-                return null;
+            public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
+                synchronized (lock) {
+                    FilerIO.writeInt(filer, value, "");
+                    return null;
+                }
             }
         });
     }
 
     private void assertIntInChunk(ChunkStore chunkStore, long chunk10, final int expected) throws IOException {
-        chunkStore.execute(chunk10, openFiler, new ChunkTransaction<FilerLock, Void>() {
+        chunkStore.execute(chunk10, openFiler, new ChunkTransaction<Void, Void>() {
             @Override
-            public Void commit(FilerLock monkey, ChunkFiler filer) throws IOException {
-                int value = FilerIO.readInt(filer, "");
-                System.out.println("expected:" + value);
-                assertEquals(value, expected);
-                return null;
+            public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
+                synchronized (lock) {
+                    int value = FilerIO.readInt(filer, "");
+                    System.out.println("expected:" + value);
+                    assertEquals(value, expected);
+                    return null;
+                }
             }
         });
     }
@@ -118,27 +124,28 @@ public class ChunkStoreTest {
         int size = 1024 * 10;
         File dir = Files.createTempDirectory("testExistingChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
-        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", size, locksProvider);
+        HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", size, byteBufferFactory, locksProvider);
 
         final byte[] bytes = new byte[257];
         new Random().nextBytes(bytes);
 
         for (int i = 0; i < 1_000; i++) {
             long chunk257 = chunkStore.newChunk(257L, createFiler);
-            chunkStore.execute(chunk257, new NoOpOpenFiler<ChunkFiler>(), new ChunkTransaction<FilerLock, Void>() {
+            chunkStore.execute(chunk257, new NoOpOpenFiler<ChunkFiler>(), new ChunkTransaction<Void, Void>() {
                 @Override
-                public Void commit(FilerLock monkey, ChunkFiler filer) throws IOException {
-                    synchronized (monkey) {
+                public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
+                    synchronized (lock) {
                         filer.seek(0);
                         filer.write(bytes);
                     }
                     return null;
                 }
             });
-            chunkStore.execute(chunk257, new NoOpOpenFiler<ChunkFiler>(), new ChunkTransaction<FilerLock, Void>() {
+            chunkStore.execute(chunk257, new NoOpOpenFiler<ChunkFiler>(), new ChunkTransaction<Void, Void>() {
                 @Override
-                public Void commit(FilerLock monkey, ChunkFiler filer) throws IOException {
-                    synchronized (monkey) {
+                public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
+                    synchronized (lock) {
                         filer.seek(0);
                         byte[] actual = new byte[257];
                         filer.read(actual);
@@ -155,14 +162,15 @@ public class ChunkStoreTest {
         int size = 1024 * 10;
         File dir = Files.createTempDirectory("testExistingChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
-        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", size, locksProvider);
+        HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", size, byteBufferFactory, locksProvider);
 
         long chunk10 = chunkStore.newChunk(10L, createFiler);
         writeIntToChunk(chunkStore, chunk10, 10);
 
         long expectedReferenceNumber = chunkStore.getReferenceNumber();
 
-        chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", 1024, locksProvider);
+        chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", 1024, byteBufferFactory, locksProvider);
         assertEquals(chunkStore.getReferenceNumber(), expectedReferenceNumber);
 
         assertIntInChunk(chunkStore, chunk10, 10);
@@ -173,28 +181,33 @@ public class ChunkStoreTest {
         final int size = 512;
         File dir = Files.createTempDirectory("testResizingChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
-        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", size, locksProvider);
+        HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", size, byteBufferFactory, locksProvider);
 
         long chunk10 = chunkStore.newChunk(size * 4L, createFiler);
-        chunkStore.execute(chunk10, openFiler, new ChunkTransaction<FilerLock, Void>() {
+        chunkStore.execute(chunk10, openFiler, new ChunkTransaction<Void, Void>() {
             @Override
-            public Void commit(FilerLock monkey, ChunkFiler filer) throws IOException {
-                byte[] bytes = new byte[size * 4];
-                bytes[0] = 1;
-                bytes[bytes.length - 1] = 1;
-                FilerIO.write(filer, bytes);
-                return null;
+            public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
+                synchronized (lock) {
+                    byte[] bytes = new byte[size * 4];
+                    bytes[0] = 1;
+                    bytes[bytes.length - 1] = 1;
+                    FilerIO.write(filer, bytes);
+                    return null;
+                }
             }
         });
 
-        chunkStore.execute(chunk10, openFiler, new ChunkTransaction<FilerLock, Void>() {
+        chunkStore.execute(chunk10, openFiler, new ChunkTransaction<Void, Void>() {
             @Override
-            public Void commit(FilerLock monkey, ChunkFiler filer) throws IOException {
-                byte[] bytes = new byte[size * 4];
-                FilerIO.read(filer, bytes);
-                assertEquals(bytes[0], 1);
-                assertEquals(bytes[bytes.length - 1], 1);
-                return null;
+            public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
+                synchronized (lock) {
+                    byte[] bytes = new byte[size * 4];
+                    FilerIO.read(filer, bytes);
+                    assertEquals(bytes[0], 1);
+                    assertEquals(bytes[bytes.length - 1], 1);
+                    return null;
+                }
             }
         });
     }
@@ -203,7 +216,8 @@ public class ChunkStoreTest {
     public void testAddRemove() throws Exception {
         File dir = Files.createTempDirectory("testAddRemove").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
-        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", 1024, locksProvider);
+        HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", 1024, byteBufferFactory, locksProvider);
 
         List<Long> fps1 = new ArrayList<>();
         for (int i = 0; i < 2; i++) {

@@ -26,5 +26,5 @@ import java.io.IOException;
  */
 public interface TxStream<K, M, F> {
 
-    boolean stream(K key, M monkey, F filer) throws IOException;
+    boolean stream(K key, M monkey, F filer, Object lock) throws IOException;
 }

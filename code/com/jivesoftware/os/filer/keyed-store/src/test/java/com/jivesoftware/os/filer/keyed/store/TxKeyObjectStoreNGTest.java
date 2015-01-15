@@ -17,6 +17,7 @@ package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
+import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.PartitionFunction;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.io.primative.LongKeyMarshaller;
@@ -43,8 +44,9 @@ public class TxKeyObjectStoreNGTest {
     public void init() throws Exception {
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, locksProvider);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, locksProvider);
+        HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, locksProvider);
 
         store = new TxPartitionedKeyObjectStore<>(
             new PartitionFunction<Long>() {

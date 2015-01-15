@@ -10,7 +10,6 @@ package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
-import com.jivesoftware.os.filer.chunk.store.FPStripingLocksProvider;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
@@ -46,9 +45,10 @@ public class TxKeyedFilerStoreNGTest {
 
         ByteBufferFactory bbf = new HeapByteBufferFactory();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, locksProvider);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, locksProvider);
-        final ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
+        HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, byteBufferFactory, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, byteBufferFactory, locksProvider);
+        final ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
 
         int numThread = 24;
         ConcurrentHashMap<Long, TxKeyedFilerStore> namedStores = new ConcurrentHashMap<>();
@@ -81,7 +81,7 @@ public class TxKeyedFilerStoreNGTest {
         TxKeyedFilerStore get(long name) {
             TxKeyedFilerStore got = namedStores.get(name);
             if (got == null) {
-                got = new TxKeyedFilerStore(chunkStores, FilerIO.longBytes(name), new FPStripingLocksProvider(1024));
+                got = new TxKeyedFilerStore(chunkStores, FilerIO.longBytes(name));
                 TxKeyedFilerStore had = namedStores.putIfAbsent(name, got);
                 if (had != null) {
                     got = had;
@@ -161,11 +161,12 @@ public class TxKeyedFilerStoreNGTest {
     public void keyedStoreTest() throws Exception {
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, locksProvider);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, locksProvider);
-        ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
+        HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, locksProvider);
+        ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
 
-        TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores, "booya".getBytes(), new FPStripingLocksProvider(1024));
+        TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores, "booya".getBytes());
 
         int newFilerInitialCapacity = 512;
 
@@ -194,11 +195,12 @@ public class TxKeyedFilerStoreNGTest {
     public void rewriteTest() throws Exception {
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, locksProvider);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, locksProvider);
-        ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
+        HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, locksProvider);
+        ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
 
-        TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores, "booya".getBytes(), new FPStripingLocksProvider(1024));
+        TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores, "booya".getBytes());
 
         int newFilerInitialCapacity = 512;
 
@@ -224,7 +226,7 @@ public class TxKeyedFilerStoreNGTest {
             }
         });
 
-        store = new TxKeyedFilerStore(chunkStores, "booya".getBytes(), new FPStripingLocksProvider(1024));
+        store = new TxKeyedFilerStore(chunkStores, "booya".getBytes());
 
         store.execute(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
             @Override

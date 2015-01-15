@@ -58,8 +58,8 @@ public class PowerKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<Intege
         backingChunkStore.execute(backingFP, null, new ChunkTransaction<PowerKeyedFPIndex, Void>() {
 
             @Override
-            public Void commit(PowerKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                synchronized (monkey) {
+            public Void commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
+                synchronized (lock) {
                     filer.seek(8 + (8 * key));
                     FilerIO.writeLong(filer, fp, "fp");
                 }

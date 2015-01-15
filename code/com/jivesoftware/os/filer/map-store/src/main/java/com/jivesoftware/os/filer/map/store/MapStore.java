@@ -609,11 +609,17 @@ public class MapStore {
         return Math.abs(hash);
     }
 
-    public boolean stream(final Filer filer, final MapContext context, EntryStream stream) throws IOException {
+    public boolean stream(final Filer filer, final MapContext context, final Object lock, EntryStream stream) throws IOException {
         for (int index = 0; index < context.capacity; index++) {
-            byte[] key = getKeyAtIndex(filer, context, index);
-            if (key != null) {
-                byte[] payload = getPayloadAtIndex(filer, context, index);
+            byte[] key;
+            byte[] payload = null;
+            synchronized (lock) {
+                key = getKeyAtIndex(filer, context, index);
+                if (key != null) {
+                    payload = getPayloadAtIndex(filer, context, index);
+                }
+            }
+            if (payload != null) {
                 if (!stream.stream(new Entry(key, payload, index))) {
                     return false;
                 }
@@ -622,9 +628,12 @@ public class MapStore {
         return true;
     }
 
-    public boolean streamKeys(final Filer filer, final MapContext context, KeyStream stream) throws IOException {
+    public boolean streamKeys(final Filer filer, final MapContext context, final Object lock, KeyStream stream) throws IOException {
         for (int index = 0; index < context.capacity; index++) {
-            byte[] key = getKeyAtIndex(filer, context, index);
+            byte[] key;
+            synchronized (lock) {
+                key = getKeyAtIndex(filer, context, index);
+            }
             if (key != null) {
                 if (!stream.stream(key)) {
                     return false;

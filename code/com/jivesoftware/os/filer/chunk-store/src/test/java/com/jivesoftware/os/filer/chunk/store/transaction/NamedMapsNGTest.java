@@ -23,6 +23,7 @@ import com.jivesoftware.os.filer.chunk.store.RewriteChunkTransaction;
 import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.FilerLock;
+import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.NoOpCreateFiler;
 import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
@@ -46,9 +47,10 @@ public class NamedMapsNGTest {
     public void testVariableMapNameSizesCommit() throws Exception {
 
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
+        HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, locksProvider);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, locksProvider);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, locksProvider);
 
         TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[] {
             new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
@@ -68,7 +70,7 @@ public class NamedMapsNGTest {
                 namedMap.read(mapName, mapName, new ChunkTransaction<MapContext, Void>() {
 
                     @Override
-                    public Void commit(MapContext monkey, ChunkFiler filer) throws IOException {
+                    public Void commit(MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
                         Assert.assertNull(monkey);
                         Assert.assertNull(filer);
                         nulls.addAndGet(1);
@@ -91,12 +93,14 @@ public class NamedMapsNGTest {
                     namedMap.write(mapName, mapName, new ChunkTransaction<MapContext, Void>() {
 
                         @Override
-                        public Void commit(MapContext monkey, ChunkFiler filer) throws IOException {
-                            byte[] key = new byte[1 + rand.nextInt(3)];
-                            rand.nextBytes(key);
-                            key[0] = (byte) ai;
-                            MapStore.INSTANCE.add(filer, monkey, (byte) 1, key, FilerIO.longBytes(rand.nextLong()));
-                            return null;
+                        public Void commit(MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
+                            synchronized (lock) {
+                                byte[] key = new byte[1 + rand.nextInt(3)];
+                                rand.nextBytes(key);
+                                key[0] = (byte) ai;
+                                MapStore.INSTANCE.add(filer, monkey, (byte) 1, key, FilerIO.longBytes(rand.nextLong()));
+                                return null;
+                            }
                         }
                     });
                 }
@@ -114,7 +118,7 @@ public class NamedMapsNGTest {
                 namedMap.read(mapName, mapName, new ChunkTransaction<MapContext, Void>() {
 
                     @Override
-                    public Void commit(MapContext monkey, ChunkFiler filer) throws IOException {
+                    public Void commit(MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
                         Assert.assertNull(monkey);
                         Assert.assertNull(filer);
                         nulls.addAndGet(1);
@@ -137,16 +141,18 @@ public class NamedMapsNGTest {
                     namedMap.read(mapName, mapName, new ChunkTransaction<MapContext, Void>() {
 
                         @Override
-                        public Void commit(MapContext monkey, ChunkFiler filer) throws IOException {
-                            byte[] key = new byte[1 + rand.nextInt(3)];
-                            rand.nextBytes(key);
-                            key[0] = (byte) ai;
+                        public Void commit(MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
+                            synchronized (lock) {
+                                byte[] key = new byte[1 + rand.nextInt(3)];
+                                rand.nextBytes(key);
+                                key[0] = (byte) ai;
 
-                            long expected = rand.nextLong();
-                            byte[] got = MapStore.INSTANCE.getPayload(filer, monkey, key);
-                            Assert.assertNotNull(got);
-                            Assert.assertEquals(FilerIO.bytesLong(got), expected);
-                            return null;
+                                long expected = rand.nextLong();
+                                byte[] got = MapStore.INSTANCE.getPayload(filer, monkey, key);
+                                Assert.assertNotNull(got);
+                                Assert.assertEquals(FilerIO.bytesLong(got), expected);
+                                return null;
+                            }
                         }
                     });
                 }
@@ -158,9 +164,10 @@ public class NamedMapsNGTest {
     @Test
     public void testVariableNamedMapOfFilers() throws Exception {
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
+        HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
         File dir = Files.createTempDirectory("testVariableNamedMapOfFilers").toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, locksProvider);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, locksProvider);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, locksProvider);
 
         TxPartitionedNamedMapOfFiler<FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE,
             (TxNamedMapOfFiler<FilerLock>[]) new TxNamedMapOfFiler[] {
@@ -188,9 +195,11 @@ public class NamedMapsNGTest {
                     namedMapOfFilers.overwrite(mapName, mapName, filerName, 8L, new ChunkTransaction<FilerLock, Void>() {
 
                         @Override
-                        public Void commit(FilerLock monkey, ChunkFiler filer) throws IOException {
-                            FilerIO.writeLong(filer, rand.nextLong(), "value");
-                            return null;
+                        public Void commit(FilerLock monkey, ChunkFiler filer, Object lock) throws IOException {
+                            synchronized (lock) {
+                                FilerIO.writeLong(filer, rand.nextLong(), "value");
+                                return null;
+                            }
                         }
                     });
                 }
@@ -210,11 +219,13 @@ public class NamedMapsNGTest {
                 namedMapOfFilers.read(mapName, mapName, filerName, new ChunkTransaction<FilerLock, Void>() {
 
                     @Override
-                    public Void commit(FilerLock monkey, ChunkFiler filer) throws IOException {
-                        Assert.assertNotNull(filer);
-                        long expected = readRandom.nextLong();
-                        Assert.assertEquals(FilerIO.readLong(filer, "value"), expected);
-                        return null;
+                    public Void commit(FilerLock monkey, ChunkFiler filer, Object lock) throws IOException {
+                        synchronized (lock) {
+                            Assert.assertNotNull(filer);
+                            long expected = readRandom.nextLong();
+                            Assert.assertEquals(FilerIO.readLong(filer, "value"), expected);
+                            return null;
+                        }
                     }
                 });
             }
@@ -224,9 +235,10 @@ public class NamedMapsNGTest {
     @Test
     public void testCommit() throws Exception {
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
+        HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
         File dir = Files.createTempDirectory("testCommit").toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, locksProvider);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, locksProvider);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, locksProvider);
 
         TxPartitionedNamedMapOfFiler<FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE,
             (TxNamedMapOfFiler<FilerLock>[]) new TxNamedMapOfFiler[] {
@@ -252,10 +264,12 @@ public class NamedMapsNGTest {
                 namedMap.write(FilerIO.intBytes(c), "map1".getBytes(), new ChunkTransaction<MapContext, Void>() {
 
                     @Override
-                    public Void commit(MapContext monkey, ChunkFiler filer) throws IOException {
-                        MapStore.INSTANCE.add(filer, monkey, (byte) 1, String.valueOf(key)
-                            .getBytes(), FilerIO.longBytes(key));
-                        return null;
+                    public Void commit(MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
+                        synchronized (lock) {
+                            MapStore.INSTANCE.add(filer, monkey, (byte) 1, String.valueOf(key)
+                                .getBytes(), FilerIO.longBytes(key));
+                            return null;
+                        }
                     }
                 });
 
@@ -263,10 +277,12 @@ public class NamedMapsNGTest {
                     new ChunkTransaction<FilerLock, ChunkFiler>() {
 
                         @Override
-                        public ChunkFiler commit(FilerLock monkey, ChunkFiler filer) throws IOException {
-                            FilerIO.writeLong(filer, key, "value");
-                            //System.out.println("Overwrite:" + key + " " + filer.getChunkFP());
-                            return null;
+                        public ChunkFiler commit(FilerLock monkey, ChunkFiler filer, Object lock) throws IOException {
+                            synchronized (lock) {
+                                FilerIO.writeLong(filer, key, "value");
+                                //System.out.println("Overwrite:" + key + " " + filer.getChunkFP());
+                                return null;
+                            }
                         }
                     });
 
@@ -274,15 +290,25 @@ public class NamedMapsNGTest {
                     new RewriteChunkTransaction<FilerLock, ChunkFiler>() {
 
                         @Override
-                        public ChunkFiler commit(FilerLock oldMonkey, ChunkFiler oldFiler, FilerLock newMonkey, ChunkFiler newFiler) throws IOException {
-                            long oldValue = 0;
-                            if (oldFiler != null) {
-                                oldValue = FilerIO.readLong(oldFiler, "value");
-                                //System.out.println("Old value:" + oldValue);
+                        public ChunkFiler commit(FilerLock oldMonkey,
+                            ChunkFiler oldFiler,
+                            FilerLock newMonkey,
+                            ChunkFiler newFiler,
+                            Object oldLock,
+                            Object newLock) throws IOException {
+
+                            synchronized (oldLock) {
+                                synchronized (newLock) {
+                                    long oldValue = 0;
+                                    if (oldFiler != null) {
+                                        oldValue = FilerIO.readLong(oldFiler, "value");
+                                        //System.out.println("Old value:" + oldValue);
+                                    }
+                                    FilerIO.writeLong(newFiler, oldValue + key, "value");
+                                    //System.out.println("Rewrite:" + (oldValue + key) + " " + newFiler.getChunkFP());
+                                    return null;
+                                }
                             }
-                            FilerIO.writeLong(newFiler, oldValue + key, "value");
-                            //System.out.println("Rewrite:" + (oldValue + key) + " " + newFiler.getChunkFP());
-                            return null;
                         }
                     });
 
@@ -297,44 +323,50 @@ public class NamedMapsNGTest {
                 namedMap.read(FilerIO.intBytes(c), "map1".getBytes(), new ChunkTransaction<MapContext, Void>() {
 
                     @Override
-                    public Void commit(MapContext monkey, ChunkFiler filer) throws IOException {
-                        long i = MapStore.INSTANCE.get(filer, monkey, String.valueOf(key)
-                            .getBytes());
-                        long value = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey, i));
-                        //System.out.println("expected:" + key + " got:" + value + " from " + context.filer.getChunkFP());
-                        if (value != key) {
-                            //System.out.println("mapRead FAILED. " + value + " vs " + key);
-                            failed.set(true);
+                    public Void commit(MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
+                        synchronized (lock) {
+                            long i = MapStore.INSTANCE.get(filer, monkey, String.valueOf(key)
+                                .getBytes());
+                            long value = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey, i));
+                            //System.out.println("expected:" + key + " got:" + value + " from " + context.filer.getChunkFP());
+                            if (value != key) {
+                                //System.out.println("mapRead FAILED. " + value + " vs " + key);
+                                failed.set(true);
+                            }
+                            return null;
                         }
-                        return null;
                     }
                 });
 
                 namedMapOfFilers.read(FilerIO.intBytes(c), "filer1".getBytes(), (c + "overwrite").getBytes(), new ChunkTransaction<FilerLock, ChunkFiler>() {
 
                     @Override
-                    public ChunkFiler commit(FilerLock monkey, ChunkFiler filer) throws IOException {
-                        long v = FilerIO.readLong(filer, "value");
-                        //System.out.println("OR:" + v);
-                        if (v != addCount - 1) {
-                            //System.out.println("filerReadOverwrite FAILED. " + v + " vs " + (addCount - 1));
-                            failed.set(true);
+                    public ChunkFiler commit(FilerLock monkey, ChunkFiler filer, Object lock) throws IOException {
+                        synchronized (lock) {
+                            long v = FilerIO.readLong(filer, "value");
+                            //System.out.println("OR:" + v);
+                            if (v != addCount - 1) {
+                                //System.out.println("filerReadOverwrite FAILED. " + v + " vs " + (addCount - 1));
+                                failed.set(true);
+                            }
+                            return null;
                         }
-                        return null;
                     }
                 });
 
                 namedMapOfFilers.read(FilerIO.intBytes(c), "filer2".getBytes(), (c + "rewrite").getBytes(), new ChunkTransaction<FilerLock, ChunkFiler>() {
 
                     @Override
-                    public ChunkFiler commit(FilerLock monkey, ChunkFiler filer) throws IOException {
-                        long v = FilerIO.readLong(filer, "value");
-                        //System.out.println("RR:" + v + " from " + filer.getChunkFP());
-                        if (v != expectedAccum) {
-                            //System.out.println("filerReadRewrite FAILED. " + v + " vs " + expectedAccum);
-                            failed.set(true);
+                    public ChunkFiler commit(FilerLock monkey, ChunkFiler filer, Object lock) throws IOException {
+                        synchronized (lock) {
+                            long v = FilerIO.readLong(filer, "value");
+                            //System.out.println("RR:" + v + " from " + filer.getChunkFP());
+                            if (v != expectedAccum) {
+                                //System.out.println("filerReadRewrite FAILED. " + v + " vs " + expectedAccum);
+                                failed.set(true);
+                            }
+                            return null;
                         }
-                        return null;
                     }
 
                 });
@@ -344,8 +376,8 @@ public class NamedMapsNGTest {
 
         }
 
-        chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, locksProvider);
-        chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, locksProvider);
+        chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, locksProvider);
+        chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, locksProvider);
 
         namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE,
             (TxNamedMapOfFiler<FilerLock>[]) new TxNamedMapOfFiler[] {
@@ -373,44 +405,50 @@ public class NamedMapsNGTest {
                 namedMap.read(FilerIO.intBytes(c), "map1".getBytes(), new ChunkTransaction<MapContext, Void>() {
 
                     @Override
-                    public Void commit(MapContext monkey, ChunkFiler filer) throws IOException {
-                        long i = MapStore.INSTANCE.get(filer, monkey, String.valueOf(key)
-                            .getBytes());
-                        long value = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey, i));
-                        //System.out.println("expected:" + key + " got:" + value + " from " + context.filer.getChunkFP());
-                        if (value != key) {
-                            //System.out.println("on re-open mapRead FAILED. " + value + " vs " + key);
-                            failed.set(true);
+                    public Void commit(MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
+                        synchronized (lock) {
+                            long i = MapStore.INSTANCE.get(filer, monkey, String.valueOf(key)
+                                .getBytes());
+                            long value = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey, i));
+                            //System.out.println("expected:" + key + " got:" + value + " from " + context.filer.getChunkFP());
+                            if (value != key) {
+                                //System.out.println("on re-open mapRead FAILED. " + value + " vs " + key);
+                                failed.set(true);
+                            }
+                            return null;
                         }
-                        return null;
                     }
                 });
 
                 namedMapOfFilers.read(FilerIO.intBytes(c), "filer1".getBytes(), (c + "overwrite").getBytes(), new ChunkTransaction<FilerLock, ChunkFiler>() {
 
                     @Override
-                    public ChunkFiler commit(FilerLock monkey, ChunkFiler filer) throws IOException {
-                        long v = FilerIO.readLong(filer, "value");
-                        //System.out.println("OR:" + v);
-                        if (v != addCount - 1) {
-                            //System.out.println("filerReadOverwrite FAILED. " + v + " vs " + (addCount - 1));
-                            failed.set(true);
+                    public ChunkFiler commit(FilerLock monkey, ChunkFiler filer, Object lock) throws IOException {
+                        synchronized (lock) {
+                            long v = FilerIO.readLong(filer, "value");
+                            //System.out.println("OR:" + v);
+                            if (v != addCount - 1) {
+                                //System.out.println("filerReadOverwrite FAILED. " + v + " vs " + (addCount - 1));
+                                failed.set(true);
+                            }
+                            return null;
                         }
-                        return null;
                     }
                 });
 
                 namedMapOfFilers.read(FilerIO.intBytes(c), "filer2".getBytes(), (c + "rewrite").getBytes(), new ChunkTransaction<FilerLock, ChunkFiler>() {
 
                     @Override
-                    public ChunkFiler commit(FilerLock monkey, ChunkFiler filer) throws IOException {
-                        long v = FilerIO.readLong(filer, "value");
-                        //System.out.println("RR:" + v + " from " + filer.getChunkFP());
-                        if (v != expectedAccum) {
-                            //System.out.println("filerReadRewrite FAILED. " + v + " vs " + expectedAccum);
-                            failed.set(true);
+                    public ChunkFiler commit(FilerLock monkey, ChunkFiler filer, Object lock) throws IOException {
+                        synchronized (lock) {
+                            long v = FilerIO.readLong(filer, "value");
+                            //System.out.println("RR:" + v + " from " + filer.getChunkFP());
+                            if (v != expectedAccum) {
+                                //System.out.println("filerReadRewrite FAILED. " + v + " vs " + expectedAccum);
+                                failed.set(true);
+                            }
+                            return null;
                         }
-                        return null;
                     }
 
                 });
@@ -422,7 +460,7 @@ public class NamedMapsNGTest {
         namedMapOfFilers.stream("filer2".getBytes(), new TxStream<byte[], FilerLock, ChunkFiler>() {
 
             @Override
-            public boolean stream(byte[] key, FilerLock monkey, ChunkFiler filer) throws IOException {
+            public boolean stream(byte[] key, FilerLock monkey, ChunkFiler filer, Object lock) throws IOException {
                 //System.out.println(new IBA(key) + " " + filer);
                 return true;
             }
@@ -440,8 +478,8 @@ public class NamedMapsNGTest {
         namedMap.stream("map1".getBytes(), new TxStream<byte[], MapContext, ChunkFiler>() {
 
             @Override
-            public boolean stream(byte[] key, MapContext monkey, ChunkFiler filer) throws IOException {
-                MapStore.INSTANCE.streamKeys(filer, monkey, new MapStore.KeyStream() {
+            public boolean stream(byte[] key, MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
+                MapStore.INSTANCE.streamKeys(filer, monkey, lock, new MapStore.KeyStream() {
 
                     @Override
                     public boolean stream(byte[] key) throws IOException {

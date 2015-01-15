@@ -18,15 +18,16 @@ public class ChunkStoreInitializer {
         int directoryOffset,
         String chunkName,
         long initialSize,
+        ByteBufferFactory locksFactory,
         StripingLocksProvider<Long> locksProvider) throws Exception {
 
         FileBackedMemMappedByteBufferFactory factory = new FileBackedMemMappedByteBufferFactory(chunkName, directoryOffset, dirs);
         AutoGrowingByteBufferBackedFiler filer = new AutoGrowingByteBufferBackedFiler(factory, initialSize,
             AutoGrowingByteBufferBackedFiler.MAX_BUFFER_SEGMENT_SIZE);
         if (filer.exists()) {
-            return open(filer, locksProvider);
+            return open(filer, locksFactory, locksProvider);
         } else {
-            return create(filer, locksProvider);
+            return create(filer, locksFactory, locksProvider);
         }
     }
 
@@ -35,22 +36,32 @@ public class ChunkStoreInitializer {
         return new AutoGrowingByteBufferBackedFiler(factory, 1024, AutoGrowingByteBufferBackedFiler.MAX_BUFFER_SEGMENT_SIZE).exists();
     }
 
-    public ChunkStore open(ByteBufferFactory filer, long segmentSize, StripingLocksProvider<Long> locksProvider) throws Exception {
-        return open(new AutoGrowingByteBufferBackedFiler(filer, segmentSize, segmentSize), locksProvider);
+    public ChunkStore open(ByteBufferFactory filer,
+        long segmentSize,
+        ByteBufferFactory locksFactory,
+        StripingLocksProvider<Long> locksProvider) throws Exception {
+        return open(new AutoGrowingByteBufferBackedFiler(filer, segmentSize, segmentSize), locksFactory, locksProvider);
     }
 
-    private ChunkStore open(AutoGrowingByteBufferBackedFiler filer, StripingLocksProvider<Long> locksProvider) throws Exception {
-        ChunkStore chunkStore = new ChunkStore(locksProvider, filer);
+    private ChunkStore open(AutoGrowingByteBufferBackedFiler filer,
+        ByteBufferFactory locksFactory,
+        StripingLocksProvider<Long> locksProvider) throws Exception {
+        ChunkStore chunkStore = new ChunkStore(new ChunkLocks(locksFactory), locksProvider, filer);
         chunkStore.open();
         return chunkStore;
     }
 
-    public ChunkStore create(ByteBufferFactory factory, long segmentSize, StripingLocksProvider<Long> locksProvider) throws Exception {
-        return create(new AutoGrowingByteBufferBackedFiler(factory, segmentSize, segmentSize), locksProvider);
+    public ChunkStore create(ByteBufferFactory factory,
+        long segmentSize,
+        ByteBufferFactory locksFactory,
+        StripingLocksProvider<Long> locksProvider) throws Exception {
+        return create(new AutoGrowingByteBufferBackedFiler(factory, segmentSize, segmentSize), locksFactory, locksProvider);
     }
 
-    private ChunkStore create(AutoGrowingByteBufferBackedFiler filer, StripingLocksProvider<Long> locksProvider) throws Exception {
-        ChunkStore chunkStore = new ChunkStore(locksProvider);
+    private ChunkStore create(AutoGrowingByteBufferBackedFiler filer,
+        ByteBufferFactory locksFactory,
+        StripingLocksProvider<Long> locksProvider) throws Exception {
+        ChunkStore chunkStore = new ChunkStore(new ChunkLocks(locksFactory), locksProvider);
         chunkStore.setup(referenceNumber);
         chunkStore.createAndOpen(filer);
         return chunkStore;

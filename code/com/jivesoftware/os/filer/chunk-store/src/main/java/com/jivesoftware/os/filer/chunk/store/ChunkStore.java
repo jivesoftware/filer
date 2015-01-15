@@ -51,6 +51,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
 
     //private final ConcurrentHashMap<Long, Chunk<?>> openChunks = new ConcurrentHashMap<>();
     private final TwoPhasedChunkCache openChunks = new TwoPhasedChunkCache(new HeapByteBufferFactory(), 5_000); // Consider Direct
+    private final ChunkLocks chunkLocks;
     private final StripingLocksProvider<Long> locksProvider;
 
     private long lengthOfFile = 8 + 8 + (8 * (64 - cMinPower));
@@ -65,7 +66,8 @@ public class ChunkStore implements Copyable<ChunkStore> {
      chunks.setup(100);
      chunks.createAndOpen(_filer);
      */
-    public ChunkStore(StripingLocksProvider<Long> locksProvider) {
+    public ChunkStore(ChunkLocks chunkLocks, StripingLocksProvider<Long> locksProvider) {
+        this.chunkLocks = chunkLocks;
         this.locksProvider = locksProvider;
     }
 
@@ -74,8 +76,8 @@ public class ChunkStore implements Copyable<ChunkStore> {
      ChunkStore chunks = new ChunkStore(locks, filer);
      chunks.open();
      */
-    public ChunkStore(StripingLocksProvider<Long> locksProvider, AutoGrowingByteBufferBackedFiler filer) throws Exception {
-        this(locksProvider);
+    public ChunkStore(ChunkLocks chunkLocks, StripingLocksProvider<Long> locksProvider, AutoGrowingByteBufferBackedFiler filer) throws Exception {
+        this(chunkLocks, locksProvider);
         this.filer = filer;
     }
 
@@ -235,9 +237,6 @@ public class ChunkStore implements Copyable<ChunkStore> {
         ChunkFiler chunkFiler = new ChunkFiler(this, filer.duplicate(startOfFP, endOfFP), _chunkFP, startOfFP, endOfFP);
         chunkFiler.seek(0);
         M monkey = createFiler.create(hint, chunkFiler);
-        if (monkey == null) {
-            throw new IllegalStateException("Monkey cannot be null");
-        }
         openChunks.set(_chunkFP, startOfFP, endOfFP, monkey);
         return chunkFP;
     }
@@ -325,7 +324,12 @@ public class ChunkStore implements Copyable<ChunkStore> {
         }
 
         chunkFiler.seek(0);
-        return chunkTransaction.commit(chunk.monkey, chunkFiler);
+        Object lock = chunkLocks.acquire(chunkFP);
+        try {
+            return chunkTransaction.commit(chunk.monkey, chunkFiler, lock);
+        } finally {
+            chunkLocks.release(chunkFP);
+        }
     }
 
     public void remove(final long _chunkFP) throws IOException {

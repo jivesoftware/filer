@@ -21,7 +21,6 @@ import com.jivesoftware.os.filer.map.store.MapStore;
 import java.io.IOException;
 
 /**
- *
  * @author jonathan.colt
  */
 public class MapBackedKeyedFPIndexGrower implements GrowFiler<Integer, MapBackedKeyedFPIndex, ChunkFiler> {
@@ -33,8 +32,8 @@ public class MapBackedKeyedFPIndexGrower implements GrowFiler<Integer, MapBacked
     }
 
     @Override
-    public Integer acquire(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-        synchronized (monkey) {
+    public Integer acquire(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
+        synchronized (lock) {
             if (MapStore.INSTANCE.acquire(monkey.getMapContext(), alwaysRoomForNMoreKeys)) {
                 // there is definitely room for N more
                 return null;
@@ -46,11 +45,15 @@ public class MapBackedKeyedFPIndexGrower implements GrowFiler<Integer, MapBacked
     }
 
     @Override
-    public void growAndAcquire(MapBackedKeyedFPIndex currentMonkey, ChunkFiler currentFiler, MapBackedKeyedFPIndex newMonkey, ChunkFiler newFiler)
-        throws IOException {
+    public void growAndAcquire(MapBackedKeyedFPIndex currentMonkey,
+        ChunkFiler currentFiler,
+        MapBackedKeyedFPIndex newMonkey,
+        ChunkFiler newFiler,
+        Object currentLock,
+        Object newLock) throws IOException {
 
-        synchronized (currentMonkey) {
-            synchronized (newMonkey) {
+        synchronized (currentLock) {
+            synchronized (newLock) {
                 if (MapStore.INSTANCE.acquire(newMonkey.getMapContext(), alwaysRoomForNMoreKeys)) {
                     MapStore.INSTANCE.copyTo(currentFiler, currentMonkey.getMapContext(), newFiler, newMonkey.getMapContext(), null);
                 } else {
@@ -61,8 +64,8 @@ public class MapBackedKeyedFPIndexGrower implements GrowFiler<Integer, MapBacked
     }
 
     @Override
-    public void release(MapBackedKeyedFPIndex monkey) {
-        synchronized (monkey) {
+    public void release(MapBackedKeyedFPIndex monkey, Object lock) {
+        synchronized (lock) {
             MapStore.INSTANCE.release(monkey.getMapContext(), alwaysRoomForNMoreKeys);
         }
     }

@@ -58,8 +58,8 @@ public class TxKeyValueStoreNGTest {
         //ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8, locksProvider);
 
         ByteBufferFactory bbf = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, locksProvider);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, locksProvider);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, bbf, locksProvider);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, bbf, locksProvider);
         ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
 
         store1 = new TxKeyValueStore<>(chunkStores, new LongLongKeyValueMarshaller(), "booya1".getBytes(), 8, false, 8, false);

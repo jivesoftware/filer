@@ -63,8 +63,8 @@ public class MapBackedKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<by
         return backingChunkStore.execute(backingFP, opener, new ChunkTransaction<MapBackedKeyedFPIndex, Long>() {
 
             @Override
-            public Long commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                synchronized (monkey) {
+            public Long commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
+                synchronized (lock) {
                     long ai = MapStore.INSTANCE.get(filer, monkey.mapContext, key);
                     if (ai < 0) {
                         return -1L;
@@ -80,8 +80,8 @@ public class MapBackedKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<by
         backingChunkStore.execute(backingFP, opener, new ChunkTransaction<MapBackedKeyedFPIndex, Void>() {
 
             @Override
-            public Void commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                synchronized (monkey) {
+            public Void commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
+                synchronized (lock) {
                     MapStore.INSTANCE.add(filer, monkey.mapContext, (byte) 1, key, FilerIO.longBytes(fp));
                 }
                 return null;
@@ -112,10 +112,8 @@ public class MapBackedKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<by
         return backingChunkStore.execute(backingFP, null, new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
 
             @Override
-            public Boolean commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer) throws IOException {
-                synchronized (monkey) {
-                    return MapStore.INSTANCE.streamKeys(filer, monkey.mapContext, mapKeyStream);
-                }
+            public Boolean commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
+                return MapStore.INSTANCE.streamKeys(filer, monkey.mapContext, lock, mapKeyStream);
             }
         });
     }

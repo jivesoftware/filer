@@ -32,10 +32,9 @@ import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
 import java.io.IOException;
 
 /**
- *
- * @author jonathan.colt
  * @param <K>
  * @param <V>
+ * @author jonathan.colt
  */
 public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
 
@@ -86,8 +85,8 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
 
         GrowFiler<Integer, MapContext, ChunkFiler> grower = new GrowFiler<Integer, MapContext, ChunkFiler>() {
             @Override
-            public Integer acquire(MapContext monkey, ChunkFiler filer) throws IOException {
-                synchronized (monkey) {
+            public Integer acquire(MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
+                synchronized (lock) {
                     if (MapStore.INSTANCE.acquire(monkey, 1)) {
                         return null;
                     } else {
@@ -97,9 +96,15 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
             }
 
             @Override
-            public void growAndAcquire(MapContext currentMonkey, ChunkFiler currentFiler, MapContext newMonkey, ChunkFiler newFiler) throws IOException {
-                synchronized (currentMonkey) {
-                    synchronized (newMonkey) {
+            public void growAndAcquire(MapContext currentMonkey,
+                ChunkFiler currentFiler,
+                MapContext newMonkey,
+                ChunkFiler newFiler,
+                Object currentLock,
+                Object newLock) throws IOException {
+
+                synchronized (currentLock) {
+                    synchronized (newLock) {
                         final Object[] newValues = new Object[newMonkey.capacity];
                         MapStore.INSTANCE.copyTo(currentFiler, currentMonkey, newFiler, newMonkey, new MapStore.CopyToStream() {
                             @Override
@@ -114,8 +119,8 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
             }
 
             @Override
-            public void release(MapContext monkey) {
-                synchronized (monkey) {
+            public void release(MapContext monkey, Object lock) {
+                synchronized (lock) {
                     MapStore.INSTANCE.release(monkey, 1);
                 }
             }
@@ -134,12 +139,12 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
             return namedMap.write(mapName, new ChunkTransaction<MapContext, R>() {
 
                 @Override
-                public R commit(final MapContext monkey, final ChunkFiler filer) throws IOException {
+                public R commit(final MapContext monkey, final ChunkFiler filer, final Object lock) throws IOException {
                     return keyValueTransaction.commit(new KeyValueContext<V>() {
 
                         @Override
                         public void set(V value) throws IOException {
-                            synchronized (monkey) {
+                            synchronized (lock) {
                                 int ai = MapStore.INSTANCE.add(filer, monkey, (byte) 1, keyBytes, EMPTY_PAYLOAD);
                                 values[ai] = value;
                             }
@@ -147,7 +152,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
 
                         @Override
                         public void remove() throws IOException {
-                            synchronized (monkey) {
+                            synchronized (lock) {
                                 int ai = MapStore.INSTANCE.remove(filer, monkey, keyBytes);
                                 values[ai] = null;
                             }
@@ -156,7 +161,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
                         @Override
                         @SuppressWarnings("unchecked")
                         public V get() throws IOException {
-                            synchronized (monkey) {
+                            synchronized (lock) {
                                 long ai = MapStore.INSTANCE.get(filer, monkey, keyBytes);
                                 if (ai > -1) {
                                     return (V) values[(int) ai];
@@ -171,7 +176,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
             return namedMap.read(mapName, new ChunkTransaction<MapContext, R>() {
 
                 @Override
-                public R commit(final MapContext monkey, final ChunkFiler filer) throws IOException {
+                public R commit(final MapContext monkey, final ChunkFiler filer, final Object lock) throws IOException {
                     return keyValueTransaction.commit(new KeyValueContext<V>() {
 
                         @Override
@@ -182,7 +187,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
                         @Override
                         public void remove() throws IOException {
                             if (monkey != null && filer != null) {
-                                synchronized (monkey) {
+                                synchronized (lock) {
                                     int ai = MapStore.INSTANCE.remove(filer, monkey, keyBytes);
                                     if (ai > -1) {
                                         values[ai] = null;
@@ -195,7 +200,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
                         @SuppressWarnings("unchecked")
                         public V get() throws IOException {
                             if (monkey != null && filer != null) {
-                                synchronized (monkey) {
+                                synchronized (lock) {
                                     long ai = MapStore.INSTANCE.get(filer, monkey, keyBytes);
                                     if (ai > -1) {
                                         return (V) values[(int) ai];
@@ -216,8 +221,8 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
         return namedMap.stream(mapName, new TxStream<byte[], MapContext, ChunkFiler>() {
 
             @Override
-            public boolean stream(byte[] key, MapContext monkey, ChunkFiler filer) throws IOException {
-                return MapStore.INSTANCE.stream(filer, monkey, new MapStore.EntryStream() {
+            public boolean stream(byte[] key, MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
+                return MapStore.INSTANCE.stream(filer, monkey, lock, new MapStore.EntryStream() {
 
                     @Override
                     public boolean stream(MapStore.Entry entry) throws IOException {
@@ -235,11 +240,11 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
         return namedMap.stream(mapName, new TxStream<byte[], MapContext, ChunkFiler>() {
 
             @Override
-            public boolean stream(byte[] key, MapContext monkey, ChunkFiler filer) throws IOException {
+            public boolean stream(byte[] key, MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
                 if (monkey == null || filer == null) {
                     return true;
                 }
-                return MapStore.INSTANCE.streamKeys(filer, monkey, new MapStore.KeyStream() {
+                return MapStore.INSTANCE.streamKeys(filer, monkey, lock, new MapStore.KeyStream() {
 
                     @Override
                     public boolean stream(byte[] key) throws IOException {

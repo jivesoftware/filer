@@ -105,8 +105,9 @@ public class MapStoreTest {
             MapStore.INSTANCE.add(filer, context, (byte) 1, new byte[]{(byte) i}, new byte[]{(byte) i});
         }
 
+        Object lock = new Object();
         final Set<Integer> keys = new HashSet<>();
-        MapStore.INSTANCE.streamKeys(filer, context, new MapStore.KeyStream() {
+        MapStore.INSTANCE.streamKeys(filer, context, lock, new MapStore.KeyStream() {
 
             @Override
             public boolean stream(byte[] key) throws IOException {
@@ -116,7 +117,7 @@ public class MapStoreTest {
         });
         Assert.assertEquals(keys.size(), 128);
 
-        MapStore.INSTANCE.stream(filer, context, new MapStore.EntryStream() {
+        MapStore.INSTANCE.stream(filer, context, lock, new MapStore.EntryStream() {
 
             @Override
             public boolean stream(MapStore.Entry entry) throws IOException {
@@ -129,7 +130,7 @@ public class MapStoreTest {
 
         MapContext reopened = MapStore.INSTANCE.open(filer);
 
-        MapStore.INSTANCE.stream(filer, reopened, new MapStore.EntryStream() {
+        MapStore.INSTANCE.stream(filer, reopened, lock, new MapStore.EntryStream() {
 
             @Override
             public boolean stream(MapStore.Entry entry) throws IOException {
@@ -143,7 +144,7 @@ public class MapStoreTest {
         }
 
         final Set<Integer> keysAfterRemove = new HashSet<>();
-        MapStore.INSTANCE.streamKeys(filer, reopened, new MapStore.KeyStream() {
+        MapStore.INSTANCE.streamKeys(filer, reopened, lock, new MapStore.KeyStream() {
 
             @Override
             public boolean stream(byte[] key) throws IOException {

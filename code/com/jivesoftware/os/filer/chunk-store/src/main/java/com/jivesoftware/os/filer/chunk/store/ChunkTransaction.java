@@ -9,5 +9,5 @@ import java.io.IOException;
  */
 public interface ChunkTransaction<M, R> {
 
-    R commit(M monkey, ChunkFiler filer) throws IOException;
+    R commit(M monkey, ChunkFiler filer, Object lock) throws IOException;
 }

@@ -7,8 +7,8 @@ import com.jivesoftware.os.filer.map.store.MapStore;
 import java.io.IOException;
 
 /**
- * @author jonathan.colt
  * @param <M>
+ * @author jonathan.colt
  */
 public class MapGrower<M extends MapContext> implements GrowFiler<Integer, M, ChunkFiler> {
 
@@ -19,8 +19,8 @@ public class MapGrower<M extends MapContext> implements GrowFiler<Integer, M, Ch
     }
 
     @Override
-    public Integer acquire(M monkey, ChunkFiler filer) throws IOException {
-        synchronized (monkey) {
+    public Integer acquire(M monkey, ChunkFiler filer, Object lock) throws IOException {
+        synchronized (lock) {
             if (MapStore.INSTANCE.acquire(monkey, alwaysRoomForNMoreKeys)) {
                 return null;
             } else {
@@ -30,9 +30,15 @@ public class MapGrower<M extends MapContext> implements GrowFiler<Integer, M, Ch
     }
 
     @Override
-    public void growAndAcquire(M currentMonkey, ChunkFiler currentFiler, M newMonkey, ChunkFiler newFiler) throws IOException {
-        synchronized (currentMonkey) {
-            synchronized (newMonkey) {
+    public void growAndAcquire(M currentMonkey,
+        ChunkFiler currentFiler,
+        M newMonkey,
+        ChunkFiler newFiler,
+        Object currentLock,
+        Object newLock) throws IOException {
+
+        synchronized (currentLock) {
+            synchronized (newLock) {
                 if (MapStore.INSTANCE.acquire(newMonkey, alwaysRoomForNMoreKeys)) {
                     MapStore.INSTANCE.copyTo(currentFiler, currentMonkey, newFiler, newMonkey, null);
                 } else {
@@ -43,8 +49,8 @@ public class MapGrower<M extends MapContext> implements GrowFiler<Integer, M, Ch
     }
 
     @Override
-    public void release(M monkey) {
-        synchronized (monkey) {
+    public void release(M monkey, Object lock) {
+        synchronized (lock) {
             MapStore.INSTANCE.release(monkey, alwaysRoomForNMoreKeys);
         }
     }
