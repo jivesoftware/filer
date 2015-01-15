@@ -37,7 +37,8 @@ public class KeyedFPIndexUtil {
     }
 
     public <H, M, K, R> R commit(final BackingFPIndex<K> backingFPIndex,
-        SemaphoreAndCount semaphoreAndCount,
+        final Semaphore semaphore,
+        final int numPermits,
         final ChunkStore chunkStore,
         final Object keyLock,
         final K key,
@@ -47,8 +48,6 @@ public class KeyedFPIndexUtil {
         final GrowFiler<H, M, ChunkFiler> growFiler,
         final ChunkTransaction<M, R> filerTransaction) throws IOException {
 
-        final Semaphore semaphore = semaphoreAndCount.semaphore;
-        final int numPermits = semaphoreAndCount.numPermits;
         long fp;
 
         try {

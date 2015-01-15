@@ -26,6 +26,7 @@ import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.map.store.MapContext;
 import com.jivesoftware.os.filer.map.store.MapStore;
 import java.io.IOException;
+import java.util.concurrent.Semaphore;
 
 /**
  *
@@ -35,8 +36,8 @@ public class MapBackedKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<by
 
     private final ChunkStore backingChunkStore;
     private final long backingFP;
-    private final int numPermit = 64; // TODO expose ?
-    private final SemaphoreAndCount semaphoreAndCount = new SemaphoreAndCount(numPermit);
+    private final int numPermits = 64; // TODO expose ?
+    private final Semaphore semaphore = new Semaphore(numPermits, true);
     private final ByteArrayStripingLocksProvider keyLocks = new ByteArrayStripingLocksProvider(256); // TODO expose?
     private final MapContext mapContext;
 
@@ -90,7 +91,7 @@ public class MapBackedKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<by
         GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction) throws IOException {
         Object keyLock = keyLocks.lock(key);
-        return KeyedFPIndexUtil.INSTANCE.commit(this, semaphoreAndCount, chunkStore, keyLock, key, hint, creator, opener, growFiler, filerTransaction);
+        return KeyedFPIndexUtil.INSTANCE.commit(this, semaphore, numPermits, chunkStore, keyLock, key, hint, creator, opener, growFiler, filerTransaction);
     }
 
     public Boolean stream(final KeysStream<byte[]> keysStream) throws IOException {

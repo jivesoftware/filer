@@ -23,6 +23,7 @@ import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import java.io.IOException;
+import java.util.concurrent.Semaphore;
 
 /**
  * @author jonathan.colt
@@ -31,10 +32,10 @@ public class PowerKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<Intege
 
     private final ChunkStore backingChunkStore;
     private final long backingFP;
-    private final int numPermit = 64; //TODO expose?
+    private final int numPermits = 64; //TODO expose?
 
     private final long[] fpIndex;
-    private final SemaphoreAndCount semaphoreAndCount = new SemaphoreAndCount(numPermit);
+    private final Semaphore semaphore = new Semaphore(numPermits, true);
     private final Object[] keySizeLocks;
 
     PowerKeyedFPIndex(ChunkStore chunkStore, long fp, long[] fpIndex) throws IOException {
@@ -76,7 +77,7 @@ public class PowerKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<Intege
         GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction) throws IOException {
 
-        return KeyedFPIndexUtil.INSTANCE.commit(this, semaphoreAndCount, chunkStore, keySizeLocks[keySize], keySize,
+        return KeyedFPIndexUtil.INSTANCE.commit(this, semaphore, numPermits, chunkStore, keySizeLocks[keySize], keySize,
             hint, creator, opener, growFiler, filerTransaction);
 
     }
