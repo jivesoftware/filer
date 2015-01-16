@@ -27,6 +27,10 @@ public class TwoPhasedChunkCache {
     private static final ChunkMetrics.ChunkMetric EVICTED = ChunkMetrics.get("chunkCache", "evicted");
     private static final ChunkMetrics.ChunkMetric EVICTIONS = ChunkMetrics.get("chunkCache", "evictions");
     private static final ChunkMetrics.ChunkMetric REVIVALS = ChunkMetrics.get("chunkCache", "revivals");
+    private static final ChunkMetrics.ChunkMetric SLOUGHS_ALLOWED = ChunkMetrics.get("chunkCache", "sloughsAllowed");
+    private static final ChunkMetrics.ChunkMetric SLOUGHS_REFUSED = ChunkMetrics.get("chunkCache", "sloughsRefused");
+    private static final ChunkMetrics.ChunkMetric ROLLS_ALLOWED = ChunkMetrics.get("chunkCache", "rollsAllowed");
+    private static final ChunkMetrics.ChunkMetric ROLLS_REFUSED = ChunkMetrics.get("chunkCache", "rollsRefused");
 
     private static final byte[] name = new byte[] { 0 };
 
@@ -49,15 +53,30 @@ public class TwoPhasedChunkCache {
         }
     }
 
+    public void roll() throws IOException {
+        synchronized (this) {
+            if (newCache.approxSize() == 0 && oldCache.approxSize() == 0) {
+                // do nothing
+            } else if (oldCache.isRemovable()) {
+                evictAndAllocate();
+                ROLLS_ALLOWED.inc(1);
+            } else {
+                ROLLS_REFUSED.inc(1);
+            }
+        }
+    }
+
     public <M> Chunk<M> acquire(long chunkFP, final CacheOpener<M> opener) throws IOException {
         boolean revived = false;
         try {
             synchronized (this) {
-                if (newCache.approxSize() > maxNewCacheSize && oldCache.isRemovable()) {
-                    EVICTIONS.inc(1);
-                    EVICTED.inc((int) oldCache.approxSize());
-                    oldCache = newCache;
-                    newCache = new ChunkCache(name, bufferFactory);
+                if (newCache.approxSize() > maxNewCacheSize) {
+                    if (oldCache.isRemovable()) {
+                        evictAndAllocate();
+                        SLOUGHS_ALLOWED.inc(1);
+                    } else {
+                        SLOUGHS_REFUSED.inc(1);
+                    }
                 }
 
                 Chunk<M> chunk = newCache.acquireIfPresent(chunkFP);
@@ -77,6 +96,16 @@ public class TwoPhasedChunkCache {
                 REVIVALS.inc(1);
             }
         }
+    }
+
+    /*
+     * Synchronize externally.
+     */
+    private void evictAndAllocate() throws IOException {
+        EVICTIONS.inc(1);
+        EVICTED.inc((int) oldCache.approxSize());
+        oldCache = newCache;
+        newCache = new ChunkCache(name, bufferFactory);
     }
 
     public boolean contains(long chunkFP) throws IOException {

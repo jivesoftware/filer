@@ -27,8 +27,6 @@ import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.io.IBA;
-import com.jivesoftware.os.filer.io.NoOpCreateFiler;
-import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.io.RewriteFilerTransaction;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import java.io.IOException;
@@ -48,8 +46,7 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
         @SuppressWarnings("unchecked")
         TxNamedMapOfFiler<Void>[] stores = new TxNamedMapOfFiler[chunkStores.length];
         for (int i = 0; i < stores.length; i++) {
-            stores[i] = new TxNamedMapOfFiler<>(chunkStores[i], SKY_HOOK_FP,
-                new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>());
+            stores[i] = new TxNamedMapOfFiler<>(chunkStores[i], SKY_HOOK_FP, TxNamedMapOfFiler.CHUNK_FILER_CREATOR, TxNamedMapOfFiler.CHUNK_FILER_OPENER);
         }
 
         this.name = name;

@@ -22,6 +22,8 @@ import com.jivesoftware.os.filer.chunk.store.RewriteChunkTransaction;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.GrowFiler;
+import com.jivesoftware.os.filer.io.NoOpCreateFiler;
+import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -35,6 +37,9 @@ import static com.jivesoftware.os.filer.chunk.store.transaction.TxPowerConstants
  * @author jonathan.colt
  */
 public class TxNamedMapOfFiler<M> {
+
+    public static final NoOpCreateFiler<ChunkFiler> CHUNK_FILER_CREATOR = new NoOpCreateFiler<>();
+    public static final NoOpOpenFiler<ChunkFiler> CHUNK_FILER_OPENER = new NoOpOpenFiler<>();
 
     private final ChunkStore chunkStore;
     private final long constantFP;

@@ -139,6 +139,10 @@ public class ChunkStore implements Copyable<ChunkStore> {
         }
     }
 
+    public void rollCache() throws IOException {
+        chunkCache.roll();
+    }
+
     public long getReferenceNumber() {
         return referenceNumber;
     }

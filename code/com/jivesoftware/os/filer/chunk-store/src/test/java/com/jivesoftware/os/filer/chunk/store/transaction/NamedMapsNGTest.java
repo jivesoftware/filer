@@ -24,8 +24,6 @@ import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.FilerLock;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
-import com.jivesoftware.os.filer.io.NoOpCreateFiler;
-import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.map.store.MapContext;
 import com.jivesoftware.os.filer.map.store.MapStore;
@@ -172,9 +170,9 @@ public class NamedMapsNGTest {
         TxPartitionedNamedMapOfFiler<FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE,
             (TxNamedMapOfFiler<FilerLock>[]) new TxNamedMapOfFiler[] {
                 new TxNamedMapOfFiler<>(chunkStore1,
-                    464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>()),
+                    464, TxNamedMapOfFiler.CHUNK_FILER_CREATOR, TxNamedMapOfFiler.CHUNK_FILER_OPENER),
                 new TxNamedMapOfFiler<>(chunkStore2,
-                    464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>())
+                    464, TxNamedMapOfFiler.CHUNK_FILER_CREATOR, TxNamedMapOfFiler.CHUNK_FILER_OPENER)
             });
 
         int tries = 128;
@@ -243,9 +241,9 @@ public class NamedMapsNGTest {
         TxPartitionedNamedMapOfFiler<FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE,
             (TxNamedMapOfFiler<FilerLock>[]) new TxNamedMapOfFiler[] {
                 new TxNamedMapOfFiler<>(chunkStore1,
-                    464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>()),
+                    464, TxNamedMapOfFiler.CHUNK_FILER_CREATOR, TxNamedMapOfFiler.CHUNK_FILER_OPENER),
                 new TxNamedMapOfFiler<>(chunkStore2,
-                    464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>())
+                    464, TxNamedMapOfFiler.CHUNK_FILER_CREATOR, TxNamedMapOfFiler.CHUNK_FILER_OPENER)
             });
 
         TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[] {
@@ -382,9 +380,9 @@ public class NamedMapsNGTest {
         namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE,
             (TxNamedMapOfFiler<FilerLock>[]) new TxNamedMapOfFiler[] {
                 new TxNamedMapOfFiler<>(chunkStore1,
-                    464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>()),
+                    464, TxNamedMapOfFiler.CHUNK_FILER_CREATOR, TxNamedMapOfFiler.CHUNK_FILER_OPENER),
                 new TxNamedMapOfFiler<>(chunkStore2,
-                    464, new NoOpCreateFiler<ChunkFiler>(), new NoOpOpenFiler<ChunkFiler>())
+                    464, TxNamedMapOfFiler.CHUNK_FILER_CREATOR, TxNamedMapOfFiler.CHUNK_FILER_OPENER)
             });
 
         namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[] {
