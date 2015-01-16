@@ -90,7 +90,7 @@ public class SkipListSet {
         int spayloadSize = page.chunk.payloadSize;
         // create a new colum for a new key
         byte[] newColumn = newColumn(_payload, page.maxHeight, (byte) -1);
-        int insertsIndex = mapStore.add(filer, page.chunk, (byte) 1, _key, newColumn);
+        int insertsIndex = (int) mapStore.add(filer, page.chunk, (byte) 1, _key, newColumn);
 
         int level = page.maxHeight - 1;
         int ilevel = columnLength(filer, page, insertsIndex);

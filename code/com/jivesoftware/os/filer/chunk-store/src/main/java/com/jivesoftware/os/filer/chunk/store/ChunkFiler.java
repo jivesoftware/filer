@@ -2,7 +2,6 @@ package com.jivesoftware.os.filer.chunk.store;
 
 import com.jivesoftware.os.filer.io.Filer;
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /*
  This class segments a single Filer into segment filers where
@@ -19,7 +18,6 @@ public class ChunkFiler implements Filer {
     private final long chunkFP;
     private final long startOfFP;
     private final long endOfFP;
-    private final AtomicBoolean recycle = new AtomicBoolean();
 
     ChunkFiler(ChunkStore chunkStore, Filer filer, long chunkFP, long startOfFP, long endOfFP) {
         this.chunkStore = chunkStore;
@@ -37,18 +35,8 @@ public class ChunkFiler implements Filer {
         return chunkFP;
     }
 
-    void recycle() {
-        recycle.set(true);
-    }
-
     @Override
     public void close() throws IOException {
-        if (isFileBacked()) {
-            filer.close();
-        }
-        if (recycle.get()) {
-            chunkStore.remove(chunkFP);
-        }
     }
 
     @Override
@@ -57,14 +45,7 @@ public class ChunkFiler implements Filer {
     }
 
     final public long getSize() throws IOException {
-        if (isFileBacked()) {
-            return length();
-        }
         return endOfFP - startOfFP;
-    }
-
-    final public boolean isFileBacked() {
-        return (endOfFP == Long.MAX_VALUE);
     }
 
     final public long startOfFP() {
@@ -144,21 +125,12 @@ public class ChunkFiler implements Filer {
 
     @Override
     final public long length() throws IOException {
-
-        if (isFileBacked()) {
-            return filer.length();
-        }
         return endOfFP - startOfFP;
     }
 
     @Override
     final public void setLength(long len) throws IOException {
-
-        if (isFileBacked()) {
-            filer.setLength(len);
-        } else {
-            throw new IOException("try to modified a fixed length filer");
-        }
+        throw new IOException("try to modified a fixed length filer");
     }
 
     @Override
@@ -173,11 +145,7 @@ public class ChunkFiler implements Filer {
 
     @Override
     final public void eof() throws IOException {
-        if (isFileBacked()) {
-            filer.eof();
-        } else {
-            filer.seek(endOfFP - startOfFP);
-        }
+        filer.seek(endOfFP - startOfFP);
     }
 
     @Override

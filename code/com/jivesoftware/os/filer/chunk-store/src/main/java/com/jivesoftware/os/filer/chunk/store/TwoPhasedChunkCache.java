@@ -15,6 +15,7 @@
  */
 package com.jivesoftware.os.filer.chunk.store;
 
+import com.jivesoftware.os.filer.chunk.store.ChunkCache.CacheOpener;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import java.io.IOException;
 
@@ -42,41 +43,31 @@ public class TwoPhasedChunkCache {
         this.maxNewCacheSize = maxNewCacheSize;
     }
 
-    public <M> void set(long chunkFP, long startOfFP, long endOfFP, M monkey) throws IOException {
+    public <M> void set(long chunkFP, Chunk<M> chunk) throws IOException {
         synchronized (this) {
-            if (newCache.approxSize() > maxNewCacheSize) {
-                EVICTIONS.inc(1);
-                EVICTED.inc((int) oldCache.approxSize());
-                oldCache = newCache;
-                newCache = new ChunkCache(name, bufferFactory);
-            }
-
-            newCache.set(chunkFP, startOfFP, endOfFP, monkey);
-            oldCache.remove(chunkFP);
+            newCache.set(chunkFP, chunk);
         }
     }
 
-    public boolean contains(long chunkFP) throws IOException {
-        synchronized (this) {
-            boolean had = newCache.contains(chunkFP);
-            if (!had) {
-                return oldCache.contains(chunkFP);
-            }
-            return true;
-        }
-    }
-
-    public <M> Chunk<M> get(long chunkFP) throws IOException {
+    public <M> Chunk<M> acquire(long chunkFP, final CacheOpener<M> opener) throws IOException {
         boolean revived = false;
         try {
             synchronized (this) {
-                Chunk<M> chunk = newCache.get(chunkFP);
+                if (newCache.approxSize() > maxNewCacheSize && oldCache.isRemovable()) {
+                    EVICTIONS.inc(1);
+                    EVICTED.inc((int) oldCache.approxSize());
+                    oldCache = newCache;
+                    newCache = new ChunkCache(name, bufferFactory);
+                }
+
+                Chunk<M> chunk = newCache.acquireIfPresent(chunkFP);
                 if (chunk == null) {
-                    chunk = oldCache.get(chunkFP);
+                    chunk = oldCache.remove(chunkFP);
                     if (chunk != null) {
-                        newCache.set(chunkFP, chunk.startOfFP, chunk.endOfFP, chunk.monkey);
-                        oldCache.remove(chunkFP);
+                        chunk = newCache.promoteAndAcquire(chunkFP, chunk);
                         revived = true;
+                    } else {
+                        chunk = newCache.promoteAndAcquire(chunkFP, opener.open(chunkFP));
                     }
                 }
                 return chunk;
@@ -88,10 +79,34 @@ public class TwoPhasedChunkCache {
         }
     }
 
+    public boolean contains(long chunkFP) throws IOException {
+        synchronized (this) {
+            return newCache.contains(chunkFP) || oldCache.contains(chunkFP);
+        }
+    }
+
+    public void release(long chunkFP) throws IOException {
+        synchronized (this) {
+            if (!newCache.release(chunkFP)) {
+                if (!oldCache.release(chunkFP)) {
+                    throw new IllegalStateException("Attempted to release nonexistent chunkFP: " + chunkFP);
+                }
+            }
+        }
+    }
+
     public void remove(long chunkFP) throws IOException {
         synchronized (this) {
-            oldCache.remove(chunkFP);
-            newCache.remove(chunkFP);
+            Chunk<Object> chunk = newCache.remove(chunkFP);
+            if (chunk == null) {
+                chunk = oldCache.remove(chunkFP);
+                if (chunk == null) {
+                    throw new IllegalStateException("Attempted to remove nonexistent chunkFP: " + chunkFP);
+                }
+            }
+            if (chunk.acquisitions > 0) {
+                throw new IllegalStateException("Removed an active chunkFP: " + chunkFP + " acquisitions=" + chunk.acquisitions);
+            }
         }
     }
 }

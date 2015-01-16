@@ -108,8 +108,8 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
                         final Object[] newValues = new Object[newMonkey.capacity];
                         MapStore.INSTANCE.copyTo(currentFiler, currentMonkey, newFiler, newMonkey, new MapStore.CopyToStream() {
                             @Override
-                            public void copied(int fromIndex, int toIndex) {
-                                newValues[toIndex] = values[fromIndex];
+                            public void copied(long fromIndex, long toIndex) {
+                                newValues[(int) toIndex] = values[(int) fromIndex];
                             }
                         });
                         values = newValues;
@@ -145,16 +145,16 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
                         @Override
                         public void set(V value) throws IOException {
                             synchronized (lock) {
-                                int ai = MapStore.INSTANCE.add(filer, monkey, (byte) 1, keyBytes, EMPTY_PAYLOAD);
-                                values[ai] = value;
+                                long ai = MapStore.INSTANCE.add(filer, monkey, (byte) 1, keyBytes, EMPTY_PAYLOAD);
+                                values[(int) ai] = value;
                             }
                         }
 
                         @Override
                         public void remove() throws IOException {
                             synchronized (lock) {
-                                int ai = MapStore.INSTANCE.remove(filer, monkey, keyBytes);
-                                values[ai] = null;
+                                long ai = MapStore.INSTANCE.remove(filer, monkey, keyBytes);
+                                values[(int) ai] = null;
                             }
                         }
 
@@ -188,9 +188,9 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
                         public void remove() throws IOException {
                             if (monkey != null && filer != null) {
                                 synchronized (lock) {
-                                    int ai = MapStore.INSTANCE.remove(filer, monkey, keyBytes);
+                                    long ai = MapStore.INSTANCE.remove(filer, monkey, keyBytes);
                                     if (ai > -1) {
-                                        values[ai] = null;
+                                        values[(int) ai] = null;
                                     }
                                 }
                             }

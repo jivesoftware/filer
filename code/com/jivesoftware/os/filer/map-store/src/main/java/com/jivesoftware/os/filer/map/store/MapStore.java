@@ -256,19 +256,19 @@ public class MapStore {
         return cHeaderSize + (1 + entrySize) * _arrayIndex;
     }
 
-    public int add(Filer filer, MapContext context, byte mode, byte[] key, byte[] payload) throws IOException {
+    public long add(Filer filer, MapContext context, byte mode, byte[] key, byte[] payload) throws IOException {
         return add(filer, context, mode, key, 0, payload, 0);
     }
 
-    public int add(Filer filer, MapContext context, byte mode, long keyHash, byte[] key, byte[] payload) throws IOException {
+    public long add(Filer filer, MapContext context, byte mode, long keyHash, byte[] key, byte[] payload) throws IOException {
         return add(filer, context, mode, keyHash, key, 0, payload, 0);
     }
 
-    public int add(Filer filer, MapContext context, byte mode, byte[] key, int keyOffset, byte[] payload, int _payloadOffset) throws IOException {
+    public long add(Filer filer, MapContext context, byte mode, byte[] key, int keyOffset, byte[] payload, int _payloadOffset) throws IOException {
         return add(filer, context, mode, hash(key, keyOffset, key.length), key, keyOffset, payload, _payloadOffset);
     }
 
-    public int add(Filer filer, MapContext context, byte mode, long keyHash, byte[] key, int keyOffset, byte[] payload, int _payloadOffset)
+    public long add(Filer filer, MapContext context, byte mode, long keyHash, byte[] key, int keyOffset, byte[] payload, int _payloadOffset)
         throws IOException {
         int capacity = context.capacity;
         int keySize = context.keySize;
@@ -287,12 +287,12 @@ public class MapStore {
                 write(filer, (int) (ai + 1), context.keyLengthSize, key, keySize, keyOffset);
                 write(filer, (int) (ai + 1 + context.keyLengthSize + keySize), context.payloadLengthSize, payload, payloadSize, _payloadOffset);
                 setCount(context, filer, context.count + 1);
-                return (int) i;
+                return i;
             }
             if (equals(filer, ai, context.keyLengthSize, key.length, key, keyOffset)) {
                 write(filer, (int) ai, mode);
                 write(filer, (int) (ai + 1 + context.keyLengthSize + keySize), context.payloadLengthSize, payload, payloadSize, _payloadOffset);
-                return (int) i;
+                return i;
             }
         }
         return -1;
@@ -444,19 +444,19 @@ public class MapStore {
         return p;
     }
 
-    public int remove(Filer filer, MapContext context, byte[] key) throws IOException {
+    public long remove(Filer filer, MapContext context, byte[] key) throws IOException {
         return remove(filer, context, key, 0);
     }
 
-    public int remove(Filer filer, MapContext context, long keyHash, byte[] key) throws IOException {
+    public long remove(Filer filer, MapContext context, long keyHash, byte[] key) throws IOException {
         return remove(filer, context, keyHash, key, 0);
     }
 
-    public int remove(Filer filer, MapContext context, byte[] key, int keyOffset) throws IOException {
+    public long remove(Filer filer, MapContext context, byte[] key, int keyOffset) throws IOException {
         return remove(filer, context, hash(key, 0, key.length), key, keyOffset);
     }
 
-    public int remove(Filer filer, MapContext context, long keyHash, byte[] key, int keyOffset) throws IOException {
+    public long remove(Filer filer, MapContext context, long keyHash, byte[] key, int keyOffset) throws IOException {
         if (key == null || key.length == 0) {
             return -1;
         }
@@ -488,7 +488,7 @@ public class MapStore {
                     write(filer, (int) index(i, entrySize), cSkip);
                 }
                 setCount(context, filer, context.count - 1);
-                return (int) i;
+                return i;
             }
         }
         return -1;
@@ -557,7 +557,7 @@ public class MapStore {
             fcount--;
             byte[] key = getKey(fromFiler, fromContext, fromIndex);
             byte[] payload = getPayload(fromFiler, fromContext, fromIndex);
-            int toIndex = add(toFiler, toContext, mode, key, payload);
+            long toIndex = add(toFiler, toContext, mode, key, payload);
 
             if (stream != null) {
                 stream.copied(fromIndex, toIndex);
@@ -571,7 +571,7 @@ public class MapStore {
 
     public interface CopyToStream {
 
-        void copied(int fromIndex, int toIndex);
+        void copied(long fromIndex, long toIndex);
     }
 
     public void toSysOut(Filer filer, MapContext context) throws IOException {

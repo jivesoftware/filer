@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author jonathan.colt
@@ -108,42 +109,49 @@ public class KeyedFPIndexUtil {
             if (fp < 0) {
                 throw new RuntimeException("Chunk disappeared!");
             }
-            return chunkStore.execute(fp, opener, new ChunkTransaction<M, R>() {
-                @Override
-                public R commit(final M monkey, final ChunkFiler filer, final Object lock) throws IOException {
-                    H hint = growFiler.acquire(monkey, filer, lock);
-                    try {
-                        if (hint != null) {
-                            final long grownFP = chunkStore.newChunk(hint, creator);
-                            return chunkStore.execute(grownFP, opener, new ChunkTransaction<M, R>() {
+            final AtomicLong removeFP = new AtomicLong(-1);
+            try {
+                return chunkStore.execute(fp, opener, new ChunkTransaction<M, R>() {
+                    @Override
+                    public R commit(final M monkey, final ChunkFiler filer, final Object lock) throws IOException {
+                        H hint = growFiler.acquire(monkey, filer, lock);
+                        try {
+                            if (hint != null) {
+                                final long grownFP = chunkStore.newChunk(hint, creator);
+                                return chunkStore.execute(grownFP, opener, new ChunkTransaction<M, R>() {
 
-                                @Override
-                                public R commit(M newMonkey, ChunkFiler newFiler, Object newLock) throws IOException {
-                                    growFiler.growAndAcquire(monkey, filer, newMonkey, newFiler, lock, newLock);
-                                    try {
-                                        backingFPIndex.set(key, grownFP);
-                                        chunkStore.remove(filer.getChunkFP());
+                                    @Override
+                                    public R commit(M newMonkey, ChunkFiler newFiler, Object newLock) throws IOException {
+                                        growFiler.growAndAcquire(monkey, filer, newMonkey, newFiler, lock, newLock);
+                                        try {
+                                            backingFPIndex.set(key, grownFP);
+                                            removeFP.set(filer.getChunkFP());
 
-                                        semaphore.release(numPermits - 1);
-                                        releasablePermits.set(1);
-                                        return filerTransaction.commit(newMonkey, newFiler, newLock);
-                                    } finally {
-                                        growFiler.release(newMonkey, newLock);
+                                            semaphore.release(numPermits - 1);
+                                            releasablePermits.set(1);
+                                            return filerTransaction.commit(newMonkey, newFiler, newLock);
+                                        } finally {
+                                            growFiler.release(newMonkey, newLock);
+                                        }
                                     }
-                                }
-                            });
+                                });
 
-                        } else {
-                            semaphore.release(numPermits - 1);
-                            releasablePermits.set(1);
+                            } else {
+                                semaphore.release(numPermits - 1);
+                                releasablePermits.set(1);
 
-                            return filerTransaction.commit(monkey, filer, lock);
+                                return filerTransaction.commit(monkey, filer, lock);
+                            }
+                        } finally {
+                            growFiler.release(monkey, lock);
                         }
-                    } finally {
-                        growFiler.release(monkey, lock);
                     }
+                });
+            } finally {
+                if (removeFP.get() >= 0) {
+                    chunkStore.remove(removeFP.get());
                 }
-            });
+            }
 
         } finally {
             semaphore.release(releasablePermits.get());
