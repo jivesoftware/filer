@@ -19,14 +19,11 @@ import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
-import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.io.primative.LongLongKeyValueMarshaller;
 import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.testng.Assert;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -49,14 +46,8 @@ public class TxKeyValueStoreNGTest {
     TxKeyValueStore<Long, Long> store1;
     TxKeyValueStore<Long, Long> store2;
 
-    @BeforeTest
+    @BeforeMethod
     public void init() throws Exception {
-        File dir = Files.createTempDirectory("testNewChunkStore")
-            .toFile();
-        StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
-        //ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data1", 8, locksProvider);
-        //ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, "data2", 8, locksProvider);
-
         ByteBufferFactory bbf = new HeapByteBufferFactory();
         ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, bbf, 5_000);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, bbf, 5_000);

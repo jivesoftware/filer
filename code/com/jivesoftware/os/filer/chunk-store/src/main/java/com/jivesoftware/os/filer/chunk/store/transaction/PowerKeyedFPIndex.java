@@ -49,12 +49,12 @@ public class PowerKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<Intege
     }
 
     @Override
-    synchronized public long get(Integer key) throws IOException {
+    public long get(Integer key) throws IOException {
         return fpIndex[key];
     }
 
     @Override
-    synchronized public void set(final Integer key, final long fp) throws IOException {
+    public void set(final Integer key, final long fp) throws IOException {
         backingChunkStore.execute(backingFP, null, new ChunkTransaction<PowerKeyedFPIndex, Void>() {
 
             @Override
@@ -82,7 +82,7 @@ public class PowerKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<Intege
 
     }
 
-    synchronized public Boolean stream(final KeysStream<Integer> keysStream) throws IOException {
+    public boolean stream(final KeysStream<Integer> keysStream) throws IOException {
         for (int i = 0; i < fpIndex.length; i++) {
             if (fpIndex[i] > -1 && !keysStream.stream(i)) {
                 return false;

@@ -8,6 +8,7 @@
  */
 package com.jivesoftware.os.filer.chunk.store;
 
+import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.NoOpCreateFiler;
@@ -27,6 +28,7 @@ import java.util.concurrent.Future;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 /**
  * @author jonathan.colt
@@ -41,7 +43,6 @@ public class ChunkStoreTest {
         final File chunkFile = File.createTempFile("chunk", "test");
         final int numThreads = 16;
         final ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
-        StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
 
         final int numLoops = 100;
@@ -82,7 +83,6 @@ public class ChunkStoreTest {
     public void testNewChunkStore() throws Exception {
         int size = 1024 * 10;
 
-        StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
         File[] dirs = { Files.createTempDirectory("testNewChunkStore").toFile() };
         ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(dirs, 0, "data", size, byteBufferFactory, 5_000);
@@ -91,6 +91,38 @@ public class ChunkStoreTest {
         System.out.println("chunkId:" + chunk10);
         writeIntToChunk(chunkStore, chunk10, 10);
         assertIntInChunk(chunkStore, chunk10, 10);
+    }
+
+    @Test
+    public void testCheckExists() throws Exception {
+        HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
+        File[] dirs = {
+            Files.createTempDirectory("testChunkStoreExists").toFile(),
+            Files.createTempDirectory("testChunkStoreExists").toFile(),
+            Files.createTempDirectory("testChunkStoreExists").toFile()
+        };
+
+        ChunkStore[] chunkStores = new ChunkStore[3];
+        long[] fps = new long[chunkStores.length];
+        for (int i = 0; i < chunkStores.length; i++) {
+            chunkStores[i] = new ChunkStoreInitializer().openOrCreate(dirs, i, "data", 4_096, byteBufferFactory, 5_000);
+            fps[i] = chunkStores[i].newChunk(1024L, new CreateFiler<Long, Void, ChunkFiler>() {
+                @Override
+                public long sizeInBytes(Long hint) throws IOException {
+                    return hint;
+                }
+
+                @Override
+                public Void create(Long hint, ChunkFiler filer) throws IOException {
+                    return null;
+                }
+            });
+        }
+
+        for (int i = 0; i < chunkStores.length; i++) {
+            assertTrue(new ChunkStoreInitializer().checkExists(dirs, i, "data"));
+            assertTrue(new ChunkStoreInitializer().openOrCreate(dirs, i, "data", 4_096, byteBufferFactory, 5_000).isValid(fps[i]));
+        }
     }
 
     private void writeIntToChunk(ChunkStore chunkStore, long chunkFP, final int value) throws IOException {

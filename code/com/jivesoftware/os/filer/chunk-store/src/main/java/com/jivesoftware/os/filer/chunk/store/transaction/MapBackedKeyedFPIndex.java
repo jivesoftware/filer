@@ -100,7 +100,7 @@ public class MapBackedKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<by
         return KeyedFPIndexUtil.INSTANCE.commit(this, semaphore, numPermits, chunkStore, keyLock, key, hint, creator, opener, growFiler, filerTransaction);
     }
 
-    public Boolean stream(final KeysStream<byte[]> keysStream) throws IOException {
+    public boolean stream(final KeysStream<byte[]> keysStream) throws IOException {
         final MapStore.KeyStream mapKeyStream = new MapStore.KeyStream() {
 
             @Override
