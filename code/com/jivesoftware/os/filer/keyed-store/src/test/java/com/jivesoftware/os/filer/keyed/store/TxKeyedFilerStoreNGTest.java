@@ -48,7 +48,7 @@ public class TxKeyedFilerStoreNGTest {
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
         ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, byteBufferFactory, 5_000);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, byteBufferFactory, 5_000);
-        final ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
+        final ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         int numThread = 24;
         ConcurrentHashMap<Long, TxKeyedFilerStore> namedStores = new ConcurrentHashMap<>();
@@ -101,11 +101,13 @@ public class TxKeyedFilerStoreNGTest {
                     store.execute(key, -1, new FilerTransaction<Filer, Boolean>() {
 
                         @Override
-                        public Boolean commit(Filer filer) throws IOException {
+                        public Boolean commit(Object lock, Filer filer) throws IOException {
                             if (filer != null) {
-                                filer.seek(0);
-                                for (int i = 0; i < filer.length(); i++) {
-                                    filer.read();
+                                synchronized (lock) {
+                                    filer.seek(0);
+                                    for (int i = 0; i < filer.length(); i++) {
+                                        filer.read();
+                                    }
                                 }
                             }
                             return true;
@@ -117,13 +119,15 @@ public class TxKeyedFilerStoreNGTest {
                     store.execute(key, filerLength, new FilerTransaction<Filer, Boolean>() {
 
                         @Override
-                        public Boolean commit(Filer filer) throws IOException {
-                            filer.seek(0);
-                            Assert.assertFalse(filer.length() < filerLength, "Was:" + filer.length() + " expected: " + filerLength);
-                            for (int i = 0; i < filerLength; i++) {
-                                filer.write((byte) rand.nextInt(255));
+                        public Boolean commit(Object lock, Filer filer) throws IOException {
+                            synchronized (lock) {
+                                filer.seek(0);
+                                Assert.assertFalse(filer.length() < filerLength, "Was:" + filer.length() + " expected: " + filerLength);
+                                for (int i = 0; i < filerLength; i++) {
+                                    filer.write((byte) rand.nextInt(255));
+                                }
+                                return true;
                             }
-                            return true;
                         }
                     });
 
@@ -162,9 +166,9 @@ public class TxKeyedFilerStoreNGTest {
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, 5_000);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 5_000);
-        ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 5_000);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 5_000);
+        ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores, "booya".getBytes());
 
@@ -173,20 +177,24 @@ public class TxKeyedFilerStoreNGTest {
         byte[] key = FilerIO.intBytes(1010);
         store.execute(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
             @Override
-            public Void commit(Filer filer) throws IOException {
-                FilerIO.writeInt(filer, 10, "");
-                return null;
+            public Void commit(Object lock, Filer filer) throws IOException {
+                synchronized (lock) {
+                    FilerIO.writeInt(filer, 10, "");
+                    return null;
+                }
             }
         });
 
         store.execute(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
             @Override
-            public Void commit(Filer filer) throws IOException {
-                filer.seek(0);
-                int ten = FilerIO.readInt(filer, "");
-                System.out.println("ten:" + ten);
-                assertEquals(ten, 10);
-                return null;
+            public Void commit(Object lock, Filer filer) throws IOException {
+                synchronized (lock) {
+                    filer.seek(0);
+                    int ten = FilerIO.readInt(filer, "");
+                    System.out.println("ten:" + ten);
+                    assertEquals(ten, 10);
+                    return null;
+                }
             }
         });
     }
@@ -196,9 +204,9 @@ public class TxKeyedFilerStoreNGTest {
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, 5_000);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 5_000);
-        ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 5_000);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 5_000);
+        ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores, "booya".getBytes());
 
@@ -207,10 +215,12 @@ public class TxKeyedFilerStoreNGTest {
         final byte[] key = FilerIO.intBytes(1020);
         store.execute(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
             @Override
-            public Void commit(Filer filer) throws IOException {
-                filer.seek(0);
-                FilerIO.writeInt(filer, 10, "");
-                return null;
+            public Void commit(Object lock, Filer filer) throws IOException {
+                synchronized (lock) {
+                    filer.seek(0);
+                    FilerIO.writeInt(filer, 10, "");
+                    return null;
+                }
             }
         });
         store.executeRewrite(key, newFilerInitialCapacity, new RewriteFilerTransaction<Filer, Void>() {
@@ -230,11 +240,13 @@ public class TxKeyedFilerStoreNGTest {
 
         store.execute(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
             @Override
-            public Void commit(Filer filer) throws IOException {
-                filer.seek(0);
-                int twenty = FilerIO.readInt(filer, "");
-                assertEquals(twenty, 20);
-                return null;
+            public Void commit(Object lock, Filer filer) throws IOException {
+                synchronized (lock) {
+                    filer.seek(0);
+                    int twenty = FilerIO.readInt(filer, "");
+                    assertEquals(twenty, 20);
+                    return null;
+                }
             }
         });
 

@@ -5,8 +5,9 @@ import java.io.IOException;
 /**
  *
  * @param <F>
+ * @param <R>
  */
 public interface FilerTransaction<F extends Filer, R> {
 
-    R commit(F filer) throws IOException;
+    R commit(Object lock, F filer) throws IOException;
 }

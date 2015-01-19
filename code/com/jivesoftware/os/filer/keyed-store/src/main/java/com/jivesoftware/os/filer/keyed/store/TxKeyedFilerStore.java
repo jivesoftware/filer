@@ -60,12 +60,7 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
 
                 @Override
                 public R commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                    if (filer == null) {
-                        return transaction.commit(null);
-                    }
-                    synchronized (lock) {
-                        return transaction.commit(filer);
-                    }
+                    return transaction.commit(lock, filer);
                 }
             });
         } else {
@@ -73,9 +68,7 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
 
                 @Override
                 public R commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                    synchronized (lock) {
-                        return transaction.commit(filer);
-                    }
+                    return transaction.commit(lock, filer);
                 }
             });
         }
