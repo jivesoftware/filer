@@ -141,9 +141,11 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
             @Override
             public boolean[] commit(MapContext context, ChunkFiler filer, Object lock) throws IOException {
                 boolean[] result = new boolean[keysBytes.length];
-                synchronized (lock) {
-                    for (int i = 0; i < keysBytes.length; i++) {
-                        result[i] = (keysBytes[i] != null && MapStore.INSTANCE.contains(filer, context, keysBytes[i]));
+                if (filer != null) {
+                    synchronized (lock) {
+                        for (int i = 0; i < keysBytes.length; i++) {
+                            result[i] = (keysBytes[i] != null && MapStore.INSTANCE.contains(filer, context, keysBytes[i]));
+                        }
                     }
                 }
                 return result;
