@@ -130,6 +130,26 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
+    public boolean[] contains(K[] keys) throws IOException {
+        final byte[][] keysBytes = new byte[keys.length][];
+        for (int i = 0; i < keysBytes.length; i++) {
+            keysBytes[i] = keys[i] != null ? keyMarshaller.keyBytes(keys[i]) : null;
+        }
+        return namedMap.read(mapName, new ChunkTransaction<MapContext, boolean[]>() {
+            @Override
+            public boolean[] commit(MapContext context, ChunkFiler filer, Object lock) throws IOException {
+                boolean[] result = new boolean[keysBytes.length];
+                synchronized (lock) {
+                    for (int i = 0; i < keysBytes.length; i++) {
+                        result[i] = (keysBytes[i] != null && MapStore.INSTANCE.contains(filer, context, keysBytes[i]));
+                    }
+                }
+                return result;
+            }
+        });
+    }
+
+    @Override
     public <R> R execute(K key,
         boolean createIfAbsent,
         final KeyValueTransaction<V, R> keyValueTransaction) throws IOException {

@@ -38,6 +38,27 @@ public class TxPartitionedKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
+    public boolean[] contains(K[] keys) throws IOException {
+        Object[][] partitionedKeys = new Object[stores.length][keys.length];
+        for (int i = 0; i < keys.length; i++) {
+            int p = partitionFunction.partition(stores.length, keys[i]);
+            partitionedKeys[p][i] = keys[i];
+        }
+        boolean[][] partitionedContains = new boolean[stores.length][];
+        for (int p = 0; p < stores.length; p++) {
+            partitionedContains[p] = stores[p].contains((K[]) partitionedKeys[p]);
+        }
+
+        boolean[] result = new boolean[keys.length];
+        for (int i = 0; i < keys.length; i++) {
+            for (int p = 0; p < stores.length; p++) {
+                result[i] |= partitionedContains[p][i];
+            }
+        }
+        return result;
+    }
+
+    @Override
     public <R> R execute(K key,
         boolean createIfAbsent,
         KeyValueTransaction<V, R> keyValueTransaction) throws IOException {

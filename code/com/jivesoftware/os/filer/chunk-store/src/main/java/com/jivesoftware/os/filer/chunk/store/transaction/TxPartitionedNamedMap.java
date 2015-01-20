@@ -19,6 +19,7 @@ import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.io.PartitionFunction;
 import com.jivesoftware.os.filer.map.store.MapContext;
+import com.jivesoftware.os.filer.map.store.MapStore;
 import java.io.IOException;
 
 /**
@@ -32,6 +33,40 @@ public class TxPartitionedNamedMap {
     public TxPartitionedNamedMap(PartitionFunction<byte[]> partitionFunction, TxNamedMap[] namedMaps) {
         this.namedMaps = namedMaps;
         this.partitionFunction = partitionFunction;
+    }
+
+    public boolean[] contains(byte[][] keysBytes, byte[] mapName) throws IOException {
+        byte[][][] partitionedKeysBytes = new byte[namedMaps.length][keysBytes.length][];
+        boolean[][] partitionedContains = new boolean[namedMaps.length][keysBytes.length];
+        for (int i = 0; i < keysBytes.length; i++) {
+            int p = partitionFunction.partition(namedMaps.length, keysBytes[i]);
+            partitionedKeysBytes[p][i] = keysBytes[i];
+        }
+
+        for (int p = 0; p < namedMaps.length; p++) {
+            final byte[][] currentKeysBytes = partitionedKeysBytes[p];
+            final boolean[] currentContains = partitionedContains[p];
+            namedMaps[p].read(mapName, new ChunkTransaction<MapContext, Void>() {
+                @Override
+                public Void commit(MapContext context, ChunkFiler filer, Object lock) throws IOException {
+                    synchronized (lock) {
+                        for (int i = 0; i < currentKeysBytes.length; i++) {
+                            byte[] keyBytes = currentKeysBytes[i];
+                            currentContains[i] = (keyBytes != null && MapStore.INSTANCE.contains(filer, context, keyBytes));
+                        }
+                    }
+                    return null;
+                }
+            });
+        }
+
+        boolean[] result = new boolean[keysBytes.length];
+        for (int i = 0; i < result.length; i++) {
+            for (int p = 0; p < namedMaps.length; p++) {
+                result[i] |= partitionedContains[p][i];
+            }
+        }
+        return new boolean[0];
     }
 
     public <R> R write(byte[] partitionKey, final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction) throws IOException {

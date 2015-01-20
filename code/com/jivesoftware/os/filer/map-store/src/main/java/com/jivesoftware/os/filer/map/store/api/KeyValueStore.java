@@ -9,6 +9,8 @@ import java.io.IOException;
  */
 public interface KeyValueStore<K, V> {
 
+    boolean[] contains(K[] keys) throws IOException;
+
     <R> R execute(K key, boolean createIfAbsent, KeyValueTransaction<V, R> keyValueTransaction) throws IOException;
 
     boolean stream(EntryStream<K, V> stream) throws IOException;

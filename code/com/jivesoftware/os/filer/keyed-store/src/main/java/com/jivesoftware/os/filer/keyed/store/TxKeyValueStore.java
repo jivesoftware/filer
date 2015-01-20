@@ -63,6 +63,15 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
+    public boolean[] contains(K[] keys) throws IOException {
+        byte[][] keysBytes = new byte[keys.length][];
+        for (int i = 0; i < keysBytes.length; i++) {
+            keysBytes[i] = keyValueMarshaller.keyBytes(keys[i]);
+        }
+        return namedMap.contains(keysBytes, name);
+    }
+
+    @Override
     public <R> R execute(final K key, boolean createIfAbsent, final KeyValueTransaction<V, R> keyValueTransaction) throws IOException {
         final byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         if (createIfAbsent) {

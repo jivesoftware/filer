@@ -33,6 +33,9 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+
 /**
  * @author jonathan.colt
  */
@@ -64,9 +67,12 @@ public class TxKeyObjectStoreNGTest {
 
     @Test
     public void testExecute() throws IOException {
-        for (int i = 0; i < 16; i++) {
+        int numKeys = 16;
+        Long[] keys = new Long[numKeys * 2];
+        for (int i = 0; i < numKeys; i++) {
             final long k = i;
             final long v = i;
+            keys[i] = k;
 
             store.execute(k, false, new KeyValueTransaction<Long, Void>() {
 
@@ -106,6 +112,18 @@ public class TxKeyObjectStoreNGTest {
             });
         }
 
+        for (int i = numKeys; i < keys.length; i++) {
+            keys[i] = (long) i;
+        }
+
+        boolean[] contains = store.contains(keys);
+        for (int i = 0; i < contains.length; i++) {
+            if (i < numKeys) {
+                assertTrue(contains[i]);
+            } else {
+                assertFalse(contains[i]);
+            }
+        }
     }
 
     @Test

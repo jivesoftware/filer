@@ -37,6 +37,9 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+
 /**
  * @author jonathan.colt
  */
@@ -121,9 +124,12 @@ public class TxKeyValueStoreNGTest {
 
     @Test
     public void testExecute() throws IOException {
-        for (int i = 0; i < 16; i++) {
+        int numKeys = 16;
+        Long[] keys = new Long[numKeys * 2];
+        for (int i = 0; i < numKeys; i++) {
             final long k = i;
             final long v = i;
+            keys[i] = k;
             System.out.println(k + " " + v);
 
             store1.execute(k, false, new KeyValueTransaction<Long, Void>() {
@@ -163,7 +169,18 @@ public class TxKeyValueStoreNGTest {
                 }
             });
         }
+        for (int i = numKeys; i < keys.length; i++) {
+            keys[i] = (long) i;
+        }
 
+        boolean[] contains = store1.contains(keys);
+        for (int i = 0; i < contains.length; i++) {
+            if (i < numKeys) {
+                assertTrue(contains[i]);
+            } else {
+                assertFalse(contains[i]);
+            }
+        }
     }
 
     @Test
@@ -189,14 +206,14 @@ public class TxKeyValueStoreNGTest {
             @Override
             public boolean stream(Long key, Long value) throws IOException {
 
-                Assert.assertTrue(truth.containsKey(key));
+                assertTrue(truth.containsKey(key));
                 Long t = truth.remove(key);
                 Assert.assertEquals(value, t);
                 return true;
             }
         });
 
-        Assert.assertTrue(truth.isEmpty());
+        assertTrue(truth.isEmpty());
     }
 
     @Test
@@ -221,14 +238,14 @@ public class TxKeyValueStoreNGTest {
 
             @Override
             public boolean stream(Long key) throws IOException {
-                Assert.assertTrue(truth.containsKey(key));
+                assertTrue(truth.containsKey(key));
                 truth.remove(key);
                 return true;
             }
 
         });
 
-        Assert.assertTrue(truth.isEmpty());
+        assertTrue(truth.isEmpty());
     }
 
 }
