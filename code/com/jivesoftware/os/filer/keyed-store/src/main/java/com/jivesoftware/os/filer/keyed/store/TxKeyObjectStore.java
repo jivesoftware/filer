@@ -30,6 +30,7 @@ import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
 import java.io.IOException;
+import java.util.List;
 
 /**
  * @param <K>
@@ -130,10 +131,11 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public boolean[] contains(K[] keys) throws IOException {
-        final byte[][] keysBytes = new byte[keys.length][];
+    public boolean[] contains(List<K> keys) throws IOException {
+        final byte[][] keysBytes = new byte[keys.size()][];
         for (int i = 0; i < keysBytes.length; i++) {
-            keysBytes[i] = keys[i] != null ? keyMarshaller.keyBytes(keys[i]) : null;
+            K key = keys.get(i);
+            keysBytes[i] = key != null ? keyMarshaller.keyBytes(key) : null;
         }
         return namedMap.read(mapName, new ChunkTransaction<MapContext, boolean[]>() {
             @Override

@@ -66,7 +66,7 @@ public class TxPartitionedNamedMap {
                 result[i] |= partitionedContains[p][i];
             }
         }
-        return new boolean[0];
+        return result;
     }
 
     public <R> R write(byte[] partitionKey, final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction) throws IOException {

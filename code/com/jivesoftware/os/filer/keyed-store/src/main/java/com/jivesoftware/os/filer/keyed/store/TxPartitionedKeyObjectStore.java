@@ -19,6 +19,8 @@ import com.jivesoftware.os.filer.io.PartitionFunction;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  *
@@ -38,19 +40,26 @@ public class TxPartitionedKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public boolean[] contains(K[] keys) throws IOException {
-        Object[][] partitionedKeys = new Object[stores.length][keys.length];
-        for (int i = 0; i < keys.length; i++) {
-            int p = partitionFunction.partition(stores.length, keys[i]);
-            partitionedKeys[p][i] = keys[i];
+    public boolean[] contains(List<K> keys) throws IOException {
+        List[] partitionedKeys = new List[stores.length];
+        for (int p = 0; p < stores.length; p++) {
+            partitionedKeys[p] = new ArrayList();
+            for (int i = 0; i < keys.size(); i++) {
+                partitionedKeys[p].add(null);
+            }
+        }
+        for (int i = 0; i < keys.size(); i++) {
+            K key = keys.get(i);
+            int p = partitionFunction.partition(stores.length, key);
+            partitionedKeys[p].set(i, key);
         }
         boolean[][] partitionedContains = new boolean[stores.length][];
         for (int p = 0; p < stores.length; p++) {
-            partitionedContains[p] = stores[p].contains((K[]) partitionedKeys[p]);
+            partitionedContains[p] = stores[p].contains((List<K>) partitionedKeys[p]);
         }
 
-        boolean[] result = new boolean[keys.length];
-        for (int i = 0; i < keys.length; i++) {
+        boolean[] result = new boolean[keys.size()];
+        for (int i = 0; i < keys.size(); i++) {
             for (int p = 0; p < stores.length; p++) {
                 result[i] |= partitionedContains[p][i];
             }

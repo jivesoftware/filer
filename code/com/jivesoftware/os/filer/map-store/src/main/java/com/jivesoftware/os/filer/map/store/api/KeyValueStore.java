@@ -1,6 +1,7 @@
 package com.jivesoftware.os.filer.map.store.api;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * @param <K>
@@ -9,7 +10,7 @@ import java.io.IOException;
  */
 public interface KeyValueStore<K, V> {
 
-    boolean[] contains(K[] keys) throws IOException;
+    boolean[] contains(List<K> keys) throws IOException;
 
     <R> R execute(K key, boolean createIfAbsent, KeyValueTransaction<V, R> keyValueTransaction) throws IOException;
 

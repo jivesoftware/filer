@@ -125,11 +125,11 @@ public class TxKeyValueStoreNGTest {
     @Test
     public void testExecute() throws IOException {
         int numKeys = 16;
-        Long[] keys = new Long[numKeys * 2];
+        List<Long> keys = new ArrayList<>();
         for (int i = 0; i < numKeys; i++) {
             final long k = i;
             final long v = i;
-            keys[i] = k;
+            keys.add(k);
             System.out.println(k + " " + v);
 
             store1.execute(k, false, new KeyValueTransaction<Long, Void>() {
@@ -169,12 +169,12 @@ public class TxKeyValueStoreNGTest {
                 }
             });
         }
-        for (int i = numKeys; i < keys.length; i++) {
-            keys[i] = (long) i;
+        for (int i = numKeys; i < numKeys * 2; i++) {
+            keys.add((long) i);
         }
 
         boolean[] contains = store1.contains(keys);
-        for (int i = 0; i < contains.length; i++) {
+        for (int i = 0; i < numKeys * 2; i++) {
             if (i < numKeys) {
                 assertTrue(contains[i]);
             } else {
