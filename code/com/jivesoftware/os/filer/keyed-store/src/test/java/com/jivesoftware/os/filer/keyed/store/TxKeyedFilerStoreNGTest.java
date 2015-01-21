@@ -71,7 +71,7 @@ public class TxKeyedFilerStoreNGTest {
         ChunkStore[] chunkStores;
         AtomicBoolean stop;
 
-        public ConcurrencyRunnable(Random rand, ConcurrentHashMap<Long, TxKeyedFilerStore> namedStores, ChunkStore[] chunkStores, AtomicBoolean stop) {
+        ConcurrencyRunnable(Random rand, ConcurrentHashMap<Long, TxKeyedFilerStore> namedStores, ChunkStore[] chunkStores, AtomicBoolean stop) {
             this.rand = rand;
             this.stop = stop;
             this.namedStores = namedStores;

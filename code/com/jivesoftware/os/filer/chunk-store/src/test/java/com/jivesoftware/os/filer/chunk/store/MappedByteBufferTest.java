@@ -26,12 +26,12 @@ public class MappedByteBufferTest {
 
         filer1.seek(0);
         for (int i = 0; i < 10; i++) {
-            FilerIO.writeLong(filer1, (long) i, "i");
+            FilerIO.writeLong(filer1, i, "i");
         }
 
         filer1.seek(0);
         for (int i = 0; i < 10; i++) {
-            assertEquals(FilerIO.readLong(filer1, "i"), (long) i);
+            assertEquals(FilerIO.readLong(filer1, "i"), i);
         }
 
         ByteBuffer buf2 = factory.allocate("test".getBytes(), 2_000);
@@ -40,30 +40,30 @@ public class MappedByteBufferTest {
 
         filer2.seek(10 * 8);
         for (int i = 10; i < 20; i++) {
-            FilerIO.writeLong(filer2, (long) i, "i");
+            FilerIO.writeLong(filer2, i, "i");
         }
 
         filer1.seek(20 * 8);
         for (int i = 20; i < 30; i++) {
-            FilerIO.writeLong(filer1, (long) i, "i");
+            FilerIO.writeLong(filer1, i, "i");
         }
 
         filer1.seek(0);
         for (int i = 0; i < 30; i++) {
-            assertEquals(FilerIO.readLong(filer1, "i"), (long) i);
+            assertEquals(FilerIO.readLong(filer1, "i"), i);
         }
 
         filer2.seek(0);
         for (int i = 0; i < 30; i++) {
-            assertEquals(FilerIO.readLong(filer2, "i"), (long) i);
+            assertEquals(FilerIO.readLong(filer2, "i"), i);
         }
 
         for (int i = 0; i < 1_000_000; i++) {
             ByteBufferBackedFiler filerX = new ByteBufferBackedFiler(factory.allocate("test".getBytes(), 3_000));
             filerX.seek(0);
-            FilerIO.writeLong(filerX, (long) i, "i");
+            FilerIO.writeLong(filerX, i, "i");
             filerX.seek(0);
-            assertEquals(FilerIO.readLong(filerX, "i"), (long) i);
+            assertEquals(FilerIO.readLong(filerX, "i"), i);
             Thread.sleep(10);
         }
 

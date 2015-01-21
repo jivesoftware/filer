@@ -30,4 +30,7 @@ public class TxPowerConstants {
         }
     }
 
+    private TxPowerConstants() {
+    }
+
 }

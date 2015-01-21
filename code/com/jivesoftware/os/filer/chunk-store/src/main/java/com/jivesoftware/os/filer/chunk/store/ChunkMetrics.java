@@ -111,4 +111,7 @@ public class ChunkMetrics {
             e.printStackTrace();
         }
     }
+
+    private ChunkMetrics() {
+    }
 }

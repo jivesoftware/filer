@@ -84,7 +84,7 @@ public class TxKeyValueStoreNGTest {
         AtomicBoolean stop;
         List<Long> keys;
 
-        public ConcurrencyRunnable(AtomicBoolean stop, List<Long> keys) {
+        ConcurrencyRunnable(AtomicBoolean stop, List<Long> keys) {
             this.stop = stop;
             this.keys = keys;
         }

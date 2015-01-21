@@ -256,7 +256,7 @@ public class NamedMapsNGTest {
 
             int accum = 0;
             for (int i = 0; i < addCount; i++) {
-                accum = accum + i;
+                accum += i;
                 final int key = i;
 
                 namedMap.write(FilerIO.intBytes(c), "map1".getBytes(), new ChunkTransaction<MapContext, Void>() {
