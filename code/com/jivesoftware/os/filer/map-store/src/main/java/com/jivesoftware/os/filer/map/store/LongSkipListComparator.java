@@ -17,6 +17,7 @@ package com.jivesoftware.os.filer.map.store;
 
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
+import java.io.IOException;
 
 /**
  *
@@ -27,14 +28,14 @@ public class LongSkipListComparator implements SkipListComparator {
     static final public LongSkipListComparator cSingleton = new LongSkipListComparator();
 
     @Override
-    public int compare(Filer a, int astart, Filer b, int bstart, int length) {
-        try {
-            long al = MapStore.INSTANCE.readLong(a, astart);
-            long bl = MapStore.INSTANCE.readLong(b, bstart);
-            return (al < bl ? -1 : (al == bl ? 0 : 1));
-        } catch (Exception x) {
-            throw new RuntimeException("failed reading long while trying to compare.", x);
-        }
+    public int compare(Filer a, int astart, Filer b, int bstart, int length) throws IOException {
+
+        a.seek(astart);
+        long al = FilerIO.readLong(a, "a");
+        b.seek(bstart);
+        long bl = FilerIO.readLong(b, "b");
+
+        return (al < bl ? -1 : (al == bl ? 0 : 1));
 
     }
 

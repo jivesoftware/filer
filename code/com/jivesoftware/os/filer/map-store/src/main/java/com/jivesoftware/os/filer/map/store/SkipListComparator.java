@@ -18,7 +18,6 @@ public interface SkipListComparator {
      * @param bstart
      * @param length
      * @return
-     * @throws java.io.IOException
      */
     public int compare(Filer a, int astart, Filer b, int bstart, int length) throws IOException;
 
