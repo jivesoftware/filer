@@ -114,12 +114,11 @@ public class SkipListSet {
 
         int index = (int) map.get(filer, context.mapContext, _key);
         if (index != -1) { // aready exists so just update payload
-            map.setPayloadAtIndex(filer, context.mapContext, index, startOfPayload(context.maxHeight), _payload, 0, _payload.length);
+            map.setPayloadAtIndex(filer, context.mapContext, index, columnSize(context.maxHeight), _payload, 0, _payload.length);
             return;
         }
         int sEntrySize = context.mapContext.entrySize;
-        // create a new colum for a new key
-        byte[] newColumn = newColumn(_payload, context.maxHeight, (byte) -1);
+        byte[] newColumn = newColumn(_payload, context.maxHeight, (byte) -1); // create a new colum for a new key
         int insertsIndex = (int) map.add(filer, context.mapContext, (byte) 1, _key, newColumn);
 
         int level = context.maxHeight - 1;
@@ -439,13 +438,11 @@ public class SkipListSet {
             while (Math.random() > 0.5d) { // could pick a rand number bewteen 1 and 32 instead
                 if (newH + 1 >= _maxHeight) {
                     break;
-
                 }
                 newH++;
             }
             _height = newH;
         }
-        assert _height > 1 : _height < 32;
         byte[] column = new byte[1 + (_maxHeight * cColumKeySize) + _payload.length];
         column[0] = _height;
         for (int i = 0; i < _maxHeight; i++) {
@@ -482,7 +479,7 @@ public class SkipListSet {
         map.writeInt(f, offset, v);
     }
 
-    private int startOfPayload(int maxHeight) {
+    private int columnSize(int maxHeight) {
         return 1 + (cColumKeySize * maxHeight);
     }
 
@@ -491,7 +488,7 @@ public class SkipListSet {
         int keyLength = page.mapContext.keyLengthSize;
         int keySize = page.mapContext.keySize;
         int startOfPayload = (int) map.startOfPayload(setIndex, entrySize, keyLength, keySize);
-        int size = page.mapContext.payloadSize - startOfPayload(maxHeight);
+        int size = page.mapContext.payloadSize - columnSize(maxHeight);
         byte[] payload = new byte[size];
         map.read(f, startOfPayload + 1 + (maxHeight * cColumKeySize), payload, 0, size);
         return payload;
@@ -508,9 +505,16 @@ public class SkipListSet {
             keyToString = new BytesToBytesString();
         }
         int atIndex = page.headIndex;
+        int count = 0;
         while (atIndex != -1) {
             toSysOut(f, page, atIndex, keyToString);
             atIndex = rcolumnLevel(f, page, atIndex, 1);
+
+            if (count > map.getCount(f)) {
+                System.out.println("BAD Panda! Cyclic");
+                break;
+            }
+            count++;
         }
     }
 
@@ -566,9 +570,9 @@ public class SkipListSet {
         int l = columnLength(filer, page, index);
         for (int i = 0; i < l; i++) {
             if (i != 0) {
-                System.out.print("),\t"+i+":(");
+                System.out.print("),\t" + i + ":(");
             } else {
-                System.out.print(i+":(");
+                System.out.print(i + ":(");
             }
             int ni = rcolumnLevel(filer, page, index, i);
             if (ni == -1) {
@@ -577,9 +581,9 @@ public class SkipListSet {
             } else {
                 byte[] nkey = map.getKeyAtIndex(filer, page.mapContext, ni);
                 if (nkey == null) {
-                    System.out.println("??");
+                    System.out.print(ni + "=???");
                 } else {
-                    System.out.print(keyToString.bytesToString(nkey));
+                    System.out.print(ni + "=" + keyToString.bytesToString(nkey));
                 }
 
             }

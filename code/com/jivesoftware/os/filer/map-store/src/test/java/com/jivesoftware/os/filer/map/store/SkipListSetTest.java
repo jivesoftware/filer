@@ -18,24 +18,24 @@ public class SkipListSetTest {
     @Test
     public void slsSortRandDoublesTest() throws IOException, Exception {
 
-        int capacity = 32;
+        int capacity = 128;
         int keySize = 8;
         int payloadSize = 0;
-        int range = 5;
-        int insert = 10;
+        int range = 63;
+        int insert = 64;
         ByteBufferFactory provider = new HeapByteBufferFactory();
 
         SkipListSet sls = new SkipListSet();
         long slsFilerSize = sls.computeFilerSize(capacity, keySize, payloadSize);
         ByteBufferBackedFiler filer = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
 
-        Random random = new Random();
+        Random random = new Random(1234);
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
         SkipListSetContext page = sls.create(capacity, headKey, keySize, payloadSize, DoubleSkipListComparator.cSingleton, filer);
         for (int i = 0; i < insert; i++) {
             byte[] doubleBytes = FilerIO.doubleBytes(random.nextInt(range));
-            System.out.println("Added:" + FilerIO.bytesDouble(doubleBytes));
+            System.out.println(i+" Added:" + FilerIO.bytesDouble(doubleBytes));
             sls.sladd(filer, page, doubleBytes, new byte[0]);
         }
 

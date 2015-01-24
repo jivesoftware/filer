@@ -284,37 +284,37 @@ public class MapStore {
                     throw new OverCapacityException(context.count + " > " + context.maxCount + " ? " + context.requested);
                 }
                 write(filer, (int) ai, mode);
-                write(filer, (int) (ai + 1), context.keyLengthSize, key, keySize, keyOffset);
-                write(filer, (int) (ai + 1 + context.keyLengthSize + keySize), context.payloadLengthSize, payload, payloadSize, _payloadOffset);
+                write(filer, (int) (ai + 1), 0, context.keyLengthSize, key, keySize, keyOffset);
+                write(filer, (int) (ai + 1 + context.keyLengthSize + keySize), 0, context.payloadLengthSize, payload, payloadSize, _payloadOffset);
                 setCount(context, filer, context.count + 1);
                 return i;
             }
             if (equals(filer, ai, context.keyLengthSize, key.length, key, keyOffset)) {
                 write(filer, (int) ai, mode);
-                write(filer, (int) (ai + 1 + context.keyLengthSize + keySize), context.payloadLengthSize, payload, payloadSize, _payloadOffset);
+                write(filer, (int) (ai + 1 + context.keyLengthSize + keySize), 0, context.payloadLengthSize, payload, payloadSize, _payloadOffset);
                 return i;
             }
         }
         return -1;
     }
 
-    private void write(Filer filer, int offest, int length, byte[] key, int size, int keyOffset) throws IOException {
+    private void write(Filer filer, int offest, int destOffset, int length, byte[] key, int size, int keyOffset) throws IOException {
 
         if (length == 0) {
         } else if (length == 1) {
-            write(filer, offest, (byte) key.length);
+            write(filer, offest + destOffset, (byte) key.length);
         } else if (length == 2) {
-            writeUnsignedShort(filer, offest, key.length);
+            writeUnsignedShort(filer, offest + destOffset, key.length);
         } else if (length == 4) {
-            writeInt(filer, offest, key.length);
+            writeInt(filer, offest + destOffset, key.length);
         } else {
-            throw new RuntimeException("Unssuprted length. 0,1,2,4 valid but encounterd:" + length);
+            throw new RuntimeException("Unsupported length. 0,1,2,4 valid but encounterd:" + length);
         }
-        write(filer, offest + length, key, keyOffset, key.length);
+        write(filer, offest + destOffset + length, key, keyOffset, key.length);
 
-        int padding = size - key.length;
+        int padding = size - destOffset - key.length;
         if (padding > 0) {
-            write(filer, offest + length + key.length, new byte[padding], 0, padding);
+            write(filer, offest + destOffset + length + key.length, new byte[padding], 0, padding);
         }
     }
 
@@ -323,7 +323,7 @@ public class MapStore {
     }
 
     public int startOfKey(long setIndex, int entrySize) {
-        return (int) (index(setIndex, entrySize) + 1);
+        return (int) (index(setIndex, entrySize) + 1); //  +1 to skip mode
     }
 
     public byte[] getKeyAtIndex(Filer filer, MapContext context, long i) throws IOException {
@@ -365,7 +365,8 @@ public class MapStore {
         if (mode == cSkip || mode == cNull) {
             return;
         }
-        write(filer, (int) (ai + 1 + context.keyLengthSize + context.keySize) + _destOffset, context.payloadLengthSize, payload, context.payloadSize, _poffset);
+        int offset = (int) (ai + 1 + context.keyLengthSize + context.keySize);
+        write(filer, offset, _destOffset, context.payloadLengthSize, payload, context.payloadSize, _poffset);
     }
 
     public byte[] getPayload(Filer filer, MapContext context, byte[] key) throws IOException {
