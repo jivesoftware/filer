@@ -327,9 +327,6 @@ public class MapStore {
     }
 
     public byte[] getKeyAtIndex(Filer filer, MapContext context, long i) throws IOException {
-        if (i < 0 || i >= context.capacity) {
-            throw new RuntimeException("Requested index (" + i + ") is out of bounds (0->" + (getCapacity(filer) - 1) + ")");
-        }
         long ai = index(i, context.entrySize);
         byte mode = read(filer, (int) ai);
         if (mode == cSkip || mode == cNull) {

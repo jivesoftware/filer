@@ -22,16 +22,16 @@ import java.io.IOException;
 /**
  * @author jonathan.colt
  */
-public class MapBackedKeyedFPIndexGrower implements GrowFiler<Integer, MapBackedKeyedFPIndex, ChunkFiler> {
+public class SkipListMapBackedKeyedFPIndexGrower implements GrowFiler<Integer, SkipListMapBackedKeyedFPIndex, ChunkFiler> {
 
     private final int alwaysRoomForNMoreKeys;
 
-    public MapBackedKeyedFPIndexGrower(int alwaysRoomForNMoreKeys) {
+    public SkipListMapBackedKeyedFPIndexGrower(int alwaysRoomForNMoreKeys) {
         this.alwaysRoomForNMoreKeys = alwaysRoomForNMoreKeys;
     }
 
     @Override
-    public Integer acquire(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
+    public Integer acquire(SkipListMapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
         synchronized (lock) {
             if (monkey.acquire(alwaysRoomForNMoreKeys)) {
                 // there is definitely room for N more
@@ -44,9 +44,9 @@ public class MapBackedKeyedFPIndexGrower implements GrowFiler<Integer, MapBacked
     }
 
     @Override
-    public void growAndAcquire(MapBackedKeyedFPIndex currentMonkey,
+    public void growAndAcquire(SkipListMapBackedKeyedFPIndex currentMonkey,
         ChunkFiler currentFiler,
-        MapBackedKeyedFPIndex newMonkey,
+        SkipListMapBackedKeyedFPIndex newMonkey,
         ChunkFiler newFiler,
         Object currentLock,
         Object newLock) throws IOException {
@@ -63,7 +63,7 @@ public class MapBackedKeyedFPIndexGrower implements GrowFiler<Integer, MapBacked
     }
 
     @Override
-    public void release(MapBackedKeyedFPIndex monkey, Object lock) {
+    public void release(SkipListMapBackedKeyedFPIndex monkey, Object lock) {
         synchronized (lock) {
             monkey.release(alwaysRoomForNMoreKeys);
         }

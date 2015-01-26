@@ -24,8 +24,9 @@ import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
-import com.jivesoftware.os.filer.map.store.MapContext;
 import com.jivesoftware.os.filer.map.store.MapStore;
+import com.jivesoftware.os.filer.map.store.SkipListMapContext;
+import com.jivesoftware.os.filer.map.store.SkipListMapStore;
 import com.jivesoftware.os.filer.map.store.api.KeyRange;
 import java.io.IOException;
 import java.util.List;
@@ -34,62 +35,62 @@ import java.util.concurrent.Semaphore;
 /**
  * @author jonathan.colt
  */
-public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIndex> {
+public class SkipListMapBackedKeyedFPIndex implements FPIndex<byte[], SkipListMapBackedKeyedFPIndex> {
 
     private final ChunkStore backingChunkStore;
     private final long backingFP;
     private final int numPermits = 64; // TODO expose ?
     private final Semaphore semaphore = new Semaphore(numPermits, true);
-    private final MapContext mapContext;
-    private final MapBackedKeyedFPIndexOpener opener;
+    private final SkipListMapContext context;
+    private final SkipListMapBackedKeyedFPIndexOpener opener;
     private final ByteArrayStripingLocksProvider keyLocks;
 
-    public MapBackedKeyedFPIndex(ChunkStore chunkStore,
+    public SkipListMapBackedKeyedFPIndex(ChunkStore chunkStore,
         long fp,
-        MapContext mapContext,
-        MapBackedKeyedFPIndexOpener opener,
+        SkipListMapContext context,
+        SkipListMapBackedKeyedFPIndexOpener opener,
         ByteArrayStripingLocksProvider keyLocks) {
 
         this.backingChunkStore = chunkStore;
         this.backingFP = fp;
-        this.mapContext = mapContext;
+        this.context = context;
         this.opener = opener;
         this.keyLocks = keyLocks;
     }
 
     @Override
     public boolean acquire(int alwaysRoomForNMoreKeys) {
-        return MapStore.INSTANCE.acquire(mapContext, alwaysRoomForNMoreKeys);
+        return MapStore.INSTANCE.acquire(context.mapContext, alwaysRoomForNMoreKeys);
     }
 
     @Override
     public int nextGrowSize(int alwaysRoomForNMoreKeys) throws IOException {
-        return MapStore.INSTANCE.nextGrowSize(mapContext, alwaysRoomForNMoreKeys);
+        return MapStore.INSTANCE.nextGrowSize(context.mapContext, alwaysRoomForNMoreKeys);
     }
 
     @Override
-    public void copyTo(Filer currentFiler, FPIndex<byte[], MapBackedKeyedFPIndex> newMonkey, Filer newFiler) throws IOException {
+    public void copyTo(Filer currentFiler, FPIndex<byte[], SkipListMapBackedKeyedFPIndex> newMonkey, Filer newFiler) throws IOException {
         // TODO rework generics to elimnate this cast
-        MapStore.INSTANCE.copyTo(currentFiler, mapContext, newFiler, ((MapBackedKeyedFPIndex) newMonkey).mapContext, null);
+        SkipListMapStore.INSTANCE.copyTo(currentFiler, context, newFiler, ((SkipListMapBackedKeyedFPIndex) newMonkey).context);
     }
 
     @Override
     public void release(int alwayRoomForNMoreKeys) {
-        MapStore.INSTANCE.release(mapContext, alwayRoomForNMoreKeys);
+        MapStore.INSTANCE.release(context.mapContext, alwayRoomForNMoreKeys);
     }
 
     @Override
     public long get(final byte[] key) throws IOException {
-        return backingChunkStore.execute(backingFP, opener, new ChunkTransaction<MapBackedKeyedFPIndex, Long>() {
+        return backingChunkStore.execute(backingFP, opener, new ChunkTransaction<SkipListMapBackedKeyedFPIndex, Long>() {
 
             @Override
-            public Long commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
+            public Long commit(SkipListMapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
                 synchronized (lock) {
-                    long ai = MapStore.INSTANCE.get(filer, monkey.mapContext, key);
-                    if (ai < 0) {
+                    byte[] got = SkipListMapStore.INSTANCE.getExistingPayload(filer, monkey.context, key);
+                    if (got == null) {
                         return -1L;
                     }
-                    return FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey.mapContext, ai));
+                    return FilerIO.bytesLong(got);
                 }
             }
         });
@@ -97,12 +98,12 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
 
     @Override
     public void set(final byte[] key, final long fp) throws IOException {
-        backingChunkStore.execute(backingFP, opener, new ChunkTransaction<MapBackedKeyedFPIndex, Void>() {
+        backingChunkStore.execute(backingFP, opener, new ChunkTransaction<SkipListMapBackedKeyedFPIndex, Void>() {
 
             @Override
-            public Void commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
+            public Void commit(SkipListMapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
                 synchronized (lock) {
-                    MapStore.INSTANCE.add(filer, monkey.mapContext, (byte) 1, key, FilerIO.longBytes(fp));
+                    SkipListMapStore.INSTANCE.add(filer, context, key, FilerIO.longBytes(fp));
                 }
                 return null;
             }
@@ -127,26 +128,15 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
 
             @Override
             public boolean stream(byte[] key) throws IOException {
-                if (ranges != null) {
-                    for (KeyRange range : ranges) {
-                        if (range.contains(key)) {
-                            if (!keysStream.stream(key)) {
-                                return false;
-                            }
-                        }
-                    }
-                    return true;
-                } else {
-                    return keysStream.stream(key);
-                }
+                return keysStream.stream(key);
             }
         };
 
-        return backingChunkStore.execute(backingFP, null, new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
+        return backingChunkStore.execute(backingFP, null, new ChunkTransaction<SkipListMapBackedKeyedFPIndex, Boolean>() {
 
             @Override
-            public Boolean commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                return MapStore.INSTANCE.streamKeys(filer, monkey.mapContext, lock, mapKeyStream);
+            public Boolean commit(SkipListMapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
+                return SkipListMapStore.INSTANCE.streamKeys(filer, monkey.context, lock, ranges, mapKeyStream);
             }
         });
     }

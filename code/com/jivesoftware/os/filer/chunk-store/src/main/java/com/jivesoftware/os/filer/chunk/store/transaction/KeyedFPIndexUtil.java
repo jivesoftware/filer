@@ -37,7 +37,7 @@ public class KeyedFPIndexUtil {
     private KeyedFPIndexUtil() {
     }
 
-    public <H, M, K, R> R commit(final BackingFPIndex<K> backingFPIndex,
+    public <H, K, M, R> R commit(final FPIndex<K, ?> backingFPIndex,
         final Semaphore semaphore,
         final int numPermits,
         final ChunkStore chunkStore,
@@ -156,13 +156,6 @@ public class KeyedFPIndexUtil {
         } finally {
             semaphore.release(releasablePermits.get());
         }
-    }
-
-    public static interface BackingFPIndex<K> {
-
-        long get(K key) throws IOException;
-
-        void set(K key, long fp) throws IOException;
     }
 
     private static class Bag<R> {

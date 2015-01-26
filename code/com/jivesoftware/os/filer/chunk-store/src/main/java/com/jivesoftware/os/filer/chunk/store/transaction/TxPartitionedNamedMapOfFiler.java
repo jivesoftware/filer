@@ -19,17 +19,19 @@ import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.chunk.store.RewriteChunkTransaction;
 import com.jivesoftware.os.filer.io.PartitionFunction;
+import com.jivesoftware.os.filer.map.store.api.KeyRange;
 import java.io.IOException;
+import java.util.List;
 
 /**
  * @author jonathan.colt
  */
-public class TxPartitionedNamedMapOfFiler<M> {
+public class TxPartitionedNamedMapOfFiler<N extends FPIndex<byte[], N>, M> {
 
-    private final TxNamedMapOfFiler<M>[] stores;
+    private final TxNamedMapOfFiler<N, M>[] stores;
     private final PartitionFunction<byte[]> partitionFunction;
 
-    public TxPartitionedNamedMapOfFiler(PartitionFunction<byte[]> partitionFunction, TxNamedMapOfFiler<M>[] stores) {
+    public TxPartitionedNamedMapOfFiler(PartitionFunction<byte[]> partitionFunction, TxNamedMapOfFiler<N, M>[] stores) {
         this.stores = stores;
         this.partitionFunction = partitionFunction;
     }
@@ -54,18 +56,18 @@ public class TxPartitionedNamedMapOfFiler<M> {
         return stores[partitionFunction.partition(stores.length, partitionKey)].read(mapName, filerKey, filerTransaction);
     }
 
-    public Boolean stream(final byte[] mapName, final TxStream<byte[], M, ChunkFiler> stream) throws IOException {
-        for (final TxNamedMapOfFiler<M> store : stores) {
-            if (!store.stream(mapName, stream)) {
+    public Boolean stream(final byte[] mapName, final List<KeyRange> ranges, final TxStream<byte[], M, ChunkFiler> stream) throws IOException {
+        for (final TxNamedMapOfFiler<N, M> store : stores) {
+            if (!store.stream(mapName, ranges, stream)) {
                 return false;
             }
         }
         return true;
     }
 
-    public Boolean streamKeys(final byte[] mapName, final TxStreamKeys<byte[]> stream) throws IOException {
-        for (final TxNamedMapOfFiler<M> store : stores) {
-            if (!store.streamKeys(mapName, stream)) {
+    public Boolean streamKeys(final byte[] mapName, final List<KeyRange> ranges, final TxStreamKeys<byte[]> stream) throws IOException {
+        for (final TxNamedMapOfFiler<N, M> store : stores) {
+            if (!store.streamKeys(mapName, ranges, stream)) {
                 return false;
             }
         }

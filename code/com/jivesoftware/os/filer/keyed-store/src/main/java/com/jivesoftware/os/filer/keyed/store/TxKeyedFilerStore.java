@@ -19,8 +19,11 @@ import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.chunk.store.RewriteChunkTransaction;
+import com.jivesoftware.os.filer.chunk.store.transaction.MapBackedKeyedFPIndex;
+import com.jivesoftware.os.filer.chunk.store.transaction.SkipListMapBackedKeyedFPIndex;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFiler;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxPartitionedNamedMapOfFiler;
+import com.jivesoftware.os.filer.chunk.store.transaction.TxPowerConstants;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStream;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStreamKeys;
 import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
@@ -28,8 +31,11 @@ import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.RewriteFilerTransaction;
+import com.jivesoftware.os.filer.map.store.api.KeyRange;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
+import com.jivesoftware.os.filer.map.store.api.KeyedFilerStore;
 import java.io.IOException;
+import java.util.List;
 
 /**
  * @author jonathan.colt
@@ -39,18 +45,44 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
     static final long SKY_HOOK_FP = 464; // I died a little bit doing this.
 
     private final byte[] name;
-    private final TxPartitionedNamedMapOfFiler<Void> namedMapOfFilers;
+    private final TxPartitionedNamedMapOfFiler<?, Void> namedMapOfFilers;
 
-    public TxKeyedFilerStore(ChunkStore[] chunkStores, byte[] name) {
+    public TxKeyedFilerStore(ChunkStore[] chunkStores, byte[] name, boolean lexOrderKeys) {
         // TODO consider replacing with builder pattern
-        @SuppressWarnings("unchecked")
-        TxNamedMapOfFiler<Void>[] stores = new TxNamedMapOfFiler[chunkStores.length];
-        for (int i = 0; i < stores.length; i++) {
-            stores[i] = new TxNamedMapOfFiler<>(chunkStores[i], SKY_HOOK_FP, TxNamedMapOfFiler.CHUNK_FILER_CREATOR, TxNamedMapOfFiler.CHUNK_FILER_OPENER);
-        }
-
         this.name = name;
-        this.namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE, stores);
+        this.namedMapOfFilers = lexOrderKeys
+            ? new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE, createOrder(chunkStores))
+            : new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE, create(chunkStores));
+
+    }
+
+    TxNamedMapOfFiler<SkipListMapBackedKeyedFPIndex, Void>[] createOrder(ChunkStore[] chunkStores) {
+        @SuppressWarnings("unchecked")
+        TxNamedMapOfFiler<SkipListMapBackedKeyedFPIndex, Void>[] stores = new TxNamedMapOfFiler[chunkStores.length];
+        for (int i = 0; i < stores.length; i++) {
+            stores[i] = new TxNamedMapOfFiler<>(chunkStores[i], SKY_HOOK_FP,
+                TxPowerConstants.SL_NAMED_POWER_CREATORS,
+                TxPowerConstants.SL_NAMED_POWER_OPENER,
+                TxPowerConstants.SL_NAMED_POWER_GROWER,
+                TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
+                TxNamedMapOfFiler.CHUNK_FILER_OPENER);
+        }
+        return stores;
+    }
+
+    TxNamedMapOfFiler<MapBackedKeyedFPIndex, Void>[] create(ChunkStore[] chunkStores) {
+        @SuppressWarnings("unchecked")
+        TxNamedMapOfFiler<MapBackedKeyedFPIndex, Void>[] stores = new TxNamedMapOfFiler[chunkStores.length];
+        for (int i = 0; i < stores.length; i++) {
+
+            stores[i] = new TxNamedMapOfFiler<>(chunkStores[i], SKY_HOOK_FP,
+                TxPowerConstants.NAMED_POWER_CREATORS,
+                TxPowerConstants.NAMED_POWER_OPENER,
+                TxPowerConstants.NAMED_POWER_GROWER,
+                TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
+                TxNamedMapOfFiler.CHUNK_FILER_OPENER);
+        }
+        return stores;
     }
 
     @Override
@@ -100,8 +132,8 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
     }
 
     @Override
-    public boolean stream(final KeyValueStore.EntryStream<IBA, Filer> stream) throws IOException {
-        return namedMapOfFilers.stream(name, new TxStream<byte[], Void, ChunkFiler>() {
+    public boolean stream(List<KeyRange> ranges, final KeyValueStore.EntryStream<IBA, Filer> stream) throws IOException {
+        return namedMapOfFilers.stream(name, ranges, new TxStream<byte[], Void, ChunkFiler>() {
 
             @Override
             public boolean stream(byte[] key, Void monkey, ChunkFiler filer, Object lock) throws IOException {
@@ -113,12 +145,15 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
     }
 
     @Override
-    public boolean streamKeys(final KeyValueStore.KeyStream<IBA> stream) throws IOException {
-        return namedMapOfFilers.streamKeys(name, new TxStreamKeys<byte[]>() {
+    public boolean streamKeys(List<KeyRange> ranges, final KeyValueStore.KeyStream<IBA> stream) throws IOException {
+        return namedMapOfFilers.streamKeys(name, ranges, new TxStreamKeys<byte[]>() {
 
             @Override
             public boolean stream(byte[] key) throws IOException {
-                return stream.stream(new IBA(key));
+                if (key != null) {
+                    return stream.stream(new IBA(key));
+                }
+                return true;
             }
         });
     }

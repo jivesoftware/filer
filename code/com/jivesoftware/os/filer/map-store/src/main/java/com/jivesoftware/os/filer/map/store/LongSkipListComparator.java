@@ -15,7 +15,6 @@
  */
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import java.io.IOException;
 
@@ -28,22 +27,8 @@ public class LongSkipListComparator implements SkipListComparator {
     static final public LongSkipListComparator cSingleton = new LongSkipListComparator();
 
     @Override
-    public int compare(Filer a, int astart, Filer b, int bstart, int length) throws IOException {
-
-        a.seek(astart);
-        long al = FilerIO.readLong(a, "a");
-        b.seek(bstart);
-        long bl = FilerIO.readLong(b, "b");
-
-        return (al < bl ? -1 : (al == bl ? 0 : 1));
-
-    }
-
-    @Override
-    public long range(byte[] a, byte[] b) {
-        long al = FilerIO.bytesLong(a);
-        long bl = FilerIO.bytesLong(b);
-        return Math.max(al, bl) - Math.min(al, bl);
+    public int compare(byte[] a, byte[] b) throws IOException {
+        return Long.compare(FilerIO.bytesLong(a), FilerIO.bytesLong(b));
     }
 
 }

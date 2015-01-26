@@ -15,29 +15,23 @@
  */
 package com.jivesoftware.os.filer.map.store;
 
-import com.jivesoftware.os.filer.io.Filer;
-import com.jivesoftware.os.filer.io.FilerIO;
+import com.google.common.primitives.UnsignedBytes;
 import java.io.IOException;
+import java.util.Comparator;
 
 /**
  *
  * @author jonathan
  */
-public class DoubleSkipListComparator implements SkipListComparator {
+public class LexSkipListComparator implements SkipListComparator {
 
-    static final public DoubleSkipListComparator cSingleton = new DoubleSkipListComparator();
+    final static Comparator<byte[]> lexicographicalComparator = UnsignedBytes.lexicographicalComparator();
 
-    public int compare(Filer a, int astart, Filer b, int bstart, int length) throws IOException {
-        a.seek(astart);
-        double ad = FilerIO.readDouble(a, "a");
-        b.seek(bstart);
-        double bd = FilerIO.readDouble(b, "b");
-        return Double.compare(ad, bd);
-    }
+    static final public LexSkipListComparator cSingleton = new LexSkipListComparator();
 
     @Override
     public int compare(byte[] a, byte[] b) throws IOException {
-       return Double.compare(FilerIO.byteDouble(a), FilerIO.byteDouble(b));
+        return lexicographicalComparator.compare(a, b);
     }
 
 }

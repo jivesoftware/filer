@@ -19,16 +19,19 @@ import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.io.CreateFiler;
+import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
+import com.jivesoftware.os.filer.map.store.api.KeyRange;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.Semaphore;
 
 /**
  * @author jonathan.colt
  */
-public class PowerKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<Integer> {
+public class PowerKeyedFPIndex implements FPIndex<Integer, PowerKeyedFPIndex> {
 
     private final ChunkStore backingChunkStore;
     private final long backingFP;
@@ -69,26 +72,49 @@ public class PowerKeyedFPIndex implements KeyedFPIndexUtil.BackingFPIndex<Intege
         fpIndex[key] = fp;
     }
 
+    @Override
     public <H, M, R> R commit(ChunkStore chunkStore,
         Integer keySize,
         H hint,
-        CreateFiler<H, M, ChunkFiler> creator,
-        OpenFiler<M, ChunkFiler> opener,
+        CreateFiler<H, M, ChunkFiler> createFiler,
+        OpenFiler<M, ChunkFiler> openFiler,
         GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction) throws IOException {
 
         return KeyedFPIndexUtil.INSTANCE.commit(this, semaphore, numPermits, chunkStore, keySizeLocks[keySize], keySize,
-            hint, creator, opener, growFiler, filerTransaction);
+            hint, createFiler, openFiler, growFiler, filerTransaction);
 
     }
 
-    public boolean stream(final KeysStream<Integer> keysStream) throws IOException {
+    @Override
+    public boolean stream(List<KeyRange> ranges, final KeysStream<Integer> keysStream) throws IOException {
+        if (ranges != null) {
+            throw new IllegalStateException("This doesn't make sense!");
+        }
         for (int i = 0; i < fpIndex.length; i++) {
             if (fpIndex[i] > -1 && !keysStream.stream(i)) {
                 return false;
             }
         }
         return true;
+    }
+
+    @Override
+    public boolean acquire(int alwaysRoomForNMoreKeys) {
+        return true;
+    }
+
+    @Override
+    public int nextGrowSize(int alwaysRoomForNMoreKeys) throws IOException {
+        return -1;
+    }
+
+    @Override
+    public void copyTo(Filer curentFiler, FPIndex<Integer, PowerKeyedFPIndex> newMonkey, Filer newFiler) throws IOException {
+    }
+
+    @Override
+    public void release(int alwayRoomForNMoreKeys) {
     }
 
 }
