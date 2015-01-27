@@ -8,9 +8,8 @@
  */
 package com.jivesoftware.os.filer.queue.store;
 
-import com.jivesoftware.os.jive.utils.base.util.UtilPushback;
-import com.jivesoftware.os.jive.utils.logger.MetricLogger;
-import com.jivesoftware.os.jive.utils.logger.MetricLoggerFactory;
+import com.jivesoftware.os.mlogger.core.MetricLogger;
+import com.jivesoftware.os.mlogger.core.MetricLoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -212,7 +211,7 @@ public class TwoPhasedFileQueueImpl {
         synchronized (appendLock) {
             long got = approximateCount.get();
             pending.setValue(got);
-            UtilPushback.queueDepthPushable(queueName, got, pushbackAtQueueSize);
+            Pushback.queueDepthPushable(queueName, got, pushbackAtQueueSize);
 
             if (state != State.OPENED) {
                 open();

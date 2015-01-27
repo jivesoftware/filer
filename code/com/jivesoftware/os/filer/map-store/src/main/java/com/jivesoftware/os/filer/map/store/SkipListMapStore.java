@@ -4,6 +4,7 @@ import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.map.store.api.KeyRange;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -308,7 +309,7 @@ public class SkipListMapStore {
 
     /**
      * DO NOT cache KeyPayload... It will be reused by PSkipListSet
-     *
+     * 'from' must be in the store
      */
     public void getSlice(Filer filer, SkipListMapContext context, byte[] from, byte[] to, int _max, SliceStream _get)
         throws IOException {
@@ -381,6 +382,9 @@ public class SkipListMapStore {
         } else {
             for (KeyRange range : ranges) {
                 byte[] key = findWouldInsertAtOrAfter(filer, context, range.getStartInclusiveKey());
+                if (key == null) {
+                    key = getNextKey(filer, context, context.headKey);
+                }
                 if (key != null) {
                     if (range.contains(key)) {
                         if (!stream.stream(key)) {
@@ -549,7 +553,7 @@ public class SkipListMapStore {
          */
         @Override
         public String bytesToString(byte[] bytes) {
-            return new String(bytes); // UString.toString(bytes, ",");
+            return Arrays.toString(bytes); // UString.toString(bytes, ",");
         }
     }
 

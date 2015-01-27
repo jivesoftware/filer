@@ -9,9 +9,8 @@
 package com.jivesoftware.os.filer.queue.store;
 
 import com.jivesoftware.os.filer.io.FilerIO;
-import com.jivesoftware.os.jive.utils.base.interfaces.CallbackStream;
-import com.jivesoftware.os.jive.utils.logger.MetricLogger;
-import com.jivesoftware.os.jive.utils.logger.MetricLoggerFactory;
+import com.jivesoftware.os.mlogger.core.MetricLogger;
+import com.jivesoftware.os.mlogger.core.MetricLoggerFactory;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -182,7 +181,7 @@ public class FileQueue {
      *
      * @param append
      */
-    public void read(long ifInThisMode, long afterReadSetToThisMode, CallbackStream<FileQueueEntry> stream) {
+    public void read(long ifInThisMode, long afterReadSetToThisMode, QueueEntryStream<FileQueueEntry> stream) {
 
         synchronized (ioLock) {
             RandomAccessFile readFrom = read(); // this outside of the try so it doesn't effect the state if we are making a copy
@@ -190,7 +189,7 @@ public class FileQueue {
                 state = State.ERROR_READING;
                 logger.error("failed to read from file=" + file + " openFilesCount=" + openFilesCount);
                 try {
-                    stream.callback(null); // denots end of stream
+                    stream.stream(null); // denots end of stream
                 } catch (Exception ex) {
                     logger.error("failed marking end of stream=", ex);
                 }
@@ -202,13 +201,13 @@ public class FileQueue {
                     if (fileQueueEntry == null) {
                         break;
                     } else {
-                        FileQueueEntry returned = stream.callback(fileQueueEntry);
+                        FileQueueEntry returned = stream.stream(fileQueueEntry);
                         if (returned == null) {
                             break;
                         }
                     }
                 }
-                stream.callback(null); // denots end of stream
+                stream.stream(null); // denots end of stream
                 close();
 
             } catch (IOException ioex) {

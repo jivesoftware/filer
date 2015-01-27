@@ -10,9 +10,8 @@ package com.jivesoftware.os.filer.queue.processor;
 
 import com.jivesoftware.os.filer.queue.store.PhasedQueue;
 import com.jivesoftware.os.filer.queue.store.PhasedQueueEntry;
-import com.jivesoftware.os.jive.utils.base.util.UtilThread;
-import com.jivesoftware.os.jive.utils.logger.MetricLogger;
-import com.jivesoftware.os.jive.utils.logger.MetricLoggerFactory;
+import com.jivesoftware.os.mlogger.core.MetricLogger;
+import com.jivesoftware.os.mlogger.core.MetricLoggerFactory;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -63,7 +62,7 @@ public class PhasedQueueProcessor implements Runnable {
                 logger.incAtomic(phasedQueueProcessorConfig.getName() + ">failed", toBeProcessed.size());
                 long retryAfterNMillis = phasedQueueProcessorConfig.getOnFailureToDeliverRetryAfterNMillis();
                 logger.trace(phasedQueueProcessorConfig.getName()
-                        + " failed to send! " + toBeProcessed.size() + " message/s. Will retry in " + retryAfterNMillis + "millis.");
+                    + " failed to send! " + toBeProcessed.size() + " message/s. Will retry in " + retryAfterNMillis + "millis.");
                 try {
                     Thread.sleep(retryAfterNMillis);
                 } catch (InterruptedException ie) {
@@ -104,9 +103,9 @@ public class PhasedQueueProcessor implements Runnable {
             if (readyToConsume(queue)) {
                 try {
                     consumed = queue.consume(phasedQueueProcessorConfig.getInitialPhase(),
-                            phasedQueueProcessorConfig.getPhaseUponConsuming(),
-                            phasedQueueProcessorConfig.getMaxBatchSize(),
-                            phasedQueueProcessorConfig.getMaxBatchSizeInBytes());
+                        phasedQueueProcessorConfig.getPhaseUponConsuming(),
+                        phasedQueueProcessorConfig.getMaxBatchSize(),
+                        phasedQueueProcessorConfig.getMaxBatchSizeInBytes());
                 } catch (Exception x) {
                     logger.error(" Queue consumer for " + phasedQueueProcessorConfig.getName() + " is having trouble.", x);
                 }
@@ -114,7 +113,11 @@ public class PhasedQueueProcessor implements Runnable {
 
             long backoff = phasedQueueProcessorConfig.getBackoffForNMillisWhenConsumerReturnsZero();
             if (consumed.isEmpty() && backoff > 0) {
-                UtilThread.sleep(backoff);
+                try {
+                    Thread.sleep(backoff);
+                } catch (InterruptedException ie) {
+                    Thread.interrupted();
+                }
                 logger.debug("sleeping for " + backoff);
             }
         }
@@ -127,8 +130,8 @@ public class PhasedQueueProcessor implements Runnable {
 
     private boolean readyToConsume(PhasedQueue queue) {
         if (phasedQueueProcessorConfig.getIdealMinimumBatchSize() <= 0
-                || phasedQueueProcessorConfig.getIdealMinimumBatchSizeMaxWaitMillis() <= 0
-                || (System.currentTimeMillis() - lastConsumeTimestamp) > phasedQueueProcessorConfig.getIdealMinimumBatchSizeMaxWaitMillis()) {
+            || phasedQueueProcessorConfig.getIdealMinimumBatchSizeMaxWaitMillis() <= 0
+            || (System.currentTimeMillis() - lastConsumeTimestamp) > phasedQueueProcessorConfig.getIdealMinimumBatchSizeMaxWaitMillis()) {
             return true;
         }
         try {

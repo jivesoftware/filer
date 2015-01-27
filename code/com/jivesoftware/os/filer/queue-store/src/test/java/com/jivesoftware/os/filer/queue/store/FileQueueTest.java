@@ -4,7 +4,6 @@
  */
 package com.jivesoftware.os.filer.queue.store;
 
-import com.jivesoftware.os.jive.utils.base.interfaces.CallbackStream;
 import java.io.File;
 import java.util.LinkedList;
 import java.util.List;
@@ -82,9 +81,9 @@ public class FileQueueTest {
         queue1.close();
         AssertJUnit.assertTrue("is=" + file1Hard.length() + " vs expected=" + expectFileLenth, file1Hard.length() == expectFileLenth);
 
-        queue1.read(0, 0, new CallbackStream<FileQueueEntry>() {
+        queue1.read(0, 0, new QueueEntryStream<FileQueueEntry>() {
             @Override
-            public FileQueueEntry callback(FileQueueEntry readed) throws Exception {
+            public FileQueueEntry stream(FileQueueEntry readed) throws Exception {
                 if (readed == null) {
                     return readed;
                 }

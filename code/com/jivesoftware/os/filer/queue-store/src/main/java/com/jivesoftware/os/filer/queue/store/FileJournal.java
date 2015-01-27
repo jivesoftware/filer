@@ -4,10 +4,8 @@
  */
 package com.jivesoftware.os.filer.queue.store;
 
-import com.jivesoftware.os.jive.utils.base.interfaces.CallbackStream;
-import com.jivesoftware.os.jive.utils.base.util.UtilThread;
-import com.jivesoftware.os.jive.utils.logger.MetricLogger;
-import com.jivesoftware.os.jive.utils.logger.MetricLoggerFactory;
+import com.jivesoftware.os.mlogger.core.MetricLogger;
+import com.jivesoftware.os.mlogger.core.MetricLoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -68,32 +66,32 @@ abstract public class FileJournal<V> {
         }
     }
 
-    public void getAll(String systemId, final CallbackStream<V> callbackStream) throws Exception {
+    public void getAll(String systemId, final QueueEntryStream<V> stream) throws Exception {
         File queueFolder = queueFolder(systemId);
         ensureDirectory(queueFolder);
         File[] allPages = queueFolder.listFiles();
         if (allPages == null || allPages.length == 0) {
-            callbackStream.callback(null); //EOS
+            stream.stream(null); //EOS
             return;
         }
         Arrays.sort(allPages, new Comparator<File>() {
 
             @Override
             public int compare(File o1, File o2) {
-               return new UniqueOrderableFileName(o1.getName()).getOrderId().compareTo(new UniqueOrderableFileName(o2.getName()).getOrderId());
+                return new UniqueOrderableFileName(o1.getName()).getOrderId().compareTo(new UniqueOrderableFileName(o2.getName()).getOrderId());
             }
         });
         final MutableBoolean callerStopped = new MutableBoolean(false);
         for (File page : allPages) {
             FileQueue journal = new FileQueue(page, false);
-            journal.read(0, 0, new CallbackStream<FileQueueEntry>() {
+            journal.read(0, 0, new QueueEntryStream<FileQueueEntry>() {
                 @Override
-                public FileQueueEntry callback(FileQueueEntry value) throws Exception {
+                public FileQueueEntry stream(FileQueueEntry value) throws Exception {
                     if (value == null) {
                         return value;
                     }
                     V vector = toInstance(ByteBuffer.wrap(value.getEntry()));
-                    V response = callbackStream.callback(vector);
+                    V response = stream.stream(vector);
                     if (response == null) {
                         callerStopped.setValue(true);
                         return null; // stops the stream
@@ -105,7 +103,7 @@ abstract public class FileJournal<V> {
                 break;
             }
         }
-        callbackStream.callback(null); // EOS
+        stream.stream(null); // EOS
     }
 
     private Journal getQueue(String systemId) {
@@ -204,7 +202,11 @@ abstract public class FileJournal<V> {
                                     return;
                                 }
                             }
-                            UtilThread.sleep(autoCloseAfterNMillis / 2);
+                            try {
+                                Thread.sleep(autoCloseAfterNMillis / 2);
+                            } catch (InterruptedException ie) {
+                                Thread.interrupted();
+                            }
                         }
                     }
                 };

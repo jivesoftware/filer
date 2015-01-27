@@ -4,7 +4,6 @@
  */
 package com.jivesoftware.os.filer.queue.store;
 
-import com.jivesoftware.os.jive.utils.base.util.UtilThread;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -127,7 +126,12 @@ public class FileQueueImplTest {
                         } catch (Exception ex) {
                             ex.printStackTrace();
                         }
-                        UtilThread.sleep(delayBetweenAdds);
+                        try {
+                            Thread.sleep(delayBetweenAdds);
+                        } catch (InterruptedException ie) {
+                            Thread.interrupted();
+                            throw new RuntimeException(ie);
+                        }
                     }
                 }
             };
@@ -150,7 +154,13 @@ public class FileQueueImplTest {
                                 PhasedQueueConstants.CONSUMED, 1, Long.MAX_VALUE);
                             consumedCount.addAndGet(batch.size());
                             if (batch.isEmpty()) {
-                                UtilThread.sleep(sleepForNMillisOnEmptyConsume);
+
+                                try {
+                                    Thread.sleep(sleepForNMillisOnEmptyConsume);
+                                } catch (InterruptedException ie) {
+                                    Thread.interrupted();
+                                    throw new RuntimeException(ie);
+                                }
                             } else {
                                 for (PhasedQueueEntry b : batch) {
                                     String data = new String(b.getEntry());
@@ -259,7 +269,13 @@ public class FileQueueImplTest {
                                 PhasedQueueConstants.CONSUMED, 1, Long.MAX_VALUE);
                             consumedCount.addAndGet(batch.size());
                             if (batch.isEmpty()) {
-                                UtilThread.sleep(sleepForNMillisOnEmptyConsume);
+
+                                try {
+                                    Thread.sleep(sleepForNMillisOnEmptyConsume);
+                                } catch (InterruptedException ie) {
+                                    Thread.interrupted();
+                                    throw new RuntimeException(ie);
+                                }
                             } else {
 
                                 for (PhasedQueueEntry b : batch) {
@@ -286,7 +302,7 @@ public class FileQueueImplTest {
 
     }
 
-    @Test (groups = "slow")
+    @Test(groups = "slow")
     public void testBouncingQueueOverAndOverAgain() throws Exception {
         System.out.println("---testAbortedConsumingFollowedByARestart---");
         MutableLong pending = new MutableLong();
@@ -323,7 +339,13 @@ public class FileQueueImplTest {
                     List<PhasedQueueEntry> batch = readQ.consume(PhasedQueueConstants.ENQUEUED,
                         PhasedQueueConstants.CONSUMED, batchSize, Long.MAX_VALUE);
                     if (batch.isEmpty()) {
-                        UtilThread.sleep(sleepForNMillisOnEmptyConsume);
+
+                        try {
+                            Thread.sleep(sleepForNMillisOnEmptyConsume);
+                        } catch (InterruptedException ie) {
+                            Thread.interrupted();
+                            throw new RuntimeException(ie);
+                        }
                     } else {
                         for (PhasedQueueEntry b : batch) {
                             b.processed();
@@ -382,7 +404,7 @@ public class FileQueueImplTest {
 
     }
 
-    @Test (enabled = false)
+    @Test(enabled = false)
     public void testItemsRemainOnQueueUntilMarkedAsProcessed() throws Exception {
         File tmpDir = getTempDir();
         boolean deleteQueueFilesOnExit = false;
@@ -419,7 +441,7 @@ public class FileQueueImplTest {
         assertEquals(new String(queueEntries.get(2).getEntry()), "three");
     }
 
-    @Test (enabled = false)
+    @Test(enabled = false)
     public void testItemsRemovedFromQueueAfterMarkedAsProcessed() throws Exception {
         File tmpDir = getTempDir();
         boolean deleteQueueFilesOnExit = false;

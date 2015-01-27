@@ -69,7 +69,6 @@ public class SkipListMapTest {
         long slsFilerSize = sls.computeFilerSize(capacity, keySize, false, payloadSize, (byte) 9);
         ByteBufferBackedFiler filer = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
 
-        Random random = new Random(1234);
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
         SkipListMapContext context = sls.create(capacity, headKey, keySize, false, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, filer);
@@ -91,6 +90,107 @@ public class SkipListMapTest {
             }
         });
         Assert.assertEquals(count.intValue(), 11);
+
+    }
+
+     @Test
+    public void prefixStreamTest() throws IOException {
+        ByteBufferFactory provider = new HeapByteBufferFactory();
+        int capacity = 14;
+        int keySize = 2;
+        int payloadSize = 0;
+        SkipListMapStore sls = SkipListMapStore.INSTANCE;
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        ByteBufferBackedFiler filer = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
+
+        byte[] headKey = new byte[keySize];
+        Arrays.fill(headKey, Byte.MIN_VALUE);
+        SkipListMapContext context = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, filer);
+
+        Random random = new Random(1234);
+        for (int i = 0; i < 10; i++) {
+            byte[] key = new byte[2];
+            random.nextBytes(key);
+            System.out.println("add:" + Arrays.toString(key));
+            sls.add(filer, context, key, new byte[0]);
+        }
+
+        sls.toSysOut(filer, context, new SkipListMapStore.BytesToBytesString());
+
+        final AtomicInteger count = new AtomicInteger();
+
+        List<KeyRange> ranges = new ArrayList<>();
+        ranges.add(new KeyRange(new byte[]{19, -5}, new byte[]{50}));
+        sls.streamKeys(filer, context, new Object(), ranges, new MapStore.KeyStream() {
+
+            @Override
+            public boolean stream(byte[] key) throws IOException {
+                System.out.println("stream:" + Arrays.toString(key));
+                count.incrementAndGet();
+                return true;
+            }
+        });
+        Assert.assertEquals(count.intValue(), 1);
+
+        System.out.println("-------");
+        count.set(0);
+        ranges.clear();
+        ranges.add(new KeyRange(new byte[]{19}, new byte[]{50, -126}));
+        sls.streamKeys(filer, context, new Object(), ranges, new MapStore.KeyStream() {
+
+            @Override
+            public boolean stream(byte[] key) throws IOException {
+                System.out.println("stream:" + Arrays.toString(key));
+                count.incrementAndGet();
+                return true;
+            }
+        });
+        Assert.assertEquals(count.intValue(), 3);
+
+        System.out.println("-------");
+        count.set(0);
+        ranges.clear();
+        ranges.add(new KeyRange(new byte[]{-11}, new byte[]{-4}));
+        sls.streamKeys(filer, context, new Object(), ranges, new MapStore.KeyStream() {
+
+            @Override
+            public boolean stream(byte[] key) throws IOException {
+                System.out.println("stream:" + Arrays.toString(key));
+                count.incrementAndGet();
+                return true;
+            }
+        });
+        Assert.assertEquals(count.intValue(), 2);
+
+        System.out.println("-------");
+        count.set(0);
+        ranges.clear();
+        ranges.add(new KeyRange(new byte[]{-11}, new byte[]{-5}));
+        sls.streamKeys(filer, context, new Object(), ranges, new MapStore.KeyStream() {
+
+            @Override
+            public boolean stream(byte[] key) throws IOException {
+                System.out.println("stream:" + Arrays.toString(key));
+                count.incrementAndGet();
+                return true;
+            }
+        });
+        Assert.assertEquals(count.intValue(), 1);
+
+        System.out.println("------- -2, -1");
+        count.set(0);
+        ranges.clear();
+        ranges.add(new KeyRange(new byte[]{-2}, new byte[]{-1}));
+        sls.streamKeys(filer, context, new Object(), ranges, new MapStore.KeyStream() {
+
+            @Override
+            public boolean stream(byte[] key) throws IOException {
+                System.out.println("stream:" + Arrays.toString(key));
+                count.incrementAndGet();
+                return true;
+            }
+        });
+        Assert.assertEquals(count.intValue(), 0);
 
     }
 

@@ -4,7 +4,6 @@
  */
 package com.jivesoftware.os.filer.queue.store;
 
-import com.jivesoftware.os.jive.utils.base.interfaces.CallbackStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
@@ -35,9 +34,9 @@ public class FileJournalTest {
 
         final MutableLong count = new MutableLong();
         // ensure absent key is empty
-        j.getAll("noPresent", new CallbackStream<Long>() {
+        j.getAll("noPresent", new QueueEntryStream<Long>() {
             @Override
-            public Long callback(Long value) throws Exception {
+            public Long stream(Long value) throws Exception {
                 if (value == null) {
                     return value;
                 }
@@ -48,9 +47,9 @@ public class FileJournalTest {
         AssertJUnit.assertEquals(count.longValue(), 0);
 
         // ensure epected key has added items
-        j.getAll(journalName, new CallbackStream<Long>() {
+        j.getAll(journalName, new QueueEntryStream<Long>() {
             @Override
-            public Long callback(Long value) throws Exception {
+            public Long stream(Long value) throws Exception {
                 if (value == null) {
                     return value;
                 }
