@@ -37,8 +37,8 @@ public class MapStore {
     private static final int cPayloadSizeVariableOffset = cPayloadSizeOffset + cPayloadSize;
 
     private static final double cSetDensity = 0.6d;
-    private static final byte cSkip = -1;
-    private static final byte cNull = 0;
+    static final byte cSkip = -1;
+    static final byte cNull = 0;
 
     private MapStore() {
     }
@@ -252,7 +252,7 @@ public class MapStore {
         write(filer, cPayloadSizeVariableOffset, v);
     }
 
-    private long index(long _arrayIndex, int entrySize) {
+    long index(long _arrayIndex, int entrySize) {
         return cHeaderSize + (1 + entrySize) * _arrayIndex;
     }
 
