@@ -93,7 +93,7 @@ public class SkipListMapTest {
         Arrays.fill(headKey, Byte.MIN_VALUE);
         SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, f);
 
-        final HashSet<Byte> expectedContains = new HashSet<Byte>();
+        final HashSet<Byte> expectedContains = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             sls.add(f, from, new byte[]{(byte) i}, new byte[0]);
             expectedContains.add((byte) i);
@@ -163,10 +163,12 @@ public class SkipListMapTest {
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
         SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, f);
+        final HashSet<Byte> expectedContains = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             byte[] key = new byte[]{(byte) random.nextInt(64)};
             System.out.println("add:" + Arrays.toString(key));
             sls.add(f, from, key, new byte[0]);
+            expectedContains.add(key[0]);
         }
 
         capacity = 64;
@@ -183,6 +185,7 @@ public class SkipListMapTest {
         });
 
         sls.toSysOut(t, to, new SkipListMapStore.BytesToBytesString());
+        assertContents(sls, t, to, expectedContains);
     }
 
     @Test

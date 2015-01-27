@@ -301,6 +301,7 @@ public class SkipListMapStore {
             if (fromIndex == from.headIndex) { // Barf
                 continue;
             }
+
             long ai = MapStore.INSTANCE.index(fromIndex, from.mapContext.entrySize);
             byte mode = MapStore.INSTANCE.read(f, (int) ai);
             if (mode == MapStore.cNull) {
@@ -311,7 +312,7 @@ public class SkipListMapStore {
             }
 
             byte[] key = MapStore.INSTANCE.getKey(f, from.mapContext, fromIndex);
-            byte[] payload = MapStore.INSTANCE.getPayload(f, from.mapContext, fromIndex);
+            byte[] payload = getColumnPayload(f, from, fromIndex, from.maxHeight);
             long toIndex = add(t, to, key, payload);
 
             if (stream != null) {
