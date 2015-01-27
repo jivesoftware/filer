@@ -21,6 +21,25 @@ import org.testng.annotations.Test;
 public class SkipListMapTest {
 
     @Test
+    public void addToCapactiyTest() throws IOException {
+        ByteBufferFactory provider = new HeapByteBufferFactory();
+        int capacity = 96;
+        int keySize = 1;
+        int payloadSize = 0;
+        SkipListMapStore sls = SkipListMapStore.INSTANCE;
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        ByteBufferBackedFiler f = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
+
+        byte[] headKey = new byte[keySize];
+        Arrays.fill(headKey, Byte.MIN_VALUE);
+        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, f);
+
+        for (int i = 0; i < 96; i++) {
+            sls.add(f, from, new byte[]{(byte) i}, new byte[0]);
+        }
+    }
+
+    @Test
     public void reopenTest() throws IOException {
         ByteBufferFactory provider = new HeapByteBufferFactory();
         int capacity = 16;
