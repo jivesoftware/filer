@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.jivesoftware.os.filer.inheritance.poms</groupId>
         <artifactId>shared-lib-build-management</artifactId>
-        <version>0.52-SNAPSHOT</version>
+        <version>0.52</version>
         <relativePath>../inheritance-poms/shared-lib-build-management/pom.xml</relativePath>
     </parent>
     <groupId>com.jivesoftware.os.filer</groupId>
