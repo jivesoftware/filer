@@ -71,7 +71,7 @@ public class SkipListMapBackedKeyedFPIndex implements FPIndex<byte[], SkipListMa
     @Override
     public void copyTo(Filer currentFiler, FPIndex<byte[], SkipListMapBackedKeyedFPIndex> newMonkey, Filer newFiler) throws IOException {
         // TODO rework generics to elimnate this cast
-        SkipListMapStore.INSTANCE.copyTo(currentFiler, context, newFiler, ((SkipListMapBackedKeyedFPIndex) newMonkey).context);
+        SkipListMapStore.INSTANCE.copyTo(currentFiler, context, newFiler, ((SkipListMapBackedKeyedFPIndex) newMonkey).context, null);
     }
 
     @Override
