@@ -15,7 +15,6 @@ import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.IBA;
-import com.jivesoftware.os.filer.io.RewriteFilerTransaction;
 import com.jivesoftware.os.filer.map.store.api.KeyRange;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import java.io.File;
@@ -56,7 +55,7 @@ public class TxKeyedFilerStoreNGTest {
         int newFilerInitialCapacity = 512;
 
         byte[] key = FilerIO.intBytes(1010);
-        store.execute(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+        store.readWriteAutoGrow(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
             @Override
             public Void commit(Object lock, Filer filer) throws IOException {
                 synchronized (lock) {
@@ -66,7 +65,7 @@ public class TxKeyedFilerStoreNGTest {
             }
         });
 
-        store.execute(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+        store.readWriteAutoGrow(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
             @Override
             public Void commit(Object lock, Filer filer) throws IOException {
                 synchronized (lock) {
@@ -140,7 +139,7 @@ public class TxKeyedFilerStoreNGTest {
         int newFilerInitialCapacity = 512;
 
         final byte[] key = FilerIO.intBytes(1020);
-        store.execute(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+        store.readWriteAutoGrow(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
             @Override
             public Void commit(Object lock, Filer filer) throws IOException {
                 synchronized (lock) {
@@ -150,22 +149,20 @@ public class TxKeyedFilerStoreNGTest {
                 }
             }
         });
-        store.executeRewrite(key, newFilerInitialCapacity, new RewriteFilerTransaction<Filer, Void>() {
+        store.writeNewReplace(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
             @Override
-            public Void commit(Filer currentFiler, Filer newFiler) throws IOException {
-                currentFiler.seek(0);
-                int ten = FilerIO.readInt(currentFiler, "");
-                assertEquals(ten, 10);
-
-                newFiler.seek(0);
-                FilerIO.writeInt(newFiler, 20, "");
-                return null;
+            public Void commit(Object newLock, Filer newFiler) throws IOException {
+                synchronized (newLock) {
+                    newFiler.seek(0);
+                    FilerIO.writeInt(newFiler, 20, "");
+                    return null;
+                }
             }
         });
 
         store = new TxKeyedFilerStore(chunkStores, "booya".getBytes(), lexOrderKeys);
 
-        store.execute(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+        store.readWriteAutoGrow(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
             @Override
             public Void commit(Object lock, Filer filer) throws IOException {
                 synchronized (lock) {

@@ -56,7 +56,7 @@ public class TxNamedMap {
 
     private final MapBackedKeyedFPIndexGrower grower = new MapBackedKeyedFPIndexGrower(1);
 
-    public <R> R write(final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction) throws IOException {
+    public <R> R readWriteAutoGrow(final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction) throws IOException {
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP)) {
                 long fp = chunkStore.newChunk(null, KeyedFPIndexCreator.DEFAULT);
@@ -69,12 +69,12 @@ public class TxNamedMap {
             public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.commit(chunkStore, chunkPower, 1, SKY_HOOK_POWER_CREATORS[chunkPower], SKY_HOOK_POWER_OPENER, grower,
+                return monkey.readWriteAutoGrow(chunkStore, chunkPower, 1, SKY_HOOK_POWER_CREATORS[chunkPower], SKY_HOOK_POWER_OPENER, grower,
                     new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
 
                         @Override
                         public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                            return monkey.commit(chunkStore, mapName, 1, mapCreator, mapOpener, mapGrower, mapTransaction);
+                            return monkey.readWriteAutoGrow(chunkStore, mapName, 1, mapCreator, mapOpener, mapGrower, mapTransaction);
                         }
 
                     });
@@ -98,13 +98,13 @@ public class TxNamedMap {
                 }
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.commit(chunkStore, chunkPower, 1, null, SKY_HOOK_POWER_OPENER, null,
+                return monkey.read(chunkStore, chunkPower, SKY_HOOK_POWER_OPENER,
                     new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
 
                         @Override
                         public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
                             if (monkey != null && filer != null) {
-                                return monkey.commit(chunkStore, mapName, 1, null, mapOpener, null, mapTransaction);
+                                return monkey.read(chunkStore, mapName, mapOpener, mapTransaction);
                             } else {
                                 return mapTransaction.commit(null, null, null);
                             }
@@ -131,7 +131,7 @@ public class TxNamedMap {
                 }
 
                 int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.commit(chunkStore, chunkPower, null, null, SKY_HOOK_POWER_OPENER, null,
+                return monkey.read(chunkStore, chunkPower, SKY_HOOK_POWER_OPENER,
                     new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
 
                         @Override
@@ -139,7 +139,7 @@ public class TxNamedMap {
                             if (monkey == null || filer == null) {
                                 return true;
                             }
-                            return monkey.commit(chunkStore, mapName, null, null, mapOpener, null, new ChunkTransaction<MapContext, Boolean>() {
+                            return monkey.read(chunkStore, mapName, mapOpener, new ChunkTransaction<MapContext, Boolean>() {
 
                                 @Override
                                 public Boolean commit(MapContext monkey, ChunkFiler filer, Object lock) throws IOException {

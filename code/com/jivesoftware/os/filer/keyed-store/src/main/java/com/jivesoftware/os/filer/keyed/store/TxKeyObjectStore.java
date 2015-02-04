@@ -160,7 +160,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
 
         final byte[] keyBytes = keyMarshaller.keyBytes(key);
         if (createIfAbsent) {
-            return namedMap.write(mapName, new ChunkTransaction<MapContext, R>() {
+            return namedMap.readWriteAutoGrow(mapName, new ChunkTransaction<MapContext, R>() {
 
                 @Override
                 public R commit(final MapContext monkey, final ChunkFiler filer, final Object lock) throws IOException {

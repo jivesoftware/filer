@@ -15,7 +15,6 @@ import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
-import com.jivesoftware.os.filer.io.RewriteFilerTransaction;
 import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -90,7 +89,7 @@ public class TxKeyedFilerStoreConcurrencyNGTest {
                     TxKeyedFilerStore store = get(rand.nextInt(2));
                     byte[] key = FilerIO.longBytes(rand.nextInt(256));
                     // read
-                    store.execute(key, -1, new FilerTransaction<Filer, Boolean>() {
+                    store.readWriteAutoGrow(key, -1, new FilerTransaction<Filer, Boolean>() {
 
                         @Override
                         public Boolean commit(Object lock, Filer filer) throws IOException {
@@ -108,7 +107,7 @@ public class TxKeyedFilerStoreConcurrencyNGTest {
 
                     // write
                     final long filerLength = 1 + rand.nextInt(1024);
-                    store.execute(key, filerLength, new FilerTransaction<Filer, Boolean>() {
+                    store.readWriteAutoGrow(key, filerLength, new FilerTransaction<Filer, Boolean>() {
 
                         @Override
                         public Boolean commit(Object lock, Filer filer) throws IOException {
@@ -125,21 +124,17 @@ public class TxKeyedFilerStoreConcurrencyNGTest {
 
                     // rewrite
                     final long rewriteFilerLength = 1 + rand.nextInt(1024);
-                    store.executeRewrite(key, rewriteFilerLength, new RewriteFilerTransaction<Filer, Boolean>() {
+                    store.writeNewReplace(key, rewriteFilerLength, new FilerTransaction<Filer, Boolean>() {
 
                         @Override
-                        public Boolean commit(Filer currentFiler, Filer newFiler) throws IOException {
-                            if (currentFiler != null) {
-                                currentFiler.seek(0);
-                                for (int i = 0; i < currentFiler.length(); i++) {
-                                    currentFiler.read();
+                        public Boolean commit(Object newLock, Filer newFiler) throws IOException {
+                            synchronized (newLock) {
+                                newFiler.seek(0);
+                                for (int i = 0; i < rewriteFilerLength; i++) {
+                                    newFiler.write((byte) rand.nextInt(255));
                                 }
+                                return true;
                             }
-                            newFiler.seek(0);
-                            for (int i = 0; i < rewriteFilerLength; i++) {
-                                newFiler.write((byte) rand.nextInt(255));
-                            }
-                            return true;
                         }
                     });
 

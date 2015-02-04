@@ -52,7 +52,7 @@ public class ChunkStoreTest {
         for (int loop = 0; loop < numLoops; loop++) {
             chunkFile.createNewFile();
 
-            File[] dirs = { chunkFile.getParentFile() };
+            File[] dirs = {chunkFile.getParentFile()};
             final ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(dirs, 0, "data", 1024, byteBufferFactory, 5_000);
 
             long start = System.currentTimeMillis();
@@ -84,7 +84,7 @@ public class ChunkStoreTest {
         int size = 1024 * 10;
 
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        File[] dirs = { Files.createTempDirectory("testNewChunkStore").toFile() };
+        File[] dirs = {Files.createTempDirectory("testNewChunkStore").toFile()};
         ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(dirs, 0, "data", size, byteBufferFactory, 5_000);
 
         long chunk10 = chunkStore.newChunk(10L, createFiler);
@@ -157,7 +157,7 @@ public class ChunkStoreTest {
         File dir = Files.createTempDirectory("testExistingChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", size, byteBufferFactory, 5_000);
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data", size, byteBufferFactory, 5_000);
 
         final byte[] bytes = new byte[257];
         new Random().nextBytes(bytes);
@@ -195,14 +195,14 @@ public class ChunkStoreTest {
         File dir = Files.createTempDirectory("testExistingChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", size, byteBufferFactory, 5_000);
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data", size, byteBufferFactory, 5_000);
 
         long chunk10 = chunkStore.newChunk(10L, createFiler);
         writeIntToChunk(chunkStore, chunk10, 10);
 
         long expectedReferenceNumber = chunkStore.getReferenceNumber();
 
-        chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", 1024, byteBufferFactory, 5_000);
+        chunkStore = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data", 1024, byteBufferFactory, 5_000);
         assertEquals(chunkStore.getReferenceNumber(), expectedReferenceNumber);
 
         assertIntInChunk(chunkStore, chunk10, 10);
@@ -214,7 +214,7 @@ public class ChunkStoreTest {
         File dir = Files.createTempDirectory("testResizingChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", size, byteBufferFactory, 5_000);
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data", size, byteBufferFactory, 5_000);
 
         long chunk10 = chunkStore.newChunk(size * 4L, createFiler);
         chunkStore.execute(chunk10, openFiler, new ChunkTransaction<Void, Void>() {
@@ -249,7 +249,7 @@ public class ChunkStoreTest {
         File dir = Files.createTempDirectory("testAddRemove").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data", 1024, byteBufferFactory, 5_000);
+        ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data", 1024, byteBufferFactory, 5_000);
 
         List<Long> fps1 = new ArrayList<>();
         for (int i = 0; i < 2; i++) {

@@ -36,6 +36,8 @@ public interface FPIndex<K, I extends FPIndex<K, I>> {
 
     void set(K key, long fp) throws IOException;
 
+    long getAndSet(K key, long fp) throws IOException;
+
     boolean acquire(int alwaysRoomForNMoreKeys);
 
     int nextGrowSize(int alwaysRoomForNMoreKeys) throws IOException;
@@ -46,7 +48,23 @@ public interface FPIndex<K, I extends FPIndex<K, I>> {
 
     boolean stream(List<KeyRange> ranges, KeysStream<K> stream) throws IOException;
 
-    <H, M, R> R commit(ChunkStore chunkStore,
+    <H, M, R> R read(
+        ChunkStore chunkStore,
+        K key,
+        OpenFiler<M, ChunkFiler> opener,
+        ChunkTransaction<M, R> filerTransaction) throws IOException;
+
+    <H, M, R> R writeNewReplace(
+        ChunkStore chunkStore,
+        K key,
+        H hint,
+        CreateFiler<H, M, ChunkFiler> creator,
+        OpenFiler<M, ChunkFiler> opener,
+        GrowFiler<H, M, ChunkFiler> growFiler,
+        ChunkTransaction<M, R> filerTransaction) throws IOException;
+
+    <H, M, R> R readWriteAutoGrow(
+        ChunkStore chunkStore,
         K key,
         H hint,
         CreateFiler<H, M, ChunkFiler> creator,

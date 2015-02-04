@@ -73,17 +73,44 @@ public class PowerKeyedFPIndex implements FPIndex<Integer, PowerKeyedFPIndex> {
     }
 
     @Override
-    public <H, M, R> R commit(ChunkStore chunkStore,
-        Integer keySize,
-        H hint,
-        CreateFiler<H, M, ChunkFiler> createFiler,
-        OpenFiler<M, ChunkFiler> openFiler,
-        GrowFiler<H, M, ChunkFiler> growFiler,
+    public long getAndSet(final Integer key, final long fp) throws IOException {
+        long got = fpIndex[key];
+        backingChunkStore.execute(backingFP, null, new ChunkTransaction<PowerKeyedFPIndex, Void>() {
+
+            @Override
+            public Void commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
+                synchronized (lock) {
+                    filer.seek(8 + (8 * key));
+                    FilerIO.writeLong(filer, fp, "fp");
+                }
+                return null;
+            }
+        });
+        fpIndex[key] = fp;
+        return got;
+    }
+
+    @Override
+    public <H, M, R> R read(ChunkStore chunkStore, Integer key,
+        OpenFiler<M, ChunkFiler> opener, ChunkTransaction<M, R> filerTransaction) throws IOException {
+        return KeyedFPIndexUtil.INSTANCE.read(this, semaphore, numPermits, chunkStore, keySizeLocks[key], key,
+            opener, filerTransaction);
+    }
+
+    @Override
+    public <H, M, R> R writeNewReplace(ChunkStore chunkStore, Integer key, H hint,
+        CreateFiler<H, M, ChunkFiler> creator, OpenFiler<M, ChunkFiler> opener, GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction) throws IOException {
+        return KeyedFPIndexUtil.INSTANCE.writeNewReplace(this, semaphore, numPermits, chunkStore, keySizeLocks[key], key,
+            hint, creator, opener, growFiler, filerTransaction);
+    }
 
-        return KeyedFPIndexUtil.INSTANCE.commit(this, semaphore, numPermits, chunkStore, keySizeLocks[keySize], keySize,
-            hint, createFiler, openFiler, growFiler, filerTransaction);
-
+    @Override
+    public <H, M, R> R readWriteAutoGrow(ChunkStore chunkStore, Integer key, H hint,
+        CreateFiler<H, M, ChunkFiler> creator, OpenFiler<M, ChunkFiler> opener, GrowFiler<H, M, ChunkFiler> growFiler,
+        ChunkTransaction<M, R> filerTransaction) throws IOException {
+        return KeyedFPIndexUtil.INSTANCE.readWriteAutoGrowIfNeeded(this, semaphore, numPermits, chunkStore, keySizeLocks[key], key,
+            hint, creator, opener, growFiler, filerTransaction);
     }
 
     @Override

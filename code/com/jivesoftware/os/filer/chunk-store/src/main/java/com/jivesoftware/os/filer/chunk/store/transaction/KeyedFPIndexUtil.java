@@ -37,7 +37,103 @@ public class KeyedFPIndexUtil {
     private KeyedFPIndexUtil() {
     }
 
-    public <H, K, M, R> R commit(final FPIndex<K, ?> backingFPIndex,
+    public <H, K, M, R> R read(FPIndex<K, ?> backingFPIndex,
+        Semaphore semaphore,
+        int numPermits,
+        ChunkStore chunkStore,
+        Object keyLock,
+        K key,
+        OpenFiler<M, ChunkFiler> opener,
+        ChunkTransaction<M, R> filerTransaction) throws IOException {
+
+        try {
+            semaphore.acquire();
+        } catch (InterruptedException e) {
+            throw new RuntimeException("Failed to acquire 1 permits.", e);
+        }
+
+        try {
+            long fp;
+            synchronized (keyLock) {
+                fp = backingFPIndex.get(key);
+                if (fp < 0) {
+                    return filerTransaction.commit(null, null, null);
+                }
+            }
+
+            return chunkStore.execute(fp, opener, filerTransaction);
+        } finally {
+            semaphore.release();
+        }
+    }
+
+    public <H, K, M, R> R writeNewReplace(final FPIndex<K, ?> backingFPIndex,
+        final Semaphore semaphore,
+        final int numPermits,
+        final ChunkStore chunkStore,
+        final Object keyLock,
+        final K key,
+        H hint,
+        final CreateFiler<H, M, ChunkFiler> creator,
+        final OpenFiler<M, ChunkFiler> opener,
+        final GrowFiler<H, M, ChunkFiler> growFiler,
+        final ChunkTransaction<M, R> filerTransaction) throws IOException {
+
+        try {
+            semaphore.acquire();
+        } catch (InterruptedException e) {
+            throw new RuntimeException("Failed to acquire 1 permits.", e);
+        }
+
+        final AtomicInteger releasablePermits = new AtomicInteger(1);
+        try {
+
+            final long grownFP = chunkStore.newChunk(hint, creator);
+            R result;
+            final AtomicLong currentFP = new AtomicLong(-1);
+            result = chunkStore.execute(grownFP, opener, new ChunkTransaction<M, R>() {
+
+                @Override
+                public R commit(M newMonkey, ChunkFiler newFiler, Object newLock) throws IOException {
+                    growFiler.growAndAcquire(null, null, newMonkey, newFiler, newLock, newLock);
+                    try {
+                        synchronized (keyLock) {
+                            currentFP.set(backingFPIndex.getAndSet(key, grownFP));
+                        }
+                        return filerTransaction.commit(newMonkey, newFiler, newLock);
+                    } finally {
+                        growFiler.release(newMonkey, newLock);
+                    }
+                }
+            });
+
+            if (currentFP.get() > -1) {
+                semaphore.release();
+                releasablePermits.set(0);
+                try {
+                    while (!semaphore.tryAcquire(numPermits, 5, TimeUnit.MINUTES)) {
+                        System.err.println("Deadlock due to probable case of reentrant transaction");
+                        Thread.dumpStack();
+                    }
+                } catch (InterruptedException e) {
+                    throw new RuntimeException("Failed to acquire all permits.", e);
+                }
+                releasablePermits.set(numPermits);
+                try {
+                    chunkStore.remove(currentFP.get());
+                } finally {
+                    semaphore.release(numPermits - 1);
+                    releasablePermits.set(1);
+                }
+            }
+            return result;
+
+        } finally {
+            semaphore.release(releasablePermits.get());
+        }
+    }
+
+    public <H, K, M, R> R readWriteAutoGrowIfNeeded(final FPIndex<K, ?> backingFPIndex,
         final Semaphore semaphore,
         final int numPermits,
         final ChunkStore chunkStore,

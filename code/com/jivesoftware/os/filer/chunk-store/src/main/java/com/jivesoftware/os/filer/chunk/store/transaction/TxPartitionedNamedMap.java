@@ -71,10 +71,10 @@ public class TxPartitionedNamedMap {
         return result;
     }
 
-    public <R> R write(byte[] partitionKey, final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction) throws IOException {
+    public <R> R readWriteAutoGrow(byte[] partitionKey, final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction) throws IOException {
         int i = partitionFunction.partition(namedMaps.length, partitionKey);
         final TxNamedMap namedMap = namedMaps[i];
-        return namedMap.write(mapName, mapTransaction);
+        return namedMap.readWriteAutoGrow(mapName, mapTransaction);
     }
 
     public <R> R read(byte[] partitionKey, final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction) throws IOException {

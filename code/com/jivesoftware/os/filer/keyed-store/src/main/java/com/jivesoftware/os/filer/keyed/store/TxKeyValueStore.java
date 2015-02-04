@@ -76,7 +76,7 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
     public <R> R execute(final K key, boolean createIfAbsent, final KeyValueTransaction<V, R> keyValueTransaction) throws IOException {
         final byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         if (createIfAbsent) {
-            return namedMap.write(keyBytes, name, new ChunkTransaction<MapContext, R>() {
+            return namedMap.readWriteAutoGrow(keyBytes, name, new ChunkTransaction<MapContext, R>() {
 
                 @Override
                 public R commit(final MapContext monkey, final ChunkFiler filer, final Object lock) throws IOException {

@@ -18,7 +18,6 @@ package com.jivesoftware.os.filer.keyed.store;
 import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
-import com.jivesoftware.os.filer.chunk.store.RewriteChunkTransaction;
 import com.jivesoftware.os.filer.chunk.store.transaction.MapBackedKeyedFPIndex;
 import com.jivesoftware.os.filer.chunk.store.transaction.SkipListMapBackedKeyedFPIndex;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFiler;
@@ -30,7 +29,6 @@ import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.io.IBA;
-import com.jivesoftware.os.filer.io.RewriteFilerTransaction;
 import com.jivesoftware.os.filer.map.store.api.KeyRange;
 import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
 import com.jivesoftware.os.filer.map.store.api.KeyedFilerStore;
@@ -86,17 +84,22 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
     }
 
     @Override
-    public <R> R execute(byte[] keyBytes, long newFilerInitialCapacity, final FilerTransaction<Filer, R> transaction) throws IOException {
-        if (newFilerInitialCapacity < 0) {
-            return namedMapOfFilers.read(keyBytes, name, keyBytes, new ChunkTransaction<Void, R>() {
+    public <R> R read(byte[] keyBytes, long newFilerInitialCapacity, final FilerTransaction<Filer, R> transaction) throws IOException {
+        return namedMapOfFilers.read(keyBytes, name, keyBytes, new ChunkTransaction<Void, R>() {
 
-                @Override
-                public R commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                    return transaction.commit(lock, filer);
-                }
-            });
+            @Override
+            public R commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
+                return transaction.commit(lock, filer);
+            }
+        });
+    }
+
+    @Override
+    public <R> R readWriteAutoGrow(byte[] keyBytes, long newFilerInitialCapacity, final FilerTransaction<Filer, R> transaction) throws IOException {
+        if (newFilerInitialCapacity < 0) {
+            throw new IllegalArgumentException("newFilerInitialCapacity must be greater than -1");
         } else {
-            return namedMapOfFilers.overwrite(keyBytes, name, keyBytes, newFilerInitialCapacity, new ChunkTransaction<Void, R>() {
+            return namedMapOfFilers.readWriteAutoGrow(keyBytes, name, keyBytes, newFilerInitialCapacity, new ChunkTransaction<Void, R>() {
 
                 @Override
                 public R commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
@@ -104,28 +107,19 @@ public class TxKeyedFilerStore implements KeyedFilerStore {
                 }
             });
         }
+
     }
 
     @Override
-    public <R> R executeRewrite(byte[] keyBytes, long newFilerInitialCapacity, final RewriteFilerTransaction<Filer, R> transaction) throws IOException {
+    public <R> R writeNewReplace(byte[] keyBytes, long newFilerInitialCapacity, final FilerTransaction<Filer, R> transaction) throws IOException {
         if (newFilerInitialCapacity < 0) {
             throw new IllegalArgumentException("newFilerInitialCapacity must be greater than -1");
         } else {
-            return namedMapOfFilers.rewrite(keyBytes, name, keyBytes, newFilerInitialCapacity, new RewriteChunkTransaction<Void, R>() {
+            return namedMapOfFilers.writeNewReplace(keyBytes, name, keyBytes, newFilerInitialCapacity, new ChunkTransaction<Void, R>() {
 
                 @Override
-                public R commit(Void currentMonkey,
-                    ChunkFiler currentFiler,
-                    Void newMonkey,
-                    ChunkFiler newFiler,
-                    Object currentLock,
-                    Object newLock) throws IOException {
-
-                    synchronized (currentLock) {
-                        synchronized (newLock) {
-                            return transaction.commit(currentFiler, newFiler);
-                        }
-                    }
+                public R commit(Void newMonkey, ChunkFiler newFiler, Object newLock) throws IOException {
+                    return transaction.commit(newLock, newFiler);
                 }
             });
         }

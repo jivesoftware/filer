@@ -19,7 +19,6 @@ import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
-import com.jivesoftware.os.filer.chunk.store.RewriteChunkTransaction;
 import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.FilerLock;
@@ -88,7 +87,7 @@ public class NamedMapsNGTest {
                 mapName[0] = (byte) i;
                 for (int a = 0; a < 10; a++) {
                     final int ai = a;
-                    namedMap.write(mapName, mapName, new ChunkTransaction<MapContext, Void>() {
+                    namedMap.readWriteAutoGrow(mapName, mapName, new ChunkTransaction<MapContext, Void>() {
 
                         @Override
                         public Void commit(MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
@@ -193,7 +192,7 @@ public class NamedMapsNGTest {
                     rand.nextBytes(filerName);
                     filerName[0] = (byte) f;
 
-                    namedMapOfFilers.overwrite(mapName, mapName, filerName, 8L, new ChunkTransaction<FilerLock, Void>() {
+                    namedMapOfFilers.readWriteAutoGrow(mapName, mapName, filerName, 8L, new ChunkTransaction<FilerLock, Void>() {
 
                         @Override
                         public Void commit(FilerLock monkey, ChunkFiler filer, Object lock) throws IOException {
@@ -264,7 +263,7 @@ public class NamedMapsNGTest {
                 accum += i;
                 final int key = i;
 
-                namedMap.write(FilerIO.intBytes(c), "map1".getBytes(), new ChunkTransaction<MapContext, Void>() {
+                namedMap.readWriteAutoGrow(FilerIO.intBytes(c), "map1".getBytes(), new ChunkTransaction<MapContext, Void>() {
 
                     @Override
                     public Void commit(MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
@@ -276,7 +275,7 @@ public class NamedMapsNGTest {
                     }
                 });
 
-                namedMapOfFilers.overwrite(FilerIO.intBytes(c), "filer1".getBytes(), (c + "overwrite").getBytes(), 8L,
+                namedMapOfFilers.readWriteAutoGrow(FilerIO.intBytes(c), "filer1".getBytes(), (c + "overwrite").getBytes(), 8L,
                     new ChunkTransaction<FilerLock, ChunkFiler>() {
 
                         @Override
@@ -289,30 +288,22 @@ public class NamedMapsNGTest {
                         }
                     });
 
-                namedMapOfFilers.rewrite(FilerIO.intBytes(c), "filer2".getBytes(), (c + "rewrite").getBytes(), 8L,
-                    new RewriteChunkTransaction<FilerLock, ChunkFiler>() {
+                namedMapOfFilers.writeNewReplace(FilerIO.intBytes(c), "filer2".getBytes(), (c + "rewrite").getBytes(), 8L,
+                    new ChunkTransaction<FilerLock, ChunkFiler>() {
 
                         @Override
-                        public ChunkFiler commit(FilerLock oldMonkey,
-                            ChunkFiler oldFiler,
+                        public ChunkFiler commit(
                             FilerLock newMonkey,
                             ChunkFiler newFiler,
-                            Object oldLock,
                             Object newLock) throws IOException {
 
-                            synchronized (oldLock) {
                                 synchronized (newLock) {
-                                    long oldValue = 0;
-                                    if (oldFiler != null) {
-                                        oldValue = FilerIO.readLong(oldFiler, "value");
-                                        //System.out.println("Old value:" + oldValue);
-                                    }
-                                    FilerIO.writeLong(newFiler, oldValue + key, "value");
+                                    FilerIO.writeLong(newFiler, key, "value");
                                     //System.out.println("Rewrite:" + (oldValue + key) + " " + newFiler.getChunkFP());
                                     return null;
                                 }
+
                             }
-                        }
                     });
 
                 //System.out.println("Accum:" + accum);
@@ -333,7 +324,7 @@ public class NamedMapsNGTest {
                             long value = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey, i));
                             //System.out.println("expected:" + key + " got:" + value + " from " + context.filer.getChunkFP());
                             if (value != key) {
-                                //System.out.println("mapRead FAILED. " + value + " vs " + key);
+                                System.out.println("mapRead FAILED. " + value + " vs " + key);
                                 failed.set(true);
                             }
                             return null;
@@ -349,7 +340,7 @@ public class NamedMapsNGTest {
                             long v = FilerIO.readLong(filer, "value");
                             //System.out.println("OR:" + v);
                             if (v != addCount - 1) {
-                                //System.out.println("filerReadOverwrite FAILED. " + v + " vs " + (addCount - 1));
+                                System.out.println("filerReadOverwrite FAILED. " + v + " vs " + (addCount - 1));
                                 failed.set(true);
                             }
                             return null;
@@ -364,8 +355,8 @@ public class NamedMapsNGTest {
                         synchronized (lock) {
                             long v = FilerIO.readLong(filer, "value");
                             //System.out.println("RR:" + v + " from " + filer.getChunkFP());
-                            if (v != expectedAccum) {
-                                //System.out.println("filerReadRewrite FAILED. " + v + " vs " + expectedAccum);
+                            if (v != addCount - 1) {
+                                System.out.println("filerReadRewrite FAILED. " + v + " vs " + (addCount - 1));
                                 failed.set(true);
                             }
                             return null;
@@ -489,8 +480,8 @@ public class NamedMapsNGTest {
                     synchronized (lock) {
                         long v = FilerIO.readLong(filer, "value");
                         //System.out.println("RR:" + v + " from " + filer.getChunkFP());
-                        if (v != expectedAccum) {
-                            //System.out.println("filerReadRewrite FAILED. " + v + " vs " + expectedAccum);
+                        if (v != addCount - 1) {
+                            System.out.println("filerReadRewrite FAILED. " + v + " vs " + (addCount - 1));
                             failed.set(true);
                         }
                         return null;

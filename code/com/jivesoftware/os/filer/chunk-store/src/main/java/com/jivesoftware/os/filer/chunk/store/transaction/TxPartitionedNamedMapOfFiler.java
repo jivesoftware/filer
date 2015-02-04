@@ -17,7 +17,6 @@ package com.jivesoftware.os.filer.chunk.store.transaction;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
-import com.jivesoftware.os.filer.chunk.store.RewriteChunkTransaction;
 import com.jivesoftware.os.filer.io.PartitionFunction;
 import com.jivesoftware.os.filer.map.store.api.KeyRange;
 import java.io.IOException;
@@ -36,20 +35,20 @@ public class TxPartitionedNamedMapOfFiler<N extends FPIndex<byte[], N>, M> {
         this.partitionFunction = partitionFunction;
     }
 
-    public <R> R overwrite(byte[] partitionKey,
+    public <R> R readWriteAutoGrow(byte[] partitionKey,
         byte[] mapName,
         byte[] filerKey,
         Long sizeHint,
         ChunkTransaction<M, R> filerTransaction) throws IOException {
-        return stores[partitionFunction.partition(stores.length, partitionKey)].overwrite(mapName, filerKey, sizeHint, filerTransaction);
+        return stores[partitionFunction.partition(stores.length, partitionKey)].readWriteAutoGrow(mapName, filerKey, sizeHint, filerTransaction);
     }
 
-    public <R> R rewrite(byte[] partitionKey,
+    public <R> R writeNewReplace(byte[] partitionKey,
         byte[] mapName,
         byte[] filerKey,
         Long sizeHint,
-        RewriteChunkTransaction<M, R> rewriteChunkTransaction) throws IOException {
-        return stores[partitionFunction.partition(stores.length, partitionKey)].rewrite(mapName, filerKey, sizeHint, rewriteChunkTransaction);
+        ChunkTransaction<M, R> chunkTransaction) throws IOException {
+        return stores[partitionFunction.partition(stores.length, partitionKey)].writeNewReplace(mapName, filerKey, sizeHint, chunkTransaction);
     }
 
     public <R> R read(byte[] partitionKey, final byte[] mapName, final byte[] filerKey, final ChunkTransaction<M, R> filerTransaction) throws IOException {
