@@ -16,7 +16,7 @@
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
-import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
+import com.jivesoftware.os.filer.io.LocksProvider;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.map.store.LexSkipListComparator;
 import com.jivesoftware.os.filer.map.store.MapContext;
@@ -31,10 +31,13 @@ import java.util.Arrays;
  */
 public class SkipListMapBackedKeyedFPIndexOpener implements OpenFiler<SkipListMapBackedKeyedFPIndex, ChunkFiler> {
 
-    private final ByteArrayStripingLocksProvider keyLocks;
+    private final LocksProvider<byte[]> keyLocks;
+    private final SemaphoreProvider<byte[]> keySemaphores;
 
-    public SkipListMapBackedKeyedFPIndexOpener(ByteArrayStripingLocksProvider keyLocks) {
+    public SkipListMapBackedKeyedFPIndexOpener(LocksProvider<byte[]> keyLocks,
+        SemaphoreProvider<byte[]> keySemaphores) {
         this.keyLocks = keyLocks;
+        this.keySemaphores = keySemaphores;
     }
 
     @Override
@@ -43,7 +46,7 @@ public class SkipListMapBackedKeyedFPIndexOpener implements OpenFiler<SkipListMa
         byte[] headKey = new byte[mapContext.keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
         SkipListMapContext skipListMapContext = SkipListMapStore.INSTANCE.open(headKey, LexSkipListComparator.cSingleton, filer);
-        return new SkipListMapBackedKeyedFPIndex(filer.getChunkStore(), filer.getChunkFP(), skipListMapContext, this, keyLocks);
+        return new SkipListMapBackedKeyedFPIndex(filer.getChunkStore(), filer.getChunkFP(), skipListMapContext, this, keyLocks,  keySemaphores);
     }
 
 }

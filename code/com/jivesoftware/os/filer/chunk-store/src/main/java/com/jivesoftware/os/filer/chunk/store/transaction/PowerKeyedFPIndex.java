@@ -26,7 +26,6 @@ import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.map.store.api.KeyRange;
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.Semaphore;
 
 /**
  * @author jonathan.colt
@@ -35,13 +34,12 @@ public class PowerKeyedFPIndex implements FPIndex<Integer, PowerKeyedFPIndex> {
 
     private final ChunkStore backingChunkStore;
     private final long backingFP;
-    private final int numPermits = 64; //TODO expose?
-
     private final long[] fpIndex;
-    private final Semaphore semaphore = new Semaphore(numPermits, true);
+    private final IntIndexSemaphore keySemaphores = new IntIndexSemaphore(64, 64); //TODO expose?
     private final Object[] keySizeLocks;
 
     PowerKeyedFPIndex(ChunkStore chunkStore, long fp, long[] fpIndex) throws IOException {
+
         this.backingChunkStore = chunkStore;
         this.backingFP = fp;
         this.fpIndex = fpIndex;
@@ -93,24 +91,24 @@ public class PowerKeyedFPIndex implements FPIndex<Integer, PowerKeyedFPIndex> {
     @Override
     public <H, M, R> R read(ChunkStore chunkStore, Integer key,
         OpenFiler<M, ChunkFiler> opener, ChunkTransaction<M, R> filerTransaction) throws IOException {
-        return KeyedFPIndexUtil.INSTANCE.read(this, semaphore, numPermits, chunkStore, keySizeLocks[key], key,
-            opener, filerTransaction);
+        return KeyedFPIndexUtil.INSTANCE.read(this, keySemaphores.semaphore(key), keySemaphores.getNumPermits(), chunkStore, keySizeLocks[key],
+            key, opener, filerTransaction);
     }
 
     @Override
     public <H, M, R> R writeNewReplace(ChunkStore chunkStore, Integer key, H hint,
         CreateFiler<H, M, ChunkFiler> creator, OpenFiler<M, ChunkFiler> opener, GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction) throws IOException {
-        return KeyedFPIndexUtil.INSTANCE.writeNewReplace(this, semaphore, numPermits, chunkStore, keySizeLocks[key], key,
-            hint, creator, opener, growFiler, filerTransaction);
+        return KeyedFPIndexUtil.INSTANCE.writeNewReplace(this, keySemaphores.semaphore(key), keySemaphores.getNumPermits(), chunkStore,
+            keySizeLocks[key], key, hint, creator, opener, growFiler, filerTransaction);
     }
 
     @Override
     public <H, M, R> R readWriteAutoGrow(ChunkStore chunkStore, Integer key, H hint,
         CreateFiler<H, M, ChunkFiler> creator, OpenFiler<M, ChunkFiler> opener, GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction) throws IOException {
-        return KeyedFPIndexUtil.INSTANCE.readWriteAutoGrowIfNeeded(this, semaphore, numPermits, chunkStore, keySizeLocks[key], key,
-            hint, creator, opener, growFiler, filerTransaction);
+        return KeyedFPIndexUtil.INSTANCE.readWriteAutoGrowIfNeeded(this, keySemaphores.semaphore(key), keySemaphores.getNumPermits(), chunkStore,
+            keySizeLocks[key], key, hint, creator, opener, growFiler, filerTransaction);
     }
 
     @Override

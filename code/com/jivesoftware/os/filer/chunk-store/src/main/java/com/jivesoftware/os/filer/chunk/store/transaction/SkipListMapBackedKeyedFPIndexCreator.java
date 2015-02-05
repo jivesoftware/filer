@@ -16,8 +16,8 @@
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
-import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.CreateFiler;
+import com.jivesoftware.os.filer.io.LocksProvider;
 import com.jivesoftware.os.filer.map.store.LexSkipListComparator;
 import com.jivesoftware.os.filer.map.store.SkipListMapContext;
 import com.jivesoftware.os.filer.map.store.SkipListMapStore;
@@ -34,14 +34,16 @@ public class SkipListMapBackedKeyedFPIndexCreator implements CreateFiler<Integer
     private final boolean variableKeySize;
     private final int payloadSize;
     private final SkipListMapBackedKeyedFPIndexOpener opener;
-    private final ByteArrayStripingLocksProvider keyLocks;
+    private final LocksProvider<byte[]> keyLocks;
+    private final SemaphoreProvider<byte[]> keySemaphores;
 
     public SkipListMapBackedKeyedFPIndexCreator(int initialCapacity,
         int keySize,
         boolean variableKeySize,
         int payloadSize,
         SkipListMapBackedKeyedFPIndexOpener opener,
-        ByteArrayStripingLocksProvider keyLocks) {
+        LocksProvider<byte[]> keyLocks,
+        SemaphoreProvider<byte[]> keySemaphores) {
 
         this.initialCapacity = initialCapacity < 2 ? 2 : initialCapacity;
         this.keySize = keySize;
@@ -49,6 +51,7 @@ public class SkipListMapBackedKeyedFPIndexCreator implements CreateFiler<Integer
         this.payloadSize = payloadSize;
         this.opener = opener;
         this.keyLocks = keyLocks;
+        this.keySemaphores = keySemaphores;
     }
 
     @Override
@@ -62,7 +65,7 @@ public class SkipListMapBackedKeyedFPIndexCreator implements CreateFiler<Integer
             keySize, variableKeySize, payloadSize,
             (byte) 9,
             LexSkipListComparator.cSingleton, filer);
-        return new SkipListMapBackedKeyedFPIndex(filer.getChunkStore(), filer.getChunkFP(), context, opener, keyLocks);
+        return new SkipListMapBackedKeyedFPIndex(filer.getChunkStore(), filer.getChunkFP(), context, opener, keyLocks, keySemaphores);
     }
 
     @Override

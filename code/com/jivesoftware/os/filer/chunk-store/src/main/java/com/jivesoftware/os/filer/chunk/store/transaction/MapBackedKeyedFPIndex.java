@@ -18,18 +18,17 @@ package com.jivesoftware.os.filer.chunk.store.transaction;
 import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
-import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.GrowFiler;
+import com.jivesoftware.os.filer.io.LocksProvider;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.map.store.MapContext;
 import com.jivesoftware.os.filer.map.store.MapStore;
 import com.jivesoftware.os.filer.map.store.api.KeyRange;
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.Semaphore;
 
 /**
  * @author jonathan.colt
@@ -38,23 +37,24 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
 
     private final ChunkStore backingChunkStore;
     private final long backingFP;
-    private final int numPermits = 64; // TODO expose ?
-    private final Semaphore semaphore = new Semaphore(numPermits, true);
     private final MapContext mapContext;
     private final MapBackedKeyedFPIndexOpener opener;
-    private final ByteArrayStripingLocksProvider keyLocks;
+    private final LocksProvider<byte[]> keyLocks;
+    private final SemaphoreProvider<byte[]> keySemaphores;
 
     public MapBackedKeyedFPIndex(ChunkStore chunkStore,
         long fp,
         MapContext mapContext,
         MapBackedKeyedFPIndexOpener opener,
-        ByteArrayStripingLocksProvider keyLocks) {
+        LocksProvider<byte[]> keyLocks,
+        SemaphoreProvider<byte[]> keySemaphores) {
 
         this.backingChunkStore = chunkStore;
         this.backingFP = fp;
         this.mapContext = mapContext;
         this.opener = opener;
         this.keyLocks = keyLocks;
+        this.keySemaphores = keySemaphores;
     }
 
     @Override
@@ -132,7 +132,8 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
     public <H, M, R> R read(ChunkStore chunkStore, byte[] key,
         OpenFiler<M, ChunkFiler> opener, ChunkTransaction<M, R> filerTransaction) throws IOException {
         Object keyLock = keyLocks.lock(key);
-        return KeyedFPIndexUtil.INSTANCE.read(this, semaphore, numPermits, chunkStore, keyLock, key, opener, filerTransaction);
+        return KeyedFPIndexUtil.INSTANCE.read(this, keySemaphores.semaphore(key), keySemaphores.getNumPermits(), chunkStore, keyLock,
+            key, opener, filerTransaction);
     }
 
     @Override
@@ -140,8 +141,8 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
         CreateFiler<H, M, ChunkFiler> creator, OpenFiler<M, ChunkFiler> opener, GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction) throws IOException {
         Object keyLock = keyLocks.lock(key);
-        return KeyedFPIndexUtil.INSTANCE.writeNewReplace(this, semaphore, numPermits, chunkStore, keyLock, key, hint, creator, opener,
-            growFiler, filerTransaction);
+        return KeyedFPIndexUtil.INSTANCE.writeNewReplace(this, keySemaphores.semaphore(key), keySemaphores.getNumPermits(), chunkStore, keyLock,
+            key, hint, creator, opener, growFiler, filerTransaction);
     }
 
     @Override
@@ -149,8 +150,8 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
         CreateFiler<H, M, ChunkFiler> creator, OpenFiler<M, ChunkFiler> opener, GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction) throws IOException {
         Object keyLock = keyLocks.lock(key);
-        return KeyedFPIndexUtil.INSTANCE.readWriteAutoGrowIfNeeded(this, semaphore, numPermits, chunkStore, keyLock, key, hint, creator, opener,
-            growFiler, filerTransaction);
+        return KeyedFPIndexUtil.INSTANCE.readWriteAutoGrowIfNeeded(this, keySemaphores.semaphore(key), keySemaphores.getNumPermits(),
+            chunkStore, keyLock, key, hint, creator, opener, growFiler, filerTransaction);
     }
 
     @Override

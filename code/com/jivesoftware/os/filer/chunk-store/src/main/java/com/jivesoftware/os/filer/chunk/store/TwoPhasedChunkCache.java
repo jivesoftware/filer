@@ -130,7 +130,8 @@ public class TwoPhasedChunkCache {
             if (chunk == null) {
                 chunk = oldCache.remove(chunkFP);
                 if (chunk == null) {
-                    throw new IllegalStateException("Attempted to remove nonexistent chunkFP: " + chunkFP);
+                    // probably rolled
+                    return;
                 }
             }
             if (chunk.acquisitions > 0) {

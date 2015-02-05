@@ -16,8 +16,8 @@
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
-import com.jivesoftware.os.filer.io.ByteArrayStripingLocksProvider;
 import com.jivesoftware.os.filer.io.CreateFiler;
+import com.jivesoftware.os.filer.io.LocksProvider;
 import com.jivesoftware.os.filer.map.store.MapContext;
 import com.jivesoftware.os.filer.map.store.MapStore;
 import java.io.IOException;
@@ -33,7 +33,8 @@ public class MapBackedKeyedFPIndexCreator implements CreateFiler<Integer, MapBac
     private final int payloadSize;
     private final boolean variablePayloadSize;
     private final MapBackedKeyedFPIndexOpener opener;
-    private final ByteArrayStripingLocksProvider keyLocks;
+    private final LocksProvider<byte[]> keyLocks;
+    private final SemaphoreProvider<byte[]> keySemaphores;
 
     public MapBackedKeyedFPIndexCreator(int initialCapacity,
         int keySize,
@@ -41,7 +42,8 @@ public class MapBackedKeyedFPIndexCreator implements CreateFiler<Integer, MapBac
         int payloadSize,
         boolean variablePayloadSize,
         MapBackedKeyedFPIndexOpener opener,
-        ByteArrayStripingLocksProvider keyLocks) {
+        LocksProvider<byte[]> keyLocks,
+        SemaphoreProvider<byte[]> keySemaphores) {
 
         this.initialCapacity = initialCapacity < 2 ? 2 : initialCapacity;
         this.keySize = keySize;
@@ -50,6 +52,7 @@ public class MapBackedKeyedFPIndexCreator implements CreateFiler<Integer, MapBac
         this.variablePayloadSize = variablePayloadSize;
         this.opener = opener;
         this.keyLocks = keyLocks;
+        this.keySemaphores = keySemaphores;
     }
 
     @Override
@@ -57,7 +60,7 @@ public class MapBackedKeyedFPIndexCreator implements CreateFiler<Integer, MapBac
         hint += initialCapacity;
         hint = hint < 2 ? 2 : hint;
         MapContext mapContext = MapStore.INSTANCE.create(hint, keySize, variableKeySize, payloadSize, variablePayloadSize, filer);
-        return new MapBackedKeyedFPIndex(filer.getChunkStore(), filer.getChunkFP(), mapContext, opener, keyLocks);
+        return new MapBackedKeyedFPIndex(filer.getChunkStore(), filer.getChunkFP(), mapContext, opener, keyLocks, keySemaphores);
     }
 
     @Override
