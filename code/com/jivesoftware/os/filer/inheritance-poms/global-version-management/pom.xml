@@ -10,8 +10,8 @@
     <artifactId>global-version-management</artifactId>
     <packaging>pom</packaging>
     <properties>
-        <jive.utils.version>0.66</jive.utils.version>
-        <mlogger.version>0.6</mlogger.version>
+        <jive.utils.version>0.67</jive.utils.version>
+        <mlogger.version>0.7</mlogger.version>
     </properties>
     <dependencyManagement>
         <dependencies>
