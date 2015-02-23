@@ -3,6 +3,7 @@ package com.jivesoftware.os.filer.chunk.store;
 import com.jivesoftware.os.filer.io.AutoGrowingByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.FileBackedMemMappedByteBufferFactory;
+import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import java.io.File;
 import java.io.IOException;
 

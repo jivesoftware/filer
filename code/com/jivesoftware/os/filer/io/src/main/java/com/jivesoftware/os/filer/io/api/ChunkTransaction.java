@@ -1,5 +1,6 @@
-package com.jivesoftware.os.filer.chunk.store;
+package com.jivesoftware.os.filer.io.api;
 
+import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import java.io.IOException;
 
 /**

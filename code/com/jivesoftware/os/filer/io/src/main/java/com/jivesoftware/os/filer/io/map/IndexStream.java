@@ -1,4 +1,4 @@
-package com.jivesoftware.os.filer.map.store.extractors;
+package com.jivesoftware.os.filer.io.map;
 
 /**
  * @param <E>

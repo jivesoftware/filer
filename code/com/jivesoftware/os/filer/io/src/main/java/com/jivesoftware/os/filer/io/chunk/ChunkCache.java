@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jivesoftware.os.filer.chunk.store;
+package com.jivesoftware.os.filer.io.chunk;
 
 import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.FilerIO;
-import com.jivesoftware.os.filer.map.store.MapContext;
-import com.jivesoftware.os.filer.map.store.MapStore;
+import com.jivesoftware.os.filer.io.map.MapContext;
+import com.jivesoftware.os.filer.io.map.MapStore;
 import java.io.IOException;
 
 /**

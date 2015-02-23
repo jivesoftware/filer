@@ -1,4 +1,4 @@
-package com.jivesoftware.os.filer.map.store;
+package com.jivesoftware.os.filer.io.map;
 
 import java.io.IOException;
 

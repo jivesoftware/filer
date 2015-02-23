@@ -15,9 +15,9 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import java.io.IOException;
 import java.util.Arrays;
 

@@ -16,8 +16,8 @@
 package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.io.PartitionFunction;
-import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
-import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
+import com.jivesoftware.os.filer.io.api.KeyValueStore;
+import com.jivesoftware.os.filer.io.api.KeyValueTransaction;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;

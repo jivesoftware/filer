@@ -15,17 +15,17 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
-import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
-import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.FilerLock;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
-import com.jivesoftware.os.filer.map.store.MapContext;
-import com.jivesoftware.os.filer.map.store.MapStore;
+import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
+import com.jivesoftware.os.filer.io.chunk.ChunkStore;
+import com.jivesoftware.os.filer.io.map.MapContext;
+import com.jivesoftware.os.filer.io.map.MapStore;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -166,15 +166,25 @@ public class NamedMapsNGTest {
         ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 5_000);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 5_000);
 
-        TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(
+        TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(
             ByteArrayPartitionFunction.INSTANCE,
-            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, FilerLock>[]) new TxNamedMapOfFiler[]{
+            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[]{
                 new TxNamedMapOfFiler<>(chunkStore1, 464,
-                    TxPowerConstants.NAMED_POWER_CREATORS, TxPowerConstants.NAMED_POWER_OPENER, TxPowerConstants.NAMED_POWER_GROWER,
-                    TxNamedMapOfFiler.CHUNK_FILER_CREATOR, TxNamedMapOfFiler.CHUNK_FILER_OPENER),
+                    TxPowerConstants.NAMED_POWER_CREATORS,
+                    TxPowerConstants.NAMED_POWER_OPENER,
+                    TxPowerConstants.NAMED_POWER_GROWER,
+                    TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
+                    TxNamedMapOfFiler.CHUNK_FILER_OPENER,
+                    TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
+                    TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER),
                 new TxNamedMapOfFiler<>(chunkStore2, 464,
-                    TxPowerConstants.NAMED_POWER_CREATORS, TxPowerConstants.NAMED_POWER_OPENER, TxPowerConstants.NAMED_POWER_GROWER,
-                    TxNamedMapOfFiler.CHUNK_FILER_CREATOR, TxNamedMapOfFiler.CHUNK_FILER_OPENER)
+                    TxPowerConstants.NAMED_POWER_CREATORS,
+                    TxPowerConstants.NAMED_POWER_OPENER,
+                    TxPowerConstants.NAMED_POWER_GROWER,
+                    TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
+                    TxNamedMapOfFiler.CHUNK_FILER_OPENER,
+                    TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
+                    TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER)
             });
 
         int tries = 128;
@@ -239,15 +249,25 @@ public class NamedMapsNGTest {
         ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 5_000);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 5_000);
 
-        TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(
+        TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(
             ByteArrayPartitionFunction.INSTANCE,
-            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, FilerLock>[]) new TxNamedMapOfFiler[]{
+            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[]{
                 new TxNamedMapOfFiler<>(chunkStore1, 464,
-                    TxPowerConstants.NAMED_POWER_CREATORS, TxPowerConstants.NAMED_POWER_OPENER, TxPowerConstants.NAMED_POWER_GROWER,
-                    TxNamedMapOfFiler.CHUNK_FILER_CREATOR, TxNamedMapOfFiler.CHUNK_FILER_OPENER),
+                    TxPowerConstants.NAMED_POWER_CREATORS,
+                    TxPowerConstants.NAMED_POWER_OPENER,
+                    TxPowerConstants.NAMED_POWER_GROWER,
+                    TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
+                    TxNamedMapOfFiler.CHUNK_FILER_OPENER,
+                    TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
+                    TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER),
                 new TxNamedMapOfFiler<>(chunkStore2, 464,
-                    TxPowerConstants.NAMED_POWER_CREATORS, TxPowerConstants.NAMED_POWER_OPENER, TxPowerConstants.NAMED_POWER_GROWER,
-                    TxNamedMapOfFiler.CHUNK_FILER_CREATOR, TxNamedMapOfFiler.CHUNK_FILER_OPENER)
+                    TxPowerConstants.NAMED_POWER_CREATORS,
+                    TxPowerConstants.NAMED_POWER_OPENER,
+                    TxPowerConstants.NAMED_POWER_GROWER,
+                    TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
+                    TxNamedMapOfFiler.CHUNK_FILER_OPENER,
+                    TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
+                    TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER)
             });
 
         TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[]{
@@ -374,13 +394,23 @@ public class NamedMapsNGTest {
         chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 5_000);
 
         namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE,
-            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, FilerLock>[]) new TxNamedMapOfFiler[]{
+            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[]{
                 new TxNamedMapOfFiler<>(chunkStore1, 464,
-                    TxPowerConstants.NAMED_POWER_CREATORS, TxPowerConstants.NAMED_POWER_OPENER, TxPowerConstants.NAMED_POWER_GROWER,
-                    TxNamedMapOfFiler.CHUNK_FILER_CREATOR, TxNamedMapOfFiler.CHUNK_FILER_OPENER),
+                    TxPowerConstants.NAMED_POWER_CREATORS,
+                    TxPowerConstants.NAMED_POWER_OPENER,
+                    TxPowerConstants.NAMED_POWER_GROWER,
+                    TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
+                    TxNamedMapOfFiler.CHUNK_FILER_OPENER,
+                    TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
+                    TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER),
                 new TxNamedMapOfFiler<>(chunkStore2, 464,
-                    TxPowerConstants.NAMED_POWER_CREATORS, TxPowerConstants.NAMED_POWER_OPENER, TxPowerConstants.NAMED_POWER_GROWER,
-                    TxNamedMapOfFiler.CHUNK_FILER_CREATOR, TxNamedMapOfFiler.CHUNK_FILER_OPENER)
+                    TxPowerConstants.NAMED_POWER_CREATORS,
+                    TxPowerConstants.NAMED_POWER_OPENER,
+                    TxPowerConstants.NAMED_POWER_GROWER,
+                    TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
+                    TxNamedMapOfFiler.CHUNK_FILER_OPENER,
+                    TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
+                    TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER)
             });
 
         namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[]{
@@ -430,7 +460,7 @@ public class NamedMapsNGTest {
     }
 
     private void doItAgain(final int addCount, TxPartitionedNamedMap namedMap, int c,
-        TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, FilerLock> namedMapOfFilers) throws IOException {
+        TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock> namedMapOfFilers) throws IOException {
         int accum = 0;
         for (int i = 0; i < addCount; i++) {
             accum += i;

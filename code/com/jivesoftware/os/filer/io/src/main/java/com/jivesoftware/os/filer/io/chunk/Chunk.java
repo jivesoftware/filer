@@ -1,4 +1,4 @@
-package com.jivesoftware.os.filer.chunk.store;
+package com.jivesoftware.os.filer.io.chunk;
 
 /**
  *

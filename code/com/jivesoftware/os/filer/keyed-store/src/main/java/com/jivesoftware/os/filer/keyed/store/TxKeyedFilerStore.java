@@ -15,122 +15,121 @@
  */
 package com.jivesoftware.os.filer.keyed.store;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
-import com.jivesoftware.os.filer.chunk.store.ChunkStore;
-import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.chunk.store.transaction.MapBackedKeyedFPIndex;
 import com.jivesoftware.os.filer.chunk.store.transaction.SkipListMapBackedKeyedFPIndex;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFiler;
+import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFilerOverwriteGrowerProvider;
+import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFilerRewriteGrowerProvider;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxPartitionedNamedMapOfFiler;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxPowerConstants;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStream;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStreamKeys;
 import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
+import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.Filer;
-import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.io.IBA;
-import com.jivesoftware.os.filer.map.store.api.KeyRange;
-import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
-import com.jivesoftware.os.filer.map.store.api.KeyedFilerStore;
+import com.jivesoftware.os.filer.io.OpenFiler;
+import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.api.KeyRange;
+import com.jivesoftware.os.filer.io.api.KeyValueStore;
+import com.jivesoftware.os.filer.io.api.KeyedFilerStore;
+import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
+import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import java.io.IOException;
 import java.util.List;
 
 /**
  * @author jonathan.colt
+ * @param <H>
+ * @param <M>
  */
-public class TxKeyedFilerStore implements KeyedFilerStore {
+public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
 
     static final long SKY_HOOK_FP = 464; // I died a little bit doing this.
 
     private final byte[] name;
-    private final TxPartitionedNamedMapOfFiler<?, Void> namedMapOfFilers;
+    private final TxPartitionedNamedMapOfFiler<?, H, M> namedMapOfFilers;
 
-    public TxKeyedFilerStore(ChunkStore[] chunkStores, byte[] name, boolean lexOrderKeys) {
+    public TxKeyedFilerStore(ChunkStore[] chunkStores, byte[] name, boolean lexOrderKeys,
+        CreateFiler<H, M, ChunkFiler> filerCreator,
+        OpenFiler<M, ChunkFiler> filerOpener,
+        TxNamedMapOfFilerOverwriteGrowerProvider<H, M> overwriteGrowerProvider,
+        TxNamedMapOfFilerRewriteGrowerProvider<H, M> rewriteGrowerProvider) {
         // TODO consider replacing with builder pattern
         this.name = name;
         this.namedMapOfFilers = lexOrderKeys
-            ? new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE, createOrder(chunkStores))
-            : new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE, create(chunkStores));
+            ? new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE, createOrder(chunkStores, filerCreator, filerOpener,
+                    overwriteGrowerProvider, rewriteGrowerProvider))
+            : new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE, create(chunkStores, filerCreator, filerOpener, overwriteGrowerProvider,
+                    rewriteGrowerProvider));
 
     }
 
-    TxNamedMapOfFiler<SkipListMapBackedKeyedFPIndex, Void>[] createOrder(ChunkStore[] chunkStores) {
+    TxNamedMapOfFiler<SkipListMapBackedKeyedFPIndex, H, M>[] createOrder(ChunkStore[] chunkStores,
+        CreateFiler<H, M, ChunkFiler> filerCreator,
+        OpenFiler<M, ChunkFiler> filerOpener,
+        TxNamedMapOfFilerOverwriteGrowerProvider<H, M> overwriteGrowerProvider,
+        TxNamedMapOfFilerRewriteGrowerProvider<H, M> rewriteGrowerProvider) {
+
         @SuppressWarnings("unchecked")
-        TxNamedMapOfFiler<SkipListMapBackedKeyedFPIndex, Void>[] stores = new TxNamedMapOfFiler[chunkStores.length];
+        TxNamedMapOfFiler<SkipListMapBackedKeyedFPIndex, H, M>[] stores = new TxNamedMapOfFiler[chunkStores.length];
         for (int i = 0; i < stores.length; i++) {
             stores[i] = new TxNamedMapOfFiler<>(chunkStores[i], SKY_HOOK_FP,
                 TxPowerConstants.SL_NAMED_POWER_CREATORS,
                 TxPowerConstants.SL_NAMED_POWER_OPENER,
                 TxPowerConstants.SL_NAMED_POWER_GROWER,
-                TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
-                TxNamedMapOfFiler.CHUNK_FILER_OPENER);
+                filerCreator,
+                filerOpener,
+                overwriteGrowerProvider,
+                rewriteGrowerProvider);
         }
         return stores;
     }
 
-    TxNamedMapOfFiler<MapBackedKeyedFPIndex, Void>[] create(ChunkStore[] chunkStores) {
+    TxNamedMapOfFiler<MapBackedKeyedFPIndex, H, M>[] create(ChunkStore[] chunkStores,
+        CreateFiler<H, M, ChunkFiler> filerCreator,
+        OpenFiler<M, ChunkFiler> filerOpener,
+        TxNamedMapOfFilerOverwriteGrowerProvider<H, M> overwriteGrowerProvider,
+        TxNamedMapOfFilerRewriteGrowerProvider<H, M> rewriteGrowerProvider) {
+
         @SuppressWarnings("unchecked")
-        TxNamedMapOfFiler<MapBackedKeyedFPIndex, Void>[] stores = new TxNamedMapOfFiler[chunkStores.length];
+        TxNamedMapOfFiler<MapBackedKeyedFPIndex, H, M>[] stores = new TxNamedMapOfFiler[chunkStores.length];
         for (int i = 0; i < stores.length; i++) {
 
             stores[i] = new TxNamedMapOfFiler<>(chunkStores[i], SKY_HOOK_FP,
                 TxPowerConstants.NAMED_POWER_CREATORS,
                 TxPowerConstants.NAMED_POWER_OPENER,
                 TxPowerConstants.NAMED_POWER_GROWER,
-                TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
-                TxNamedMapOfFiler.CHUNK_FILER_OPENER);
+                filerCreator,
+                filerOpener,
+                overwriteGrowerProvider,
+                rewriteGrowerProvider);
         }
         return stores;
     }
 
     @Override
-    public <R> R read(byte[] keyBytes, long newFilerInitialCapacity, final FilerTransaction<Filer, R> transaction) throws IOException {
-        return namedMapOfFilers.read(keyBytes, name, keyBytes, new ChunkTransaction<Void, R>() {
-
-            @Override
-            public R commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                return transaction.commit(lock, filer);
-            }
-        });
+    public <R> R read(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction) throws IOException {
+        return namedMapOfFilers.read(keyBytes, name, keyBytes, transaction);
     }
 
     @Override
-    public <R> R readWriteAutoGrow(byte[] keyBytes, long newFilerInitialCapacity, final FilerTransaction<Filer, R> transaction) throws IOException {
-        if (newFilerInitialCapacity < 0) {
-            throw new IllegalArgumentException("newFilerInitialCapacity must be greater than -1");
-        } else {
-            return namedMapOfFilers.readWriteAutoGrow(keyBytes, name, keyBytes, newFilerInitialCapacity, new ChunkTransaction<Void, R>() {
-
-                @Override
-                public R commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                    return transaction.commit(lock, filer);
-                }
-            });
-        }
+    public <R> R readWriteAutoGrow(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction) throws IOException {
+        return namedMapOfFilers.readWriteAutoGrow(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction);
 
     }
 
     @Override
-    public <R> R writeNewReplace(byte[] keyBytes, long newFilerInitialCapacity, final FilerTransaction<Filer, R> transaction) throws IOException {
-        if (newFilerInitialCapacity < 0) {
-            throw new IllegalArgumentException("newFilerInitialCapacity must be greater than -1");
-        } else {
-            return namedMapOfFilers.writeNewReplace(keyBytes, name, keyBytes, newFilerInitialCapacity, new ChunkTransaction<Void, R>() {
-
-                @Override
-                public R commit(Void newMonkey, ChunkFiler newFiler, Object newLock) throws IOException {
-                    return transaction.commit(newLock, newFiler);
-                }
-            });
-        }
+    public <R> R writeNewReplace(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction) throws IOException {
+        return namedMapOfFilers.writeNewReplace(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction);
     }
 
     @Override
     public boolean stream(List<KeyRange> ranges, final KeyValueStore.EntryStream<IBA, Filer> stream) throws IOException {
-        return namedMapOfFilers.stream(name, ranges, new TxStream<byte[], Void, ChunkFiler>() {
+        return namedMapOfFilers.stream(name, ranges, new TxStream<byte[], M, ChunkFiler>() {
 
             @Override
-            public boolean stream(byte[] key, Void monkey, ChunkFiler filer, Object lock) throws IOException {
+            public boolean stream(byte[] key, M monkey, ChunkFiler filer, Object lock) throws IOException {
                 synchronized (lock) {
                     return stream.stream(new IBA(key), filer);
                 }

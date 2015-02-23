@@ -15,20 +15,20 @@
  */
 package com.jivesoftware.os.filer.keyed.store;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
-import com.jivesoftware.os.filer.chunk.store.ChunkStore;
-import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMap;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStream;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.KeyMarshaller;
 import com.jivesoftware.os.filer.io.OpenFiler;
-import com.jivesoftware.os.filer.map.store.MapContext;
-import com.jivesoftware.os.filer.map.store.MapStore;
-import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
-import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
-import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
+import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.api.KeyValueContext;
+import com.jivesoftware.os.filer.io.api.KeyValueStore;
+import com.jivesoftware.os.filer.io.api.KeyValueTransaction;
+import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
+import com.jivesoftware.os.filer.io.chunk.ChunkStore;
+import com.jivesoftware.os.filer.io.map.MapContext;
+import com.jivesoftware.os.filer.io.map.MapStore;
 import java.io.IOException;
 import java.util.List;
 

@@ -15,14 +15,14 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
-import com.jivesoftware.os.filer.chunk.store.ChunkStore;
-import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
-import com.jivesoftware.os.filer.map.store.MapContext;
+import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
+import com.jivesoftware.os.filer.io.chunk.ChunkStore;
+import com.jivesoftware.os.filer.io.map.MapContext;
 import java.io.IOException;
 
 import static com.google.common.base.Preconditions.checkState;

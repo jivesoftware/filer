@@ -15,11 +15,11 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
-import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.io.PartitionFunction;
-import com.jivesoftware.os.filer.map.store.MapContext;
-import com.jivesoftware.os.filer.map.store.MapStore;
+import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
+import com.jivesoftware.os.filer.io.map.MapContext;
+import com.jivesoftware.os.filer.io.map.MapStore;
 import java.io.IOException;
 
 /**

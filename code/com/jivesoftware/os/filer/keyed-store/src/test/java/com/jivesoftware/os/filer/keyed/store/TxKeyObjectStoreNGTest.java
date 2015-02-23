@@ -15,15 +15,15 @@
  */
 package com.jivesoftware.os.filer.keyed.store;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.PartitionFunction;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
+import com.jivesoftware.os.filer.io.api.KeyValueContext;
+import com.jivesoftware.os.filer.io.api.KeyValueStore;
+import com.jivesoftware.os.filer.io.api.KeyValueTransaction;
+import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import com.jivesoftware.os.filer.io.primative.LongKeyMarshaller;
-import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
-import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
-import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jive Software.
+ * Copyright 2015 Jive Software.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,26 +15,16 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import com.jivesoftware.os.filer.io.OpenFiler;
+import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
-import com.jivesoftware.os.filer.io.map.MapContext;
-import com.jivesoftware.os.filer.io.map.MapStore;
-import java.io.IOException;
 
 /**
  *
  * @author jonathan.colt
+ * @param <H>
+ * @param <M>
  */
-public class MapOpener implements OpenFiler<MapContext, ChunkFiler> {
+public interface TxNamedMapOfFilerOverwriteGrowerProvider<H, M> {
 
-    public static final MapOpener INSTANCE = new MapOpener();
-
-    private MapOpener() {
-    }
-
-    @Override
-    public MapContext open(ChunkFiler filer) throws IOException {
-        return MapStore.INSTANCE.open(filer);
-    }
-
+    GrowFiler<H, M, ChunkFiler> create(H hint);
 }

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jivesoftware.os.filer.chunk.store;
+package com.jivesoftware.os.filer.io.chunk;
 
 import java.lang.management.ManagementFactory;
 import java.util.Map;

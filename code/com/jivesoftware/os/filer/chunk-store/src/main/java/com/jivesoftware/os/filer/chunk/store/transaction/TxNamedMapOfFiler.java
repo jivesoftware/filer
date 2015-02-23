@@ -15,16 +15,16 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
-import com.jivesoftware.os.filer.chunk.store.ChunkStore;
-import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.NoOpCreateFiler;
 import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
-import com.jivesoftware.os.filer.map.store.api.KeyRange;
+import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.api.KeyRange;
+import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
+import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -36,12 +36,79 @@ import static com.jivesoftware.os.filer.chunk.store.transaction.TxPowerConstants
 /**
  * @author jonathan.colt
  * @param <N>
+ * @param <H>
  * @param <M>
  */
-public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, M> {
+public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
 
     public static final NoOpCreateFiler<ChunkFiler> CHUNK_FILER_CREATOR = new NoOpCreateFiler<>();
     public static final NoOpOpenFiler<ChunkFiler> CHUNK_FILER_OPENER = new NoOpOpenFiler<>();
+    public static final TxNamedMapOfFilerOverwriteGrowerProvider<Long, Void> OVERWRITE_GROWER_PROVIDER =
+        new TxNamedMapOfFilerOverwriteGrowerProvider<Long, Void>() {
+
+            @Override
+            public GrowFiler<Long, Void, ChunkFiler> create(final Long sizeHint) {
+                return new GrowFiler<Long, Void, ChunkFiler>() {
+
+                    @Override
+                    public Long acquire(Void monkey, ChunkFiler filer, Object lock) throws IOException {
+                        return filer.length() < sizeHint ? sizeHint : null;
+                    }
+
+                    @Override
+                    public void growAndAcquire(Void currentMonkey,
+                        ChunkFiler currentFiler,
+                        Void newMonkey,
+                        ChunkFiler newFiler,
+                        Object currentLock,
+                        Object newLock
+                    ) throws IOException {
+                        synchronized (currentLock) {
+                            synchronized (newLock) {
+                                currentFiler.seek(0);
+                                newFiler.seek(0);
+                                FilerIO.copy(currentFiler, newFiler, -1);
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void release(Void monkey, Object lock) {
+                    }
+                };
+            }
+        };
+
+    public static final TxNamedMapOfFilerRewriteGrowerProvider<Long, Void> REWRITE_GROWER_PROVIDER = new TxNamedMapOfFilerRewriteGrowerProvider<Long, Void>() {
+
+        @Override
+        public <R> GrowFiler<Long, Void, ChunkFiler> create(final Long sizeHint,
+            final ChunkTransaction<Void, R> chunkTransaction,
+            final AtomicReference<R> result) {
+
+            return new GrowFiler<Long, Void, ChunkFiler>() {
+
+                @Override
+                public Long acquire(Void monkey, ChunkFiler filer, Object lock) throws IOException {
+                    return sizeHint;
+                }
+
+                @Override
+                public void growAndAcquire(Void currentMonkey,
+                    ChunkFiler currentFiler,
+                    Void newMonkey,
+                    ChunkFiler newFiler,
+                    Object currentLock,
+                    Object newLock) throws IOException {
+                    result.set(chunkTransaction.commit(newMonkey, newFiler, newLock));
+                }
+
+                @Override
+                public void release(Void monkey, Object lock) {
+                }
+            };
+        }
+    };
 
     private final ChunkStore chunkStore;
     private final long constantFP;
@@ -49,8 +116,10 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, M> {
     private final CreateFiler<Integer, N, ChunkFiler>[] namedPowerCreator;
     private final OpenFiler<N, ChunkFiler> namedPowerOpener;
     private final GrowFiler<Integer, N, ChunkFiler> namedPowerGrower;
-    private final CreateFiler<Long, M, ChunkFiler> filerCreator;
+    private final CreateFiler<H, M, ChunkFiler> filerCreator;
     private final OpenFiler<M, ChunkFiler> filerOpener;
+    private final TxNamedMapOfFilerOverwriteGrowerProvider<H, M> overwriteGrowerProvider;
+    private final TxNamedMapOfFilerRewriteGrowerProvider<H, M> rewriteGrowerProvider;
 
     public TxNamedMapOfFiler(
         ChunkStore chunkStore,
@@ -58,8 +127,10 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, M> {
         CreateFiler<Integer, N, ChunkFiler>[] namedPowerCreator,
         OpenFiler<N, ChunkFiler> namedPowerOpener,
         GrowFiler<Integer, N, ChunkFiler> namedPowerGrower,
-        CreateFiler<Long, M, ChunkFiler> filerCreator,
-        OpenFiler<M, ChunkFiler> filerOpener) {
+        CreateFiler<H, M, ChunkFiler> filerCreator,
+        OpenFiler<M, ChunkFiler> filerOpener,
+        TxNamedMapOfFilerOverwriteGrowerProvider<H, M> overwriteGrowerProvider,
+        TxNamedMapOfFilerRewriteGrowerProvider<H, M> rewriteGrowerProvider) {
         this.chunkStore = chunkStore;
         this.constantFP = constantFP;
         this.namedPowerCreator = namedPowerCreator;
@@ -67,11 +138,13 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, M> {
         this.namedPowerGrower = namedPowerGrower;
         this.filerCreator = filerCreator;
         this.filerOpener = filerOpener;
+        this.overwriteGrowerProvider = overwriteGrowerProvider;
+        this.rewriteGrowerProvider = rewriteGrowerProvider;
     }
 
     public <R> R readWriteAutoGrow(final byte[] mapName,
         final byte[] filerKey,
-        final Long sizeHint,
+        final H sizeHint,
         final ChunkTransaction<M, R> filerTransaction) throws IOException {
 
         synchronized (chunkStore) {
@@ -102,33 +175,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, M> {
                                                 @Override
                                                 public R commit(N monkey, ChunkFiler filer, Object lock) throws IOException {
                                                     // TODO consider using the provided filer in appropriate cases.
-                                                    GrowFiler<Long, M, ChunkFiler> overwriteGrower = new GrowFiler<Long, M, ChunkFiler>() {
-
-                                                        @Override
-                                                        public Long acquire(M monkey, ChunkFiler filer, Object lock) throws IOException {
-                                                            return filer.length() < sizeHint ? sizeHint : null;
-                                                        }
-
-                                                        @Override
-                                                        public void growAndAcquire(M currentMonkey,
-                                                            ChunkFiler currentFiler,
-                                                            M newMonkey,
-                                                            ChunkFiler newFiler,
-                                                            Object currentLock,
-                                                            Object newLock) throws IOException {
-                                                            synchronized (currentLock) {
-                                                                synchronized (newLock) {
-                                                                    currentFiler.seek(0);
-                                                                    newFiler.seek(0);
-                                                                    FilerIO.copy(currentFiler, newFiler, -1);
-                                                                }
-                                                            }
-                                                        }
-
-                                                        @Override
-                                                        public void release(M monkey, Object lock) {
-                                                        }
-                                                    };
+                                                    GrowFiler<H, M, ChunkFiler> overwriteGrower = overwriteGrowerProvider.create(sizeHint);
                                                     return monkey.readWriteAutoGrow(chunkStore, filerKey, sizeHint, filerCreator, filerOpener,
                                                         overwriteGrower, filerTransaction);
                                                 }
@@ -143,7 +190,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, M> {
 
     public <R> R writeNewReplace(final byte[] mapName,
         final byte[] filerKey,
-        final Long sizeHint,
+        final H sizeHint,
         final ChunkTransaction<M, R> chunkTransaction) throws IOException {
 
         synchronized (chunkStore) {
@@ -177,27 +224,8 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, M> {
                                                 public R commit(N monkey, ChunkFiler filer, Object lock) throws IOException {
                                                     // TODO consider using the provided filer in appropriate cases.
                                                     final AtomicReference<R> result = new AtomicReference<>();
-                                                    GrowFiler<Long, M, ChunkFiler> rewriteGrower = new GrowFiler<Long, M, ChunkFiler>() {
-
-                                                        @Override
-                                                        public Long acquire(M monkey, ChunkFiler filer, Object lock) throws IOException {
-                                                            return sizeHint;
-                                                        }
-
-                                                        @Override
-                                                        public void growAndAcquire(M currentMonkey,
-                                                            ChunkFiler currentFiler,
-                                                            M newMonkey,
-                                                            ChunkFiler newFiler,
-                                                            Object currentLock,
-                                                            Object newLock) throws IOException {
-                                                            result.set(chunkTransaction.commit(newMonkey, newFiler, newLock));
-                                                        }
-
-                                                        @Override
-                                                        public void release(M monkey, Object lock) {
-                                                        }
-                                                    };
+                                                    GrowFiler<H, M, ChunkFiler> rewriteGrower = rewriteGrowerProvider.create(sizeHint,
+                                                        chunkTransaction, result);
                                                     return monkey.writeNewReplace(chunkStore, filerKey, sizeHint, filerCreator, filerOpener,
                                                         rewriteGrower,
                                                         new ChunkTransaction<M, R>() {

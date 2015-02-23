@@ -15,20 +15,22 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
-import com.jivesoftware.os.filer.chunk.store.ChunkStore;
-import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
-import com.jivesoftware.os.filer.map.store.api.KeyRange;
+import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.api.KeyRange;
+import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
+import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import java.io.IOException;
 import java.util.List;
 
 /**
  *
  * @author jonathan.colt
+ * @param <K>
+ * @param <I>
  */
 public interface FPIndex<K, I extends FPIndex<K, I>> {
 

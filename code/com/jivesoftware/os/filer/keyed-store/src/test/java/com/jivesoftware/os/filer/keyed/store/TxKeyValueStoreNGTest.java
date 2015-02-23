@@ -15,14 +15,14 @@
  */
 package com.jivesoftware.os.filer.keyed.store;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
+import com.jivesoftware.os.filer.io.api.KeyValueContext;
+import com.jivesoftware.os.filer.io.api.KeyValueStore;
+import com.jivesoftware.os.filer.io.api.KeyValueTransaction;
+import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import com.jivesoftware.os.filer.io.primative.LongLongKeyValueMarshaller;
-import com.jivesoftware.os.filer.map.store.api.KeyValueContext;
-import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
-import com.jivesoftware.os.filer.map.store.api.KeyValueTransaction;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;

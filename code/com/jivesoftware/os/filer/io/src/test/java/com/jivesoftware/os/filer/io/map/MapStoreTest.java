@@ -1,10 +1,9 @@
-package com.jivesoftware.os.filer.map.store;
+package com.jivesoftware.os.filer.io.map;
 
 import com.jivesoftware.os.filer.io.ByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
-import com.jivesoftware.os.filer.map.store.extractors.IndexStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;

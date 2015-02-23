@@ -16,6 +16,7 @@
 package com.jivesoftware.os.filer.map.store;
 
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.io.map.SkipListComparator;
 import java.io.IOException;
 
 /**

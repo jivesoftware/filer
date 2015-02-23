@@ -15,12 +15,12 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.LocksProvider;
+import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
+import com.jivesoftware.os.filer.io.map.SkipListMapContext;
+import com.jivesoftware.os.filer.io.map.SkipListMapStore;
 import com.jivesoftware.os.filer.map.store.LexSkipListComparator;
-import com.jivesoftware.os.filer.map.store.SkipListMapContext;
-import com.jivesoftware.os.filer.map.store.SkipListMapStore;
 import java.io.IOException;
 import java.util.Arrays;
 

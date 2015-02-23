@@ -8,15 +8,17 @@
  */
 package com.jivesoftware.os.filer.keyed.store;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkStore;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
+import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFiler;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
-import com.jivesoftware.os.filer.io.FilerTransaction;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.IBA;
-import com.jivesoftware.os.filer.map.store.api.KeyRange;
-import com.jivesoftware.os.filer.map.store.api.KeyValueStore;
+import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.api.KeyRange;
+import com.jivesoftware.os.filer.io.api.KeyValueStore;
+import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
+import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -50,14 +52,20 @@ public class TxKeyedFilerStoreNGTest {
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 5_000);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
-        TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores, "booya".getBytes(), lexOrderKeys);
+        TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores,
+            "booya".getBytes(),
+            lexOrderKeys,
+            TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
+            TxNamedMapOfFiler.CHUNK_FILER_OPENER,
+            TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
+            TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER);
 
-        int newFilerInitialCapacity = 512;
+        long newFilerInitialCapacity = 512;
 
         byte[] key = FilerIO.intBytes(1010);
-        store.readWriteAutoGrow(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+        store.readWriteAutoGrow(key, newFilerInitialCapacity, new ChunkTransaction<Void, Void>() {
             @Override
-            public Void commit(Object lock, Filer filer) throws IOException {
+            public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
                 synchronized (lock) {
                     FilerIO.writeInt(filer, 10, "");
                     return null;
@@ -65,9 +73,9 @@ public class TxKeyedFilerStoreNGTest {
             }
         });
 
-        store.readWriteAutoGrow(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+        store.readWriteAutoGrow(key, newFilerInitialCapacity, new ChunkTransaction<Void, Void>() {
             @Override
-            public Void commit(Object lock, Filer filer) throws IOException {
+            public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
                 synchronized (lock) {
                     filer.seek(0);
                     int ten = FilerIO.readInt(filer, "");
@@ -134,14 +142,20 @@ public class TxKeyedFilerStoreNGTest {
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 5_000);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
-        TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores, "booya".getBytes(), lexOrderKeys);
+        TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores,
+            "booya".getBytes(),
+            lexOrderKeys,
+            TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
+            TxNamedMapOfFiler.CHUNK_FILER_OPENER,
+            TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
+            TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER);
 
-        int newFilerInitialCapacity = 512;
+        long newFilerInitialCapacity = 512;
 
         final byte[] key = FilerIO.intBytes(1020);
-        store.readWriteAutoGrow(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+        store.readWriteAutoGrow(key, newFilerInitialCapacity, new ChunkTransaction<Void, Void>() {
             @Override
-            public Void commit(Object lock, Filer filer) throws IOException {
+            public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
                 synchronized (lock) {
                     filer.seek(0);
                     FilerIO.writeInt(filer, 10, "");
@@ -149,9 +163,9 @@ public class TxKeyedFilerStoreNGTest {
                 }
             }
         });
-        store.writeNewReplace(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+        store.writeNewReplace(key, newFilerInitialCapacity, new ChunkTransaction<Void, Void>() {
             @Override
-            public Void commit(Object newLock, Filer newFiler) throws IOException {
+            public Void commit(Void monkey, ChunkFiler newFiler, Object newLock) throws IOException {
                 synchronized (newLock) {
                     newFiler.seek(0);
                     FilerIO.writeInt(newFiler, 20, "");
@@ -160,11 +174,17 @@ public class TxKeyedFilerStoreNGTest {
             }
         });
 
-        store = new TxKeyedFilerStore(chunkStores, "booya".getBytes(), lexOrderKeys);
+        store = new TxKeyedFilerStore(chunkStores,
+            "booya".getBytes(),
+            lexOrderKeys,
+            TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
+            TxNamedMapOfFiler.CHUNK_FILER_OPENER,
+            TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
+            TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER);
 
-        store.readWriteAutoGrow(key, newFilerInitialCapacity, new FilerTransaction<Filer, Void>() {
+        store.readWriteAutoGrow(key, newFilerInitialCapacity, new ChunkTransaction<Void, Void>() {
             @Override
-            public Void commit(Object lock, Filer filer) throws IOException {
+            public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
                 synchronized (lock) {
                     filer.seek(0);
                     int twenty = FilerIO.readInt(filer, "");

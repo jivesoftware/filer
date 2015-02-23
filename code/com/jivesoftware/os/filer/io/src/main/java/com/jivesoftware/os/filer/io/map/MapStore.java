@@ -1,7 +1,6 @@
-package com.jivesoftware.os.filer.map.store;
+package com.jivesoftware.os.filer.io.map;
 
 import com.jivesoftware.os.filer.io.Filer;
-import com.jivesoftware.os.filer.map.store.extractors.IndexStream;
 import java.io.IOException;
 import java.util.Arrays;
 
@@ -164,7 +163,7 @@ public class MapStore {
         write(filer, cMapVersionOffset, family);
     }
 
-    long getCount(Filer filer) throws IOException {
+    public long getCount(Filer filer) throws IOException {
         return readInt(filer, cCountOffset);
     }
 

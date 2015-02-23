@@ -15,19 +15,19 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
-import com.jivesoftware.os.filer.chunk.store.ChunkStore;
-import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.LocksProvider;
 import com.jivesoftware.os.filer.io.OpenFiler;
-import com.jivesoftware.os.filer.map.store.MapStore;
-import com.jivesoftware.os.filer.map.store.SkipListMapContext;
-import com.jivesoftware.os.filer.map.store.SkipListMapStore;
-import com.jivesoftware.os.filer.map.store.api.KeyRange;
+import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.api.KeyRange;
+import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
+import com.jivesoftware.os.filer.io.chunk.ChunkStore;
+import com.jivesoftware.os.filer.io.map.MapStore;
+import com.jivesoftware.os.filer.io.map.SkipListMapContext;
+import com.jivesoftware.os.filer.io.map.SkipListMapStore;
 import java.io.IOException;
 import java.util.List;
 

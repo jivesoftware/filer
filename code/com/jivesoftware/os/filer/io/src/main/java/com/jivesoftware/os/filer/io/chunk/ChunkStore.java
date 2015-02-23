@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jivesoftware.os.filer.chunk.store;
+package com.jivesoftware.os.filer.io.chunk;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkCache.CacheOpener;
 import com.jivesoftware.os.filer.io.AutoGrowingByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.Copyable;
@@ -23,6 +22,8 @@ import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.OpenFiler;
+import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.chunk.ChunkCache.CacheOpener;
 import java.io.IOException;
 
 /**
@@ -46,8 +47,8 @@ public class ChunkStore implements Copyable<ChunkStore> {
         }
     }
 
-    private static final long cMagicNumber = Long.MAX_VALUE;
-    private static final int cMinPower = 8;
+    static final long cMagicNumber = Long.MAX_VALUE;
+    static final int cMinPower = 8;
 
     private final TwoPhasedChunkCache chunkCache;
 
@@ -385,6 +386,22 @@ public class ChunkStore implements Copyable<ChunkStore> {
             return magicNumber == cMagicNumber;
         }
 
+    }
+
+    public void slabTransfer(ChunkStore external, long externalFP, long internalFP) throws IOException {
+        synchronized (headerLock) {
+            filer.seek(internalFP);
+            long magicNumber = FilerIO.readLong(filer, "magicNumber");
+            if (magicNumber != cMagicNumber) {
+                throw new IOException("Invalid chunkFP " + internalFP);
+            }
+            long chunkPower = FilerIO.readLong(filer, "chunkPower");
+            long chunkNexFreeChunkFP = FilerIO.readLong(filer, "chunkNexFreeChunkFP");
+            long chunkLength = FilerIO.readLong(filer, "chunkLength");
+            synchronized (external.headerLock) {
+                // TODO
+            }
+        }
     }
 
 }

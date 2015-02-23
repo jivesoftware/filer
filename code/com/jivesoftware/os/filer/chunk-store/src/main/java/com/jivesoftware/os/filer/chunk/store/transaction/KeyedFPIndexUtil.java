@@ -15,12 +15,12 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkFiler;
-import com.jivesoftware.os.filer.chunk.store.ChunkStore;
-import com.jivesoftware.os.filer.chunk.store.ChunkTransaction;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
+import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
+import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import java.io.IOException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -67,7 +67,7 @@ public class KeyedFPIndexUtil {
         }
     }
 
-    public <H, K, M, R> R writeNewReplace(final FPIndex<K, ?> backingFPIndex,
+    public <H, K, M, R, G> R writeNewReplace(final FPIndex<K, ?> backingFPIndex,
         final Semaphore semaphore,
         final int numPermits,
         final ChunkStore chunkStore,
@@ -133,7 +133,7 @@ public class KeyedFPIndexUtil {
         }
     }
 
-    public <H, K, M, R> R readWriteAutoGrowIfNeeded(final FPIndex<K, ?> backingFPIndex,
+    public <H, K, M, R, G> R readWriteAutoGrowIfNeeded(final FPIndex<K, ?> backingFPIndex,
         final Semaphore semaphore,
         final int numPermits,
         final ChunkStore chunkStore,

@@ -1,8 +1,8 @@
-package com.jivesoftware.os.filer.map.store;
+package com.jivesoftware.os.filer.io.map;
 
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
-import com.jivesoftware.os.filer.map.store.api.KeyRange;
+import com.jivesoftware.os.filer.io.api.KeyRange;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;

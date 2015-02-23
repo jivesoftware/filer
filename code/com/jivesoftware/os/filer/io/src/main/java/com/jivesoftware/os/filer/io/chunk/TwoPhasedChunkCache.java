@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.jivesoftware.os.filer.chunk.store;
+package com.jivesoftware.os.filer.io.chunk;
 
-import com.jivesoftware.os.filer.chunk.store.ChunkCache.CacheOpener;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.io.chunk.ChunkCache.CacheOpener;
 import java.io.IOException;
 
 /**

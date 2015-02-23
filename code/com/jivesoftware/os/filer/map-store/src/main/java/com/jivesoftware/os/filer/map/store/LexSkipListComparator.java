@@ -16,6 +16,7 @@
 package com.jivesoftware.os.filer.map.store;
 
 import com.google.common.primitives.UnsignedBytes;
+import com.jivesoftware.os.filer.io.map.SkipListComparator;
 import java.io.IOException;
 import java.util.Comparator;
 
