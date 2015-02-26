@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.testng.Assert;
@@ -52,7 +53,7 @@ public class TxKeyedFilerStoreNGTest {
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 5_000);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
-        TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores,
+        TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(chunkStores,
             "booya".getBytes(),
             lexOrderKeys,
             TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
@@ -142,7 +143,7 @@ public class TxKeyedFilerStoreNGTest {
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 5_000);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
-        TxKeyedFilerStore store = new TxKeyedFilerStore(chunkStores,
+        TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(chunkStores,
             "booya".getBytes(),
             lexOrderKeys,
             TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
@@ -174,7 +175,7 @@ public class TxKeyedFilerStoreNGTest {
             }
         });
 
-        store = new TxKeyedFilerStore(chunkStores,
+        store = new TxKeyedFilerStore<>(chunkStores,
             "booya".getBytes(),
             lexOrderKeys,
             TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
@@ -214,5 +215,68 @@ public class TxKeyedFilerStoreNGTest {
                 return true;
             }
         });
+    }
+
+    @Test
+    public void readEachTest() throws Exception {
+        assertReadEachTest(false);
+    }
+
+    @Test
+    public void orderedReadEachTest() throws Exception {
+        assertReadEachTest(true);
+    }
+
+    private void assertReadEachTest(boolean lexOrderKeys) throws Exception {
+        File dir = Files.createTempDirectory("testNewChunkStore").toFile();
+        HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 5_000);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 5_000);
+        ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
+
+        TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(chunkStores,
+            "booya".getBytes(),
+            lexOrderKeys,
+            TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
+            TxNamedMapOfFiler.CHUNK_FILER_OPENER,
+            TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
+            TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER);
+
+        long newFilerInitialCapacity = 512;
+
+        for (int i = 0; i < 20; i++) {
+            final int value = i;
+            final byte[] key = FilerIO.intBytes(i);
+            store.readWriteAutoGrow(key, newFilerInitialCapacity, new ChunkTransaction<Void, Void>() {
+                @Override
+                public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
+                    synchronized (lock) {
+                        filer.seek(0);
+                        FilerIO.writeInt(filer, value, "");
+                        return null;
+                    }
+                }
+            });
+        }
+
+        byte[][] allKeys = new byte[20][];
+        for (int i = 0; i < 20; i++) {
+            allKeys[i] = FilerIO.intBytes(i);
+        }
+
+        List<Integer> values = store.readEach(allKeys, newFilerInitialCapacity, new ChunkTransaction<Void, Integer>() {
+            @Override
+            public Integer commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
+                synchronized (lock) {
+                    filer.seek(0);
+                    return FilerIO.readInt(filer, "");
+                }
+            }
+        });
+
+        Collections.sort(values);
+        for (int i = 0; i < 20; i++) {
+            assertEquals(values.get(i).intValue(), i);
+        }
     }
 }

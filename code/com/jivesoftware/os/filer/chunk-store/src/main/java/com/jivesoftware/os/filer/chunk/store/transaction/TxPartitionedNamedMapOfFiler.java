@@ -15,6 +15,7 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
+import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.PartitionFunction;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
 import com.jivesoftware.os.filer.io.api.KeyRange;
@@ -56,6 +57,26 @@ public class TxPartitionedNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
 
     public <R> R read(byte[] partitionKey, final byte[] mapName, final byte[] filerKey, final ChunkTransaction<M, R> filerTransaction) throws IOException {
         return stores[partitionFunction.partition(stores.length, partitionKey)].read(mapName, filerKey, filerTransaction);
+    }
+
+    public <R> List<R> readEach(byte[][] partitionKeys, byte[] mapName, byte[][] filerKeys, ChunkTransaction<M, R> filerTransaction) throws IOException {
+        byte[][][] partitionedFilerKeys = new byte[stores.length][][];
+        for (int i = 0; i < partitionKeys.length; i++) {
+            byte[] partitionKey = partitionKeys[i];
+            byte[] filerKey = filerKeys[i];
+            if (partitionKey != null && filerKey != null) {
+                int p = partitionFunction.partition(stores.length, partitionKey);
+                if (partitionedFilerKeys[p] == null) {
+                    partitionedFilerKeys[p] = new byte[filerKeys.length][];
+                }
+                partitionedFilerKeys[p][i] = filerKey;
+            }
+        }
+        List<R> result = Lists.newArrayList();
+        for (int p = 0; p < stores.length; p++) {
+            result.addAll(stores[p].readEach(mapName, partitionedFilerKeys[p], filerTransaction));
+        }
+        return result;
     }
 
     public Boolean stream(final byte[] mapName, final List<KeyRange> ranges, final TxStream<byte[], M, ChunkFiler> stream) throws IOException {

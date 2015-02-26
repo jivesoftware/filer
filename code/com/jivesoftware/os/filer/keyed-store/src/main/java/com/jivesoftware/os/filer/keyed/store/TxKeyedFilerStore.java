@@ -114,6 +114,11 @@ public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
     }
 
     @Override
+    public <R> List<R> readEach(byte[][] eachKeyBytes, H newFilerInitialCapacity, ChunkTransaction<M, R> transaction) throws IOException {
+        return namedMapOfFilers.readEach(eachKeyBytes, name, eachKeyBytes, transaction);
+    }
+
+    @Override
     public <R> R readWriteAutoGrow(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction) throws IOException {
         return namedMapOfFilers.readWriteAutoGrow(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction);
 

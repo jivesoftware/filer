@@ -15,6 +15,7 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
+import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.GrowFiler;
@@ -26,6 +27,7 @@ import com.jivesoftware.os.filer.io.api.KeyRange;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -296,6 +298,87 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                     });
             }
         });
+    }
+
+    public <R> List<R> readEach(final byte[] mapName, final byte[][] filerKeys, final ChunkTransaction<M, R> filerTransaction) throws IOException {
+        synchronized (chunkStore) {
+            if (!chunkStore.isValid(constantFP)) {
+                return Collections.emptyList();
+            }
+        }
+
+        final byte[][][] powerFilerKeys = new byte[64][][];
+        for (int i = 0; i < filerKeys.length; i++) {
+            byte[] filerKey = filerKeys[i];
+            if (filerKey != null) {
+                int chunkPower = FilerIO.chunkPower(filerKey.length, 0);
+                if (powerFilerKeys[chunkPower] == null) {
+                    powerFilerKeys[chunkPower] = new byte[filerKeys.length][];
+                }
+                powerFilerKeys[chunkPower][i] = filerKey;
+            }
+        }
+
+        final List<R> result = Lists.newArrayList();
+        chunkStore.execute(constantFP, KeyedFPIndexOpener.DEFAULT, new ChunkTransaction<PowerKeyedFPIndex, Void>() {
+
+            @Override
+            public Void commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
+                if (monkey == null || filer == null) {
+                    return null;
+                }
+
+                int chunkPower = FilerIO.chunkPower(mapName.length, 0);
+                return monkey.read(chunkStore, chunkPower, SKY_HOOK_POWER_OPENER,
+                    new ChunkTransaction<MapBackedKeyedFPIndex, Void>() {
+
+                        @Override
+                        public Void commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
+                            if (monkey == null || filer == null) {
+                                return null;
+                            }
+
+                            return monkey.read(chunkStore, mapName, KeyedFPIndexOpener.DEFAULT,
+                                new ChunkTransaction<PowerKeyedFPIndex, Void>() {
+                                    @Override
+                                    public Void commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
+                                        if (monkey == null || filer == null) {
+                                            return null;
+                                        }
+
+                                        for (int chunkPower = 0; chunkPower < powerFilerKeys.length; chunkPower++) {
+                                            final byte[][] keysForMonkey = powerFilerKeys[chunkPower];
+                                            if (keysForMonkey != null) {
+                                                monkey.read(chunkStore, chunkPower, namedPowerOpener,
+                                                    new ChunkTransaction<N, Void>() {
+
+                                                        @Override
+                                                        public Void commit(N monkey, ChunkFiler filer, Object lock) throws IOException {
+                                                            if (monkey == null || filer == null) {
+                                                                return null;
+                                                            }
+                                                            // TODO consider using the provided filer in appropriate cases.
+                                                            for (byte[] filerKey : keysForMonkey) {
+                                                                if (filerKey != null) {
+                                                                    R got = monkey.read(chunkStore, filerKey, filerOpener, filerTransaction);
+                                                                    if (got != null) {
+                                                                        result.add(got);
+                                                                    }
+                                                                }
+                                                            }
+                                                            return null;
+                                                        }
+                                                    });
+                                            }
+                                        }
+                                        return null;
+                                    }
+                                });
+                        }
+                    });
+            }
+        });
+        return result;
     }
 
     public Boolean stream(final byte[] mapName, final List<KeyRange> ranges, final TxStream<byte[], M, ChunkFiler> stream) throws IOException {
