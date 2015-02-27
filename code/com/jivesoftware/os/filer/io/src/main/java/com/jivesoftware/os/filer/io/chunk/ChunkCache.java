@@ -50,20 +50,20 @@ public class ChunkCache {
         return MapStore.INSTANCE.getApproxCount(mapContext);
     }
 
-    <M> void set(long chunkFP, Chunk<M> chunk) throws IOException {
-        ensureCapacity();
+    <M> void set(long chunkFP, Chunk<M> chunk, int initialCapacity) throws IOException {
+        ensureCapacity(initialCapacity);
         long ai = MapStore.INSTANCE.add(mapFiler, mapContext, (byte) 1, FilerIO.longBytes(chunkFP), EMPTY_PAYLOAD);
         chunks[(int) ai] = chunk;
     }
 
-    public boolean contains(long chunkFP) throws IOException {
-        ensureCapacity();
+    public boolean contains(long chunkFP, int initialCapacity) throws IOException {
+        ensureCapacity(initialCapacity);
         long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
         return ai > -1;
     }
 
-    public <M> Chunk<M> acquireIfPresent(long chunkFP) throws IOException {
-        ensureCapacity();
+    public <M> Chunk<M> acquireIfPresent(long chunkFP, int initialCapacity) throws IOException {
+        ensureCapacity(initialCapacity);
         long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
         if (ai > -1) {
             Chunk<M> chunk = (Chunk<M>) chunks[(int) ai];
@@ -75,8 +75,8 @@ public class ChunkCache {
         }
     }
 
-    public boolean release(long chunkFP) throws IOException {
-        ensureCapacity();
+    public boolean release(long chunkFP, int initialCapacity) throws IOException {
+        ensureCapacity(initialCapacity);
         long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
         if (ai > -1) {
             chunks[(int) ai].acquisitions--;
@@ -87,8 +87,8 @@ public class ChunkCache {
         }
     }
 
-    public <M> Chunk<M> remove(long chunkFP) throws IOException {
-        ensureCapacity();
+    public <M> Chunk<M> remove(long chunkFP, int initialCapacity) throws IOException {
+        ensureCapacity(initialCapacity);
         long ai = MapStore.INSTANCE.remove(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
         if (ai > -1) {
             Chunk<M> chunk = (Chunk<M>) chunks[(int) ai];
@@ -100,8 +100,8 @@ public class ChunkCache {
         }
     }
 
-    <M> Chunk<M> promoteAndAcquire(long chunkFP, Chunk<M> chunk) throws IOException {
-        ensureCapacity();
+    <M> Chunk<M> promoteAndAcquire(long chunkFP, Chunk<M> chunk, int initialCapacity) throws IOException {
+        ensureCapacity(initialCapacity);
         long ai = MapStore.INSTANCE.add(mapFiler, mapContext, (byte) 1, FilerIO.longBytes(chunkFP), EMPTY_PAYLOAD);
         if (ai == -1) {
             throw new IllegalStateException("Context has no room");
@@ -116,11 +116,11 @@ public class ChunkCache {
         return acquisitions == 0;
     }
 
-    void ensureCapacity() throws IOException {
+    void ensureCapacity(int initialCapacity) throws IOException {
         if (mapContext == null) {
-            int size = MapStore.INSTANCE.computeFilerSize(2, 8, false, 0, false);
+            int size = MapStore.INSTANCE.computeFilerSize(initialCapacity, 8, false, 0, false);
             mapFiler = new ByteBufferBackedFiler(bufferFactory.allocate(name, size));
-            mapContext = MapStore.INSTANCE.create(2, 8, false, 0, false, mapFiler);
+            mapContext = MapStore.INSTANCE.create(initialCapacity, 8, false, 0, false, mapFiler);
             chunks = new Chunk[mapContext.capacity];
         } else {
             if (MapStore.INSTANCE.isFull(mapContext)) {
