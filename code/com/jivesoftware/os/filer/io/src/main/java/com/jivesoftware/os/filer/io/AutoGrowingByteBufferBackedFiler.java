@@ -63,6 +63,23 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         return new AutoGrowingByteBufferBackedFiler(maxBufferSegmentSize, duplicate);
     }
 
+    public AutoGrowingByteBufferBackedFiler duplicateNew(AutoGrowingByteBufferBackedFiler current) {
+        ByteBufferBackedFiler[] duplicate = new ByteBufferBackedFiler[filers.length];
+        System.arraycopy(filers, 0, duplicate, 0, current.filers.length - 1);
+        for (int i = current.filers.length - 1; i < duplicate.length; i++) {
+            duplicate[i] = new ByteBufferBackedFiler(filers[i].buffer.duplicate());
+        }
+        return new AutoGrowingByteBufferBackedFiler(maxBufferSegmentSize, duplicate);
+    }
+
+    public AutoGrowingByteBufferBackedFiler duplicateAll() {
+        ByteBufferBackedFiler[] duplicate = new ByteBufferBackedFiler[filers.length];
+        for (int i = 0; i < duplicate.length; i++) {
+            duplicate[i] = new ByteBufferBackedFiler(filers[i].buffer.duplicate());
+        }
+        return new AutoGrowingByteBufferBackedFiler(maxBufferSegmentSize, duplicate);
+    }
+
     public boolean exists() {
         byte[] key = String.valueOf(0)
             .getBytes(StandardCharsets.UTF_8);

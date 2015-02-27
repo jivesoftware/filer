@@ -126,7 +126,7 @@ public class TxChunkStore implements Copyable<ChunkStore> {
         fplut.removeAll(new FPTx<Void>() {
             @Override
             public Void tx(OverlayFP overlayFP, Long masterFP) throws IOException {
-                master.slabTransfer(overlay, overlayFP.overlayFP, masterFP);
+                //master.slabTransfer(overlay, overlayFP.overlayFP, masterFP);
                 return null;
             }
         });

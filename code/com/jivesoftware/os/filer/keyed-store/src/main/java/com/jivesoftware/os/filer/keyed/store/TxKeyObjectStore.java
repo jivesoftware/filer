@@ -61,7 +61,9 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
             @Override
             public MapContext open(ChunkFiler filer) throws IOException {
                 MapContext mapContext = MapStore.INSTANCE.open(filer);
-                values = new Object[mapContext.capacity];
+                if (values == null) {
+                    values = new Object[mapContext.capacity];
+                }
                 return mapContext;
             }
         };

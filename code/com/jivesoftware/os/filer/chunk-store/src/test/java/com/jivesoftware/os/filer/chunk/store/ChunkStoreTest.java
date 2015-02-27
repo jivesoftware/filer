@@ -250,7 +250,6 @@ public class ChunkStoreTest {
     @Test
     public void testAddRemove() throws Exception {
         File dir = Files.createTempDirectory("testAddRemove").toFile();
-        StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
         ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data", 1024, byteBufferFactory, 500, 5_000);
 

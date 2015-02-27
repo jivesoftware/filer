@@ -56,48 +56,56 @@ public class ChunkCache {
         chunks[(int) ai] = chunk;
     }
 
-    public boolean contains(long chunkFP, int initialCapacity) throws IOException {
-        ensureCapacity(initialCapacity);
-        long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
-        return ai > -1;
+    public boolean contains(long chunkFP) throws IOException {
+        if (mapContext != null) {
+            long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
+            return ai > -1;
+        }
+        return false;
     }
 
-    public <M> Chunk<M> acquireIfPresent(long chunkFP, int initialCapacity) throws IOException {
-        ensureCapacity(initialCapacity);
-        long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
-        if (ai > -1) {
-            Chunk<M> chunk = (Chunk<M>) chunks[(int) ai];
-            chunk.acquisitions++;
-            acquisitions++;
-            return chunk;
-        } else {
-            return null;
+    public <M> Chunk<M> acquireIfPresent(long chunkFP) throws IOException {
+        if (mapContext != null) {
+            long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
+            if (ai > -1) {
+                Chunk<M> chunk = (Chunk<M>) chunks[(int) ai];
+                chunk.acquisitions++;
+                acquisitions++;
+                return chunk;
+            }
         }
+        return null;
+
     }
 
-    public boolean release(long chunkFP, int initialCapacity) throws IOException {
-        ensureCapacity(initialCapacity);
-        long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
-        if (ai > -1) {
-            chunks[(int) ai].acquisitions--;
-            acquisitions--;
-            return true;
-        } else {
-            return false;
+    public boolean release(long chunkFP) throws IOException {
+        if (mapContext != null) {
+            long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
+            if (ai > -1) {
+                chunks[(int) ai].acquisitions--;
+                acquisitions--;
+                if (acquisitions == 0) {
+                    remove(chunkFP);
+                }
+                return true;
+            } else {
+                return false;
+            }
         }
+        return true;
     }
 
-    public <M> Chunk<M> remove(long chunkFP, int initialCapacity) throws IOException {
-        ensureCapacity(initialCapacity);
-        long ai = MapStore.INSTANCE.remove(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
-        if (ai > -1) {
-            Chunk<M> chunk = (Chunk<M>) chunks[(int) ai];
-            acquisitions -= chunk.acquisitions;
-            chunks[(int) ai] = null;
-            return chunk;
-        } else {
-            return null;
+    public <M> Chunk<M> remove(long chunkFP) throws IOException {
+        if (mapContext != null) {
+            long ai = MapStore.INSTANCE.remove(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
+            if (ai > -1) {
+                Chunk<M> chunk = (Chunk<M>) chunks[(int) ai];
+                acquisitions -= chunk.acquisitions;
+                chunks[(int) ai] = null;
+                return chunk;
+            }
         }
+        return null;
     }
 
     <M> Chunk<M> promoteAndAcquire(long chunkFP, Chunk<M> chunk, int initialCapacity) throws IOException {

@@ -4,6 +4,7 @@ import com.jivesoftware.os.filer.io.AutoGrowingByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.FileBackedMemMappedByteBufferFactory;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
+import com.jivesoftware.os.filer.io.chunk.StripedFiler;
 import java.io.File;
 import java.io.IOException;
 
@@ -49,7 +50,8 @@ public class ChunkStoreInitializer {
         ByteBufferFactory cacheByteBufferFactory,
         int initialCacheSize,
         int maxNewCacheSize) throws Exception {
-        ChunkStore chunkStore = new ChunkStore(cacheByteBufferFactory, initialCacheSize, maxNewCacheSize, filer);
+        StripedFiler stripedFiler = new StripedFiler(filer, new byte[] { 0 }, cacheByteBufferFactory, 128);
+        ChunkStore chunkStore = new ChunkStore(stripedFiler);
         chunkStore.open();
         return chunkStore;
     }
@@ -66,9 +68,10 @@ public class ChunkStoreInitializer {
         ByteBufferFactory cacheByteBufferFactory,
         int initialCacheSize,
         int maxNewCacheSize) throws Exception {
-        ChunkStore chunkStore = new ChunkStore(cacheByteBufferFactory, initialCacheSize, maxNewCacheSize);
+        StripedFiler stripedFiler = new StripedFiler(filer, new byte[] { 0 }, cacheByteBufferFactory, 128);
+        ChunkStore chunkStore = new ChunkStore(stripedFiler);
         chunkStore.setup(referenceNumber);
-        chunkStore.createAndOpen(filer);
+        chunkStore.createAndOpen(stripedFiler);
         return chunkStore;
     }
 

@@ -96,7 +96,7 @@ public class TxKeyedFilerStoreConcurrencyNGTest {
                     TxKeyedFilerStore store = get(rand.nextInt(2));
                     byte[] key = FilerIO.longBytes(rand.nextInt(256));
                     // read
-                    store.readWriteAutoGrow(key, -1, new ChunkTransaction<Void, Boolean>() {
+                    store.read(key, -1, new ChunkTransaction<Void, Boolean>() {
 
                         @Override
                         public Boolean commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
@@ -148,6 +148,7 @@ public class TxKeyedFilerStoreConcurrencyNGTest {
                 } catch (Exception x) {
                     x.printStackTrace();
                 }
+                System.out.println(".");
             }
 
             System.out.println("Thread " + Thread.currentThread() + " done.");
