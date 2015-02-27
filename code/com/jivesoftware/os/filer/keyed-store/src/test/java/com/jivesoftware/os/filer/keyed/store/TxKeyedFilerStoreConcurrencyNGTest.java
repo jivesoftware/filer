@@ -38,8 +38,8 @@ public class TxKeyedFilerStoreConcurrencyNGTest {
 
         ByteBufferFactory bbf = new HeapByteBufferFactory();
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, byteBufferFactory, 5_000);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, byteBufferFactory, 5_000);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, byteBufferFactory, 500, 5_000);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, byteBufferFactory, 500, 5_000);
         final ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         int numThread = 24;

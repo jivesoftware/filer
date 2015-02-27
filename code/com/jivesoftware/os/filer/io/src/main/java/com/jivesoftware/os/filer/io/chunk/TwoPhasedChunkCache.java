@@ -37,19 +37,22 @@ public class TwoPhasedChunkCache {
     private final ByteBufferFactory bufferFactory;
     private ChunkCache oldCache;
     private ChunkCache newCache;
+    private final int initialCacheSize;
     private final int maxNewCacheSize;
 
     public TwoPhasedChunkCache(ByteBufferFactory bufferFactory,
+        int initialCacheSize,
         int maxNewCacheSize) {
         this.bufferFactory = bufferFactory;
         this.oldCache = new ChunkCache(name, bufferFactory);
         this.newCache = new ChunkCache(name, bufferFactory);
+        this.initialCacheSize = initialCacheSize;
         this.maxNewCacheSize = maxNewCacheSize;
     }
 
     public <M> void set(long chunkFP, Chunk<M> chunk) throws IOException {
         synchronized (this) {
-            newCache.set(chunkFP, chunk, maxNewCacheSize);
+            newCache.set(chunkFP, chunk, initialCacheSize);
         }
     }
 
@@ -79,14 +82,14 @@ public class TwoPhasedChunkCache {
                     }
                 }
 
-                Chunk<M> chunk = newCache.acquireIfPresent(chunkFP, maxNewCacheSize);
+                Chunk<M> chunk = newCache.acquireIfPresent(chunkFP, initialCacheSize);
                 if (chunk == null) {
-                    chunk = oldCache.remove(chunkFP, maxNewCacheSize);
+                    chunk = oldCache.remove(chunkFP, initialCacheSize);
                     if (chunk != null) {
-                        chunk = newCache.promoteAndAcquire(chunkFP, chunk, maxNewCacheSize);
+                        chunk = newCache.promoteAndAcquire(chunkFP, chunk, initialCacheSize);
                         revived = true;
                     } else {
-                        chunk = newCache.promoteAndAcquire(chunkFP, opener.open(chunkFP), maxNewCacheSize);
+                        chunk = newCache.promoteAndAcquire(chunkFP, opener.open(chunkFP), initialCacheSize);
                     }
                 }
                 return chunk;
@@ -110,14 +113,14 @@ public class TwoPhasedChunkCache {
 
     public boolean contains(long chunkFP) throws IOException {
         synchronized (this) {
-            return newCache.contains(chunkFP, maxNewCacheSize) || oldCache.contains(chunkFP, maxNewCacheSize);
+            return newCache.contains(chunkFP, initialCacheSize) || oldCache.contains(chunkFP, initialCacheSize);
         }
     }
 
     public void release(long chunkFP) throws IOException {
         synchronized (this) {
-            if (!newCache.release(chunkFP, maxNewCacheSize)) {
-                if (!oldCache.release(chunkFP, maxNewCacheSize)) {
+            if (!newCache.release(chunkFP, initialCacheSize)) {
+                if (!oldCache.release(chunkFP, initialCacheSize)) {
                     throw new IllegalStateException("Attempted to release nonexistent chunkFP: " + chunkFP);
                 }
             }
@@ -126,9 +129,9 @@ public class TwoPhasedChunkCache {
 
     public void remove(long chunkFP) throws IOException {
         synchronized (this) {
-            Chunk<Object> chunk = newCache.remove(chunkFP, maxNewCacheSize);
+            Chunk<Object> chunk = newCache.remove(chunkFP, initialCacheSize);
             if (chunk == null) {
-                chunk = oldCache.remove(chunkFP, maxNewCacheSize);
+                chunk = oldCache.remove(chunkFP, initialCacheSize);
                 if (chunk == null) {
                     // probably rolled
                     return;

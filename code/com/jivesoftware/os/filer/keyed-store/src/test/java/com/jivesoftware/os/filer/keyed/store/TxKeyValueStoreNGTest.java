@@ -52,8 +52,8 @@ public class TxKeyValueStoreNGTest {
     @BeforeMethod
     public void init() throws Exception {
         ByteBufferFactory bbf = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, bbf, 5_000);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, bbf, 5_000);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, bbf, 500, 5_000);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, bbf, 500, 5_000);
         ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
 
         store1 = new TxKeyValueStore<>(chunkStores, new LongLongKeyValueMarshaller(), "booya1".getBytes(), 8, false, 8, false);

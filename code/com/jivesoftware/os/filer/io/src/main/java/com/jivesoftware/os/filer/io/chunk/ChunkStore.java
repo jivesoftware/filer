@@ -64,8 +64,8 @@ public class ChunkStore implements Copyable<ChunkStore> {
      chunks.setup(100);
      chunks.createAndOpen(_filer);
      */
-    public ChunkStore(ByteBufferFactory byteBufferFactory, int maxNewCacheSize) {
-        this.chunkCache = new TwoPhasedChunkCache(byteBufferFactory, maxNewCacheSize);
+    public ChunkStore(ByteBufferFactory byteBufferFactory, int initialCacheSize, int maxNewCacheSize) {
+        this.chunkCache = new TwoPhasedChunkCache(byteBufferFactory, initialCacheSize, maxNewCacheSize);
     }
 
     /*
@@ -73,8 +73,8 @@ public class ChunkStore implements Copyable<ChunkStore> {
      ChunkStore chunks = new ChunkStore(locks, filer);
      chunks.open();
      */
-    public ChunkStore(ByteBufferFactory byteBufferFactory, int maxNewCacheSize, AutoGrowingByteBufferBackedFiler filer) throws Exception {
-        this(byteBufferFactory, maxNewCacheSize);
+    public ChunkStore(ByteBufferFactory byteBufferFactory, int initialCacheSize, int maxNewCacheSize, AutoGrowingByteBufferBackedFiler filer) throws Exception {
+        this(byteBufferFactory, initialCacheSize, maxNewCacheSize);
         this.filer = filer;
     }
 

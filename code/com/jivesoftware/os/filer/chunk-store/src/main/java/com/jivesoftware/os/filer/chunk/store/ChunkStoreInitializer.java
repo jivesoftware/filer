@@ -19,15 +19,16 @@ public class ChunkStoreInitializer {
         String chunkName,
         long initialSize,
         ByteBufferFactory cacheByteBufferFactory,
+        int initialCacheSize,
         int maxNewCacheSize) throws Exception {
 
         FileBackedMemMappedByteBufferFactory factory = new FileBackedMemMappedByteBufferFactory(chunkName, directoryOffset, dirs);
         AutoGrowingByteBufferBackedFiler filer = new AutoGrowingByteBufferBackedFiler(factory, initialSize,
             AutoGrowingByteBufferBackedFiler.MAX_BUFFER_SEGMENT_SIZE);
         if (filer.exists()) {
-            return open(filer, cacheByteBufferFactory, maxNewCacheSize);
+            return open(filer, cacheByteBufferFactory, initialCacheSize, maxNewCacheSize);
         } else {
-            return create(filer, cacheByteBufferFactory, maxNewCacheSize);
+            return create(filer, cacheByteBufferFactory, initialCacheSize, maxNewCacheSize);
         }
     }
 
@@ -39,14 +40,16 @@ public class ChunkStoreInitializer {
     public ChunkStore open(ByteBufferFactory filer,
         long segmentSize,
         ByteBufferFactory cacheByteBufferFactory,
+        int initialCacheSize,
         int maxNewCacheSize) throws Exception {
-        return open(new AutoGrowingByteBufferBackedFiler(filer, segmentSize, segmentSize), cacheByteBufferFactory, maxNewCacheSize);
+        return open(new AutoGrowingByteBufferBackedFiler(filer, segmentSize, segmentSize), cacheByteBufferFactory, initialCacheSize, maxNewCacheSize);
     }
 
     private ChunkStore open(AutoGrowingByteBufferBackedFiler filer,
         ByteBufferFactory cacheByteBufferFactory,
+        int initialCacheSize,
         int maxNewCacheSize) throws Exception {
-        ChunkStore chunkStore = new ChunkStore(cacheByteBufferFactory, maxNewCacheSize, filer);
+        ChunkStore chunkStore = new ChunkStore(cacheByteBufferFactory, initialCacheSize, maxNewCacheSize, filer);
         chunkStore.open();
         return chunkStore;
     }
@@ -54,14 +57,16 @@ public class ChunkStoreInitializer {
     public ChunkStore create(ByteBufferFactory factory,
         long segmentSize,
         ByteBufferFactory cacheByteBufferFactory,
+        int initialCacheSize,
         int maxNewCacheSize) throws Exception {
-        return create(new AutoGrowingByteBufferBackedFiler(factory, segmentSize, segmentSize), cacheByteBufferFactory, maxNewCacheSize);
+        return create(new AutoGrowingByteBufferBackedFiler(factory, segmentSize, segmentSize), cacheByteBufferFactory, initialCacheSize, maxNewCacheSize);
     }
 
     private ChunkStore create(AutoGrowingByteBufferBackedFiler filer,
         ByteBufferFactory cacheByteBufferFactory,
+        int initialCacheSize,
         int maxNewCacheSize) throws Exception {
-        ChunkStore chunkStore = new ChunkStore(cacheByteBufferFactory, maxNewCacheSize);
+        ChunkStore chunkStore = new ChunkStore(cacheByteBufferFactory, initialCacheSize, maxNewCacheSize);
         chunkStore.setup(referenceNumber);
         chunkStore.createAndOpen(filer);
         return chunkStore;

@@ -49,8 +49,8 @@ public class TxKeyedFilerStoreNGTest {
     private void assertKeyedStoreTest(boolean lexOrderKeys) throws Exception, IOException {
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 5_000);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 5_000);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(chunkStores,
@@ -139,8 +139,8 @@ public class TxKeyedFilerStoreNGTest {
     private void assertRewriteTest(boolean lexOrderKeys) throws IOException, Exception {
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 5_000);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 5_000);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(chunkStores,
@@ -230,8 +230,8 @@ public class TxKeyedFilerStoreNGTest {
     private void assertReadEachTest(boolean lexOrderKeys) throws Exception {
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 5_000);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 5_000);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(chunkStores,
