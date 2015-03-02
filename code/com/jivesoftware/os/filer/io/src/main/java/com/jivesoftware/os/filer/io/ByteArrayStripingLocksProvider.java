@@ -17,8 +17,8 @@ public class ByteArrayStripingLocksProvider implements LocksProvider<byte[]> {
     }
 
     @Override
-    public Object lock(byte[] toLock) {
-        return locks[Math.abs(Arrays.hashCode(toLock) % locks.length)];
+    public Object lock(byte[] toLock, int seed) {
+        return locks[Math.abs((Arrays.hashCode(toLock) ^ seed) % locks.length)];
     }
 
     static private class ByteArrayStripingLock {

@@ -15,9 +15,11 @@
  */
 package com.jivesoftware.os.filer.keyed.store;
 
+import com.jivesoftware.os.filer.chunk.store.transaction.MapBackedKeyedFPIndex;
 import com.jivesoftware.os.filer.chunk.store.transaction.MapCreator;
 import com.jivesoftware.os.filer.chunk.store.transaction.MapGrower;
 import com.jivesoftware.os.filer.chunk.store.transaction.MapOpener;
+import com.jivesoftware.os.filer.chunk.store.transaction.TxCog;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMap;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxPartitionedNamedMap;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStream;
@@ -46,15 +48,22 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
     private final byte[] name;
     private final TxPartitionedNamedMap namedMap;
 
-    public TxKeyValueStore(ChunkStore[] chunkStores, KeyValueMarshaller<K, V> keyValueMarshaller, byte[] name, int keySize, boolean variableKeySize,
-        int payloadSize, boolean variablePayloadSize) {
+    public TxKeyValueStore(TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog,
+        int seed,
+        ChunkStore[] chunkStores,
+        KeyValueMarshaller<K, V> keyValueMarshaller,
+        byte[] name,
+        int keySize,
+        boolean variableKeySize,
+        int payloadSize,
+        boolean variablePayloadSize) {
         this.keyValueMarshaller = keyValueMarshaller;
         this.name = name;
 
         // TODO consider replacing with builder pattern
         TxNamedMap[] stores = new TxNamedMap[chunkStores.length];
         for (int i = 0; i < stores.length; i++) {
-            stores[i] = new TxNamedMap(chunkStores[i], SKY_HOOK_FP,
+            stores[i] = new TxNamedMap(skyhookCog, seed, chunkStores[i], SKY_HOOK_FP,
                 new MapCreator(2, keySize, variableKeySize, payloadSize, variablePayloadSize),
                 MapOpener.INSTANCE,
                 new MapGrower<>(1));

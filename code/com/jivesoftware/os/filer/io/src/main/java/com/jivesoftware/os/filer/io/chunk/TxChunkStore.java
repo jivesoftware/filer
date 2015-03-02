@@ -61,20 +61,20 @@ public class TxChunkStore implements Copyable<ChunkStore> {
         }
 
         <R> R get(Long masterFP, FPTx<R> fpTx) throws IOException {
-            synchronized (masterFPLocksProvider.lock(masterFP)) {
+            synchronized (masterFPLocksProvider.lock(masterFP, 0)) {
                 return fpTx.tx(masterToOverlay.get(masterFP), masterFP);
             }
         }
 
         void set(OverlayFP overlayFP, Long masterFP) {
-            synchronized (masterFPLocksProvider.lock(masterFP)) {
+            synchronized (masterFPLocksProvider.lock(masterFP, 0)) {
                 overlayToMaster.put(overlayFP, masterFP);
                 masterToOverlay.put(masterFP, overlayFP);
             }
         }
 
         <R> R remove(long masterFP, FPTx<R> fpTx) throws IOException {
-            synchronized (masterFPLocksProvider.lock(masterFP)) {
+            synchronized (masterFPLocksProvider.lock(masterFP, 0)) {
                 OverlayFP overlayFP = masterToOverlay.get(masterFP);
                 R r = fpTx.tx(overlayFP, masterFP);
                 overlayToMaster.remove(overlayFP);
@@ -84,7 +84,7 @@ public class TxChunkStore implements Copyable<ChunkStore> {
         }
 
         boolean contains(long masterFP, FPTx<Boolean> fpTx) throws IOException {
-            synchronized (masterFPLocksProvider.lock(masterFP)) {
+            synchronized (masterFPLocksProvider.lock(masterFP, 0)) {
                 return fpTx.tx(masterToOverlay.get(masterFP), masterFP);
             }
         }
@@ -93,7 +93,7 @@ public class TxChunkStore implements Copyable<ChunkStore> {
             List<OverlayFP> overlayFPs = new ArrayList<>(overlayToMaster.keySet());
             Collections.sort(overlayFPs);
             for (OverlayFP overlayFP : overlayFPs) {
-                synchronized (masterFPLocksProvider.lock(overlayFP.masterFP)) {
+                synchronized (masterFPLocksProvider.lock(overlayFP.masterFP, 0)) {
                     remove(overlayFP.masterFP, fpTx);
                 }
             }

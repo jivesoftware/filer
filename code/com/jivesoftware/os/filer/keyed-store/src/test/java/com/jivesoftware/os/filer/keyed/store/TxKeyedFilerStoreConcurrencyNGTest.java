@@ -9,6 +9,7 @@
 package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
+import com.jivesoftware.os.filer.chunk.store.transaction.TxCogs;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFiler;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.FilerIO;
@@ -33,6 +34,7 @@ public class TxKeyedFilerStoreConcurrencyNGTest {
 
     @Test(enabled = false)
     public void concurrencyTest() throws Exception {
+        TxCogs cogs = new TxCogs(256, 64, null, null, null);
 
         Random rand = new Random(1234);
 
@@ -47,7 +49,7 @@ public class TxKeyedFilerStoreConcurrencyNGTest {
         ExecutorService executor = Executors.newFixedThreadPool(numThread);
         AtomicBoolean stop = new AtomicBoolean();
         for (int i = 0; i < 100; i++) {
-            executor.execute(new ConcurrencyRunnable(rand, namedStores, chunkStores, stop));
+            executor.execute(new ConcurrencyRunnable(cogs, rand, namedStores, chunkStores, stop));
         }
         Thread.sleep(60_000);
         stop.set(true);
@@ -58,12 +60,14 @@ public class TxKeyedFilerStoreConcurrencyNGTest {
 
     private class ConcurrencyRunnable implements Runnable {
 
+        TxCogs cogs;
         Random rand;
         ConcurrentHashMap<Long, TxKeyedFilerStore> namedStores;
         ChunkStore[] chunkStores;
         AtomicBoolean stop;
 
-        ConcurrencyRunnable(Random rand, ConcurrentHashMap<Long, TxKeyedFilerStore> namedStores, ChunkStore[] chunkStores, AtomicBoolean stop) {
+        ConcurrencyRunnable(TxCogs cogs, Random rand, ConcurrentHashMap<Long, TxKeyedFilerStore> namedStores, ChunkStore[] chunkStores, AtomicBoolean stop) {
+            this.cogs = cogs;
             this.rand = rand;
             this.stop = stop;
             this.namedStores = namedStores;
@@ -73,7 +77,9 @@ public class TxKeyedFilerStoreConcurrencyNGTest {
         TxKeyedFilerStore get(long name) {
             TxKeyedFilerStore got = namedStores.get(name);
             if (got == null) {
-                got = new TxKeyedFilerStore(chunkStores,
+                got = new TxKeyedFilerStore(cogs,
+                    0,
+                    chunkStores,
                     FilerIO.longBytes(name),
                     false,
                     TxNamedMapOfFiler.CHUNK_FILER_CREATOR,

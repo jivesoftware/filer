@@ -16,6 +16,7 @@
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
 import com.jivesoftware.os.filer.io.CreateFiler;
+import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.LocksProvider;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.map.SkipListMapContext;
@@ -23,12 +24,14 @@ import com.jivesoftware.os.filer.io.map.SkipListMapStore;
 import com.jivesoftware.os.filer.map.store.LexSkipListComparator;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Map;
 
 /**
  * @author jonathan.colt
  */
 public class SkipListMapBackedKeyedFPIndexCreator implements CreateFiler<Integer, SkipListMapBackedKeyedFPIndex, ChunkFiler> {
 
+    private final int seed;
     private final int initialCapacity;
     private final int keySize;
     private final boolean variableKeySize;
@@ -36,15 +39,19 @@ public class SkipListMapBackedKeyedFPIndexCreator implements CreateFiler<Integer
     private final SkipListMapBackedKeyedFPIndexOpener opener;
     private final LocksProvider<byte[]> keyLocks;
     private final SemaphoreProvider<byte[]> keySemaphores;
+    private final KeyToFPCacheFactory cacheFactory; // Nullable
 
-    public SkipListMapBackedKeyedFPIndexCreator(int initialCapacity,
+    public SkipListMapBackedKeyedFPIndexCreator(int seed,
+        int initialCapacity,
         int keySize,
         boolean variableKeySize,
         int payloadSize,
         SkipListMapBackedKeyedFPIndexOpener opener,
         LocksProvider<byte[]> keyLocks,
-        SemaphoreProvider<byte[]> keySemaphores) {
+        SemaphoreProvider<byte[]> keySemaphores,
+        KeyToFPCacheFactory cacheFactory) {
 
+        this.seed = seed;
         this.initialCapacity = initialCapacity < 2 ? 2 : initialCapacity;
         this.keySize = keySize;
         this.variableKeySize = variableKeySize;
@@ -52,6 +59,7 @@ public class SkipListMapBackedKeyedFPIndexCreator implements CreateFiler<Integer
         this.opener = opener;
         this.keyLocks = keyLocks;
         this.keySemaphores = keySemaphores;
+        this.cacheFactory = cacheFactory;
     }
 
     @Override
@@ -65,7 +73,11 @@ public class SkipListMapBackedKeyedFPIndexCreator implements CreateFiler<Integer
             keySize, variableKeySize, payloadSize,
             (byte) 9,
             LexSkipListComparator.cSingleton, filer);
-        return new SkipListMapBackedKeyedFPIndex(filer.getChunkStore(), filer.getChunkFP(), context, opener, keyLocks, keySemaphores);
+        Map<IBA, Long> keyFPCache = null;
+        if (cacheFactory != null) {
+            keyFPCache = cacheFactory.createCache();
+        }
+        return new SkipListMapBackedKeyedFPIndex(seed, filer.getChunkStore(), filer.getChunkFP(), context, opener, keyLocks, keySemaphores, keyFPCache);
     }
 
     @Override

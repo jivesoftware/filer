@@ -22,6 +22,6 @@ package com.jivesoftware.os.filer.io;
  */
 public interface LocksProvider<K> {
 
-    Object lock(K toLock);
+    Object lock(K toLock, int seed);
 
 }

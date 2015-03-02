@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jive Software.
+ * Copyright 2015 Jive Software.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,17 +15,24 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import java.util.concurrent.Semaphore;
+import com.jivesoftware.os.filer.io.CreateFiler;
+import com.jivesoftware.os.filer.io.Filer;
+import com.jivesoftware.os.filer.io.GrowFiler;
+import com.jivesoftware.os.filer.io.OpenFiler;
 
 /**
  *
  * @author jonathan.colt
- * @param <K>
  */
-public interface SemaphoreProvider<K> {
+public class TxCog<H, M, F extends Filer> {
+    public final CreateFiler<H, M, F>[] creators;
+    public final OpenFiler<M, F> opener;
+    public final GrowFiler<H, M, F> grower;
 
-    Semaphore semaphore(K key, int seed);
-
-    int getNumPermits();
+    public TxCog(CreateFiler<H, M, F>[] creator, OpenFiler<M, F> opener, GrowFiler<H, M, F> grower) {
+        this.creators = creator;
+        this.opener = opener;
+        this.grower = grower;
+    }
 
 }

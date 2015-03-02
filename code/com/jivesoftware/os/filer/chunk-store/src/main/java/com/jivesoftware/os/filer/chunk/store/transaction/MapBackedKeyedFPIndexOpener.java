@@ -15,30 +15,40 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
+import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.LocksProvider;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.map.MapContext;
 import com.jivesoftware.os.filer.io.map.MapStore;
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * @author jonathan.colt
  */
 public class MapBackedKeyedFPIndexOpener implements OpenFiler<MapBackedKeyedFPIndex, ChunkFiler> {
 
+    private final int seed;
     private final LocksProvider<byte[]> keyLocks;
     private final SemaphoreProvider<byte[]> keySemaphores;
+    private final KeyToFPCacheFactory cacheFactory; // Nullable
 
-    public MapBackedKeyedFPIndexOpener(LocksProvider<byte[]> keyLocks, SemaphoreProvider<byte[]> keySemaphores) {
+    public MapBackedKeyedFPIndexOpener(int seed, LocksProvider<byte[]> keyLocks, SemaphoreProvider<byte[]> keySemaphores, KeyToFPCacheFactory cacheFactory) {
+        this.seed = seed;
         this.keyLocks = keyLocks;
         this.keySemaphores = keySemaphores;
+        this.cacheFactory = cacheFactory;
     }
 
     @Override
     public MapBackedKeyedFPIndex open(ChunkFiler filer) throws IOException {
         MapContext mapContext = MapStore.INSTANCE.open(filer);
-        return new MapBackedKeyedFPIndex(filer.getChunkStore(), filer.getChunkFP(), mapContext, this, keyLocks, keySemaphores);
+        Map<IBA, Long> keyFPCache = null;
+        if (cacheFactory != null) {
+            keyFPCache = cacheFactory.createCache();
+        }
+        return new MapBackedKeyedFPIndex(seed, filer.getChunkStore(), filer.getChunkFP(), mapContext, this, keyLocks, keySemaphores, keyFPCache);
     }
 
 }

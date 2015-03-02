@@ -17,11 +17,12 @@ package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.chunk.store.transaction.MapBackedKeyedFPIndex;
 import com.jivesoftware.os.filer.chunk.store.transaction.SkipListMapBackedKeyedFPIndex;
+import com.jivesoftware.os.filer.chunk.store.transaction.TxCog;
+import com.jivesoftware.os.filer.chunk.store.transaction.TxCogs;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFiler;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFilerOverwriteGrowerProvider;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFilerRewriteGrowerProvider;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxPartitionedNamedMapOfFiler;
-import com.jivesoftware.os.filer.chunk.store.transaction.TxPowerConstants;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStream;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStreamKeys;
 import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
@@ -50,7 +51,7 @@ public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
     private final byte[] name;
     private final TxPartitionedNamedMapOfFiler<?, H, M> namedMapOfFilers;
 
-    public TxKeyedFilerStore(ChunkStore[] chunkStores, byte[] name, boolean lexOrderKeys,
+    public TxKeyedFilerStore(TxCogs cogs, int seed, ChunkStore[] chunkStores, byte[] name, boolean lexOrderKeys,
         CreateFiler<H, M, ChunkFiler> filerCreator,
         OpenFiler<M, ChunkFiler> filerOpener,
         TxNamedMapOfFilerOverwriteGrowerProvider<H, M> overwriteGrowerProvider,
@@ -58,26 +59,31 @@ public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
         // TODO consider replacing with builder pattern
         this.name = name;
         this.namedMapOfFilers = lexOrderKeys
-            ? new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE, createOrder(chunkStores, filerCreator, filerOpener,
+            ? new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE, createOrder(cogs, seed, chunkStores, filerCreator, filerOpener,
                     overwriteGrowerProvider, rewriteGrowerProvider))
-            : new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE, create(chunkStores, filerCreator, filerOpener, overwriteGrowerProvider,
-                    rewriteGrowerProvider));
+            : new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE, create(cogs, seed, chunkStores, filerCreator, filerOpener,
+                    overwriteGrowerProvider, rewriteGrowerProvider));
 
     }
 
-    TxNamedMapOfFiler<SkipListMapBackedKeyedFPIndex, H, M>[] createOrder(ChunkStore[] chunkStores,
+    TxNamedMapOfFiler<SkipListMapBackedKeyedFPIndex, H, M>[] createOrder(TxCogs cogs,
+        int seed,
+        ChunkStore[] chunkStores,
         CreateFiler<H, M, ChunkFiler> filerCreator,
         OpenFiler<M, ChunkFiler> filerOpener,
         TxNamedMapOfFilerOverwriteGrowerProvider<H, M> overwriteGrowerProvider,
         TxNamedMapOfFilerRewriteGrowerProvider<H, M> rewriteGrowerProvider) {
 
+        TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog = cogs.getSkyhookCog(seed);
+        TxCog<Integer, SkipListMapBackedKeyedFPIndex, ChunkFiler> skipListPowerCog = cogs.getSkipListPowerCog(seed);
+
         @SuppressWarnings("unchecked")
         TxNamedMapOfFiler<SkipListMapBackedKeyedFPIndex, H, M>[] stores = new TxNamedMapOfFiler[chunkStores.length];
         for (int i = 0; i < stores.length; i++) {
-            stores[i] = new TxNamedMapOfFiler<>(chunkStores[i], SKY_HOOK_FP,
-                TxPowerConstants.SL_NAMED_POWER_CREATORS,
-                TxPowerConstants.SL_NAMED_POWER_OPENER,
-                TxPowerConstants.SL_NAMED_POWER_GROWER,
+            stores[i] = new TxNamedMapOfFiler<>(skyhookCog, seed, chunkStores[i], SKY_HOOK_FP,
+                skipListPowerCog.creators,
+                skipListPowerCog.opener,
+                skipListPowerCog.grower,
                 filerCreator,
                 filerOpener,
                 overwriteGrowerProvider,
@@ -86,20 +92,25 @@ public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
         return stores;
     }
 
-    TxNamedMapOfFiler<MapBackedKeyedFPIndex, H, M>[] create(ChunkStore[] chunkStores,
+    TxNamedMapOfFiler<MapBackedKeyedFPIndex, H, M>[] create(TxCogs cogs,
+        int seed,
+        ChunkStore[] chunkStores,
         CreateFiler<H, M, ChunkFiler> filerCreator,
         OpenFiler<M, ChunkFiler> filerOpener,
         TxNamedMapOfFilerOverwriteGrowerProvider<H, M> overwriteGrowerProvider,
         TxNamedMapOfFilerRewriteGrowerProvider<H, M> rewriteGrowerProvider) {
 
+        TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog = cogs.getSkyhookCog(seed);
+        TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> powerCog = cogs.getPowerCog(seed);
+
         @SuppressWarnings("unchecked")
         TxNamedMapOfFiler<MapBackedKeyedFPIndex, H, M>[] stores = new TxNamedMapOfFiler[chunkStores.length];
         for (int i = 0; i < stores.length; i++) {
 
-            stores[i] = new TxNamedMapOfFiler<>(chunkStores[i], SKY_HOOK_FP,
-                TxPowerConstants.NAMED_POWER_CREATORS,
-                TxPowerConstants.NAMED_POWER_OPENER,
-                TxPowerConstants.NAMED_POWER_GROWER,
+            stores[i] = new TxNamedMapOfFiler<>(skyhookCog, seed, chunkStores[i], SKY_HOOK_FP,
+                powerCog.creators,
+                powerCog.opener,
+                powerCog.grower,
                 filerCreator,
                 filerOpener,
                 overwriteGrowerProvider,

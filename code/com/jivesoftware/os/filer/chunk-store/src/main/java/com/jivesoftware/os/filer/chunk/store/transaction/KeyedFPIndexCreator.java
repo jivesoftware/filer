@@ -29,12 +29,13 @@ public class KeyedFPIndexCreator implements CreateFiler<Void, PowerKeyedFPIndex,
 
     public static final long DEFAULT_MAGIC_HEADER = 5583112375L;
     public static final int DEFAULT_MAX_KEY_SIZE_POWER = 16;
-    public static KeyedFPIndexCreator DEFAULT = new KeyedFPIndexCreator(DEFAULT_MAGIC_HEADER, DEFAULT_MAX_KEY_SIZE_POWER);
 
+    private final int seed;
     private final long magicHeader;
     private final int skyHookMaxKeySizePower;
 
-    public KeyedFPIndexCreator(long magicHeader, int skyHookMaxKeySizePower) {
+    public KeyedFPIndexCreator(int seed, long magicHeader, int skyHookMaxKeySizePower) {
+        this.seed = seed;
         this.magicHeader = magicHeader;
         this.skyHookMaxKeySizePower = skyHookMaxKeySizePower;
     }
@@ -48,7 +49,7 @@ public class KeyedFPIndexCreator implements CreateFiler<Void, PowerKeyedFPIndex,
         }
         long[] fps = new long[skyHookMaxKeySizePower];
         Arrays.fill(fps, -1L);
-        return new PowerKeyedFPIndex(filer.getChunkStore(), filer.getChunkFP(), fps);
+        return new PowerKeyedFPIndex(seed, filer.getChunkStore(), filer.getChunkFP(), fps);
     }
 
     @Override

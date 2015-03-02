@@ -26,12 +26,12 @@ import java.io.IOException;
  */
 public class KeyedFPIndexOpener implements OpenFiler<PowerKeyedFPIndex, ChunkFiler> {
 
-    public static KeyedFPIndexOpener DEFAULT = new KeyedFPIndexOpener(KeyedFPIndexCreator.DEFAULT_MAGIC_HEADER, KeyedFPIndexCreator.DEFAULT_MAX_KEY_SIZE_POWER);
-
+    private final int seed;
     private final long magicHeader; // = 5583112375L;
     private final int skyHookMaxKeySizePower; // = 16;
 
-    public KeyedFPIndexOpener(long magicHeader, int skyHookMaxKeySizePower) {
+    public KeyedFPIndexOpener(int seed, long magicHeader, int skyHookMaxKeySizePower) {
+        this.seed = seed;
         this.magicHeader = magicHeader;
         this.skyHookMaxKeySizePower = skyHookMaxKeySizePower;
     }
@@ -46,6 +46,6 @@ public class KeyedFPIndexOpener implements OpenFiler<PowerKeyedFPIndex, ChunkFil
         byte[] rawFPS = new byte[8 * skyHookMaxKeySizePower];
         FilerIO.read(filer, rawFPS);
         long[] fps = FilerIO.bytesLongs(rawFPS);
-        return new PowerKeyedFPIndex(filer.getChunkStore(), filer.getChunkFP(), fps);
+        return new PowerKeyedFPIndex(seed, filer.getChunkStore(), filer.getChunkFP(), fps);
     }
 }

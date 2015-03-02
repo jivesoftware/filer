@@ -16,17 +16,20 @@
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
 import com.jivesoftware.os.filer.io.CreateFiler;
+import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.LocksProvider;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.map.MapContext;
 import com.jivesoftware.os.filer.io.map.MapStore;
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * @author jonathan.colt
  */
 public class MapBackedKeyedFPIndexCreator implements CreateFiler<Integer, MapBackedKeyedFPIndex, ChunkFiler> {
 
+    private final int seed;
     private final int initialCapacity;
     private final int keySize;
     private final boolean variableKeySize;
@@ -35,16 +38,20 @@ public class MapBackedKeyedFPIndexCreator implements CreateFiler<Integer, MapBac
     private final MapBackedKeyedFPIndexOpener opener;
     private final LocksProvider<byte[]> keyLocks;
     private final SemaphoreProvider<byte[]> keySemaphores;
+    private final KeyToFPCacheFactory cacheFactory; // Nullable
 
-    public MapBackedKeyedFPIndexCreator(int initialCapacity,
+    public MapBackedKeyedFPIndexCreator(int seed,
+        int initialCapacity,
         int keySize,
         boolean variableKeySize,
         int payloadSize,
         boolean variablePayloadSize,
         MapBackedKeyedFPIndexOpener opener,
         LocksProvider<byte[]> keyLocks,
-        SemaphoreProvider<byte[]> keySemaphores) {
+        SemaphoreProvider<byte[]> keySemaphores,
+        KeyToFPCacheFactory cacheProvider) {
 
+        this.seed = seed;
         this.initialCapacity = initialCapacity < 2 ? 2 : initialCapacity;
         this.keySize = keySize;
         this.variableKeySize = variableKeySize;
@@ -53,6 +60,7 @@ public class MapBackedKeyedFPIndexCreator implements CreateFiler<Integer, MapBac
         this.opener = opener;
         this.keyLocks = keyLocks;
         this.keySemaphores = keySemaphores;
+        this.cacheFactory = cacheProvider;
     }
 
     @Override
@@ -60,7 +68,11 @@ public class MapBackedKeyedFPIndexCreator implements CreateFiler<Integer, MapBac
         hint += initialCapacity;
         hint = hint < 2 ? 2 : hint;
         MapContext mapContext = MapStore.INSTANCE.create(hint, keySize, variableKeySize, payloadSize, variablePayloadSize, filer);
-        return new MapBackedKeyedFPIndex(filer.getChunkStore(), filer.getChunkFP(), mapContext, opener, keyLocks, keySemaphores);
+        Map<IBA, Long> keyToFPcache = null;
+        if (cacheFactory != null) {
+            keyToFPcache = cacheFactory.createCache();
+        }
+        return new MapBackedKeyedFPIndex(seed, filer.getChunkStore(), filer.getChunkFP(), mapContext, opener, keyLocks, keySemaphores, keyToFPcache);
     }
 
     @Override

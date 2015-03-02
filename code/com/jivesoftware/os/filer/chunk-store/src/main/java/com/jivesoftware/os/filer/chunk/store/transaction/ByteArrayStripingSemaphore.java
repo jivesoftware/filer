@@ -36,8 +36,8 @@ public class ByteArrayStripingSemaphore implements SemaphoreProvider<byte[]> {
     }
 
     @Override
-    public Semaphore semaphore(byte[] toLock) {
-        return semaphores[Math.abs(Arrays.hashCode(toLock) % semaphores.length)];
+    public Semaphore semaphore(byte[] toLock, int seed) {
+        return semaphores[Math.abs((Arrays.hashCode(toLock) ^ seed) % semaphores.length)];
     }
 
     @Override

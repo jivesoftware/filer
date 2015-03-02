@@ -15,6 +15,8 @@
  */
 package com.jivesoftware.os.filer.keyed.store;
 
+import com.jivesoftware.os.filer.chunk.store.transaction.MapBackedKeyedFPIndex;
+import com.jivesoftware.os.filer.chunk.store.transaction.TxCog;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMap;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxStream;
 import com.jivesoftware.os.filer.io.CreateFiler;
@@ -47,7 +49,9 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     private final TxNamedMap namedMap;
     private Object[] values;
 
-    public TxKeyObjectStore(ChunkStore chunkStore,
+    public TxKeyObjectStore(TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyHookCog,
+        int seed,
+        ChunkStore chunkStore,
         KeyMarshaller<K> keyMarshaller,
         byte[] name,
         final int initialCapacity,
@@ -129,7 +133,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
             }
         };
 
-        this.namedMap = new TxNamedMap(chunkStore, SKY_HOOK_FP, creator, opener, grower);
+        this.namedMap = new TxNamedMap(skyHookCog, seed, chunkStore, SKY_HOOK_FP, creator, opener, grower);
     }
 
     @Override

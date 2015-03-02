@@ -49,9 +49,12 @@ public class NamedMapsNGTest {
         ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000);
 
+        TxCogs cogs = new TxCogs(256, 64, null, null, null);
+        TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog = cogs.getSkyhookCog(0);
+
         TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[]{
-            new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
-            new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
+            new TxNamedMap(skyhookCog, 0, chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
+            new TxNamedMap(skyhookCog, 0, chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
         });
 
         int tries = 128;
@@ -166,21 +169,25 @@ public class NamedMapsNGTest {
         ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000);
 
+        TxCogs cogs = new TxCogs(256, 64, null, null, null);
+        TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog = cogs.getSkyhookCog(0);
+        TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> powerCog = cogs.getPowerCog(0);
+
         TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(
             ByteArrayPartitionFunction.INSTANCE,
             (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[]{
-                new TxNamedMapOfFiler<>(chunkStore1, 464,
-                    TxPowerConstants.NAMED_POWER_CREATORS,
-                    TxPowerConstants.NAMED_POWER_OPENER,
-                    TxPowerConstants.NAMED_POWER_GROWER,
+                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore1, 464,
+                    powerCog.creators,
+                    powerCog.opener,
+                    powerCog.grower,
                     TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
                     TxNamedMapOfFiler.CHUNK_FILER_OPENER,
                     TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
                     TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER),
-                new TxNamedMapOfFiler<>(chunkStore2, 464,
-                    TxPowerConstants.NAMED_POWER_CREATORS,
-                    TxPowerConstants.NAMED_POWER_OPENER,
-                    TxPowerConstants.NAMED_POWER_GROWER,
+                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore2, 464,
+                    powerCog.creators,
+                    powerCog.opener,
+                    powerCog.grower,
                     TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
                     TxNamedMapOfFiler.CHUNK_FILER_OPENER,
                     TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
@@ -249,21 +256,25 @@ public class NamedMapsNGTest {
         ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000);
 
+        TxCogs cogs = new TxCogs(256, 64, null, null, null);
+        TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog = cogs.getSkyhookCog(0);
+        TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> powerCog = cogs.getPowerCog(0);
+
         TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(
             ByteArrayPartitionFunction.INSTANCE,
             (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[]{
-                new TxNamedMapOfFiler<>(chunkStore1, 464,
-                    TxPowerConstants.NAMED_POWER_CREATORS,
-                    TxPowerConstants.NAMED_POWER_OPENER,
-                    TxPowerConstants.NAMED_POWER_GROWER,
+                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore1, 464,
+                    powerCog.creators,
+                    powerCog.opener,
+                    powerCog.grower,
                     TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
                     TxNamedMapOfFiler.CHUNK_FILER_OPENER,
                     TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
                     TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER),
-                new TxNamedMapOfFiler<>(chunkStore2, 464,
-                    TxPowerConstants.NAMED_POWER_CREATORS,
-                    TxPowerConstants.NAMED_POWER_OPENER,
-                    TxPowerConstants.NAMED_POWER_GROWER,
+                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore2, 464,
+                    powerCog.creators,
+                    powerCog.opener,
+                    powerCog.grower,
                     TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
                     TxNamedMapOfFiler.CHUNK_FILER_OPENER,
                     TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
@@ -271,8 +282,8 @@ public class NamedMapsNGTest {
             });
 
         TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[]{
-            new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
-            new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
+            new TxNamedMap(skyhookCog, 0, chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
+            new TxNamedMap(skyhookCog, 0, chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
         });
 
         final int addCount = 16;
@@ -395,18 +406,18 @@ public class NamedMapsNGTest {
 
         namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE,
             (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[]{
-                new TxNamedMapOfFiler<>(chunkStore1, 464,
-                    TxPowerConstants.NAMED_POWER_CREATORS,
-                    TxPowerConstants.NAMED_POWER_OPENER,
-                    TxPowerConstants.NAMED_POWER_GROWER,
+                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore1, 464,
+                    powerCog.creators,
+                    powerCog.opener,
+                    powerCog.grower,
                     TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
                     TxNamedMapOfFiler.CHUNK_FILER_OPENER,
                     TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
                     TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER),
-                new TxNamedMapOfFiler<>(chunkStore2, 464,
-                    TxPowerConstants.NAMED_POWER_CREATORS,
-                    TxPowerConstants.NAMED_POWER_OPENER,
-                    TxPowerConstants.NAMED_POWER_GROWER,
+                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore2, 464,
+                    powerCog.creators,
+                    powerCog.opener,
+                    powerCog.grower,
                     TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
                     TxNamedMapOfFiler.CHUNK_FILER_OPENER,
                     TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
@@ -414,8 +425,8 @@ public class NamedMapsNGTest {
             });
 
         namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[]{
-            new TxNamedMap(chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
-            new TxNamedMap(chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
+            new TxNamedMap(skyhookCog, 0, chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
+            new TxNamedMap(skyhookCog, 0, chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
         });
 
         for (int c = 0; c < 10; c++) {

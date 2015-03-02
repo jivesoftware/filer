@@ -16,12 +16,16 @@
 package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
+import com.jivesoftware.os.filer.chunk.store.transaction.MapBackedKeyedFPIndex;
+import com.jivesoftware.os.filer.chunk.store.transaction.TxCog;
+import com.jivesoftware.os.filer.chunk.store.transaction.TxCogs;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.PartitionFunction;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.io.api.KeyValueContext;
 import com.jivesoftware.os.filer.io.api.KeyValueStore;
 import com.jivesoftware.os.filer.io.api.KeyValueTransaction;
+import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import com.jivesoftware.os.filer.io.primative.LongKeyMarshaller;
 import java.io.File;
@@ -47,6 +51,8 @@ public class TxKeyObjectStoreNGTest {
 
     @BeforeTest
     public void init() throws Exception {
+        TxCogs cogs = new TxCogs(256, 64, null, null, null);
+        TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog = cogs.getSkyhookCog(0);
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
@@ -62,8 +68,8 @@ public class TxKeyObjectStoreNGTest {
                 }
             },
             (TxKeyObjectStore<Long, Long>[]) new TxKeyObjectStore[] {
-                new TxKeyObjectStore<>(chunkStore1, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false),
-                new TxKeyObjectStore<>(chunkStore2, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false)
+                new TxKeyObjectStore<>(skyhookCog, 0, chunkStore1, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false),
+                new TxKeyObjectStore<>(skyhookCog, 0, chunkStore2, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false)
             });
     }
 

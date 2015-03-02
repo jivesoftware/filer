@@ -16,11 +16,15 @@
 package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
+import com.jivesoftware.os.filer.chunk.store.transaction.MapBackedKeyedFPIndex;
+import com.jivesoftware.os.filer.chunk.store.transaction.TxCog;
+import com.jivesoftware.os.filer.chunk.store.transaction.TxCogs;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.api.KeyValueContext;
 import com.jivesoftware.os.filer.io.api.KeyValueStore;
 import com.jivesoftware.os.filer.io.api.KeyValueTransaction;
+import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import com.jivesoftware.os.filer.io.primative.LongLongKeyValueMarshaller;
 import java.io.IOException;
@@ -51,13 +55,15 @@ public class TxKeyValueStoreNGTest {
 
     @BeforeMethod
     public void init() throws Exception {
+        TxCogs cogs = new TxCogs(256, 64, null, null, null);
+        TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog = cogs.getSkyhookCog(0);
         ByteBufferFactory bbf = new HeapByteBufferFactory();
         ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, bbf, 500, 5_000);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, bbf, 500, 5_000);
         ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
 
-        store1 = new TxKeyValueStore<>(chunkStores, new LongLongKeyValueMarshaller(), "booya1".getBytes(), 8, false, 8, false);
-        store2 = new TxKeyValueStore<>(chunkStores, new LongLongKeyValueMarshaller(), "booya2".getBytes(), 8, false, 8, false);
+        store1 = new TxKeyValueStore<>(skyhookCog, 0, chunkStores, new LongLongKeyValueMarshaller(), "booya1".getBytes(), 8, false, 8, false);
+        store2 = new TxKeyValueStore<>(skyhookCog, 0, chunkStores, new LongLongKeyValueMarshaller(), "booya2".getBytes(), 8, false, 8, false);
     }
 
     @Test(enabled = false)

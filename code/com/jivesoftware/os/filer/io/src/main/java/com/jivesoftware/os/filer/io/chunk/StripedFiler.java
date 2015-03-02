@@ -37,6 +37,7 @@ public class StripedFiler {
         byte[] name,
         ByteBufferFactory bufferFactory,
         int numberOfStripes) {
+        numberOfStripes = 1024;
         this.root = root;
         this.name = name;
         this.bufferFactory = bufferFactory;
@@ -58,8 +59,18 @@ public class StripedFiler {
         }
     }
 
+    private static final long multiplier = 0x5DEECE66DL;
+    private static final long addend = 0xBL;
+    private static final long mask = (1L << 48) - 1;
+
+    static int hashFP(long fp) {
+        long seed = (fp ^ multiplier) & mask;
+        seed = (seed * multiplier + addend) & mask;
+        return (int) (seed >>> (48 - 32));
+    }
+
     public <R> R tx(long fp, StripeTx<R> stripeTx) throws IOException {
-        int stripe = (int) Math.abs(fp % stripes.length);
+        int stripe = (int) Math.abs(hashFP(fp) % stripes.length);
         synchronized (locks[stripe]) {
             if (stripes[stripe] == null) {
                 stripes[stripe] = root.duplicateAll();

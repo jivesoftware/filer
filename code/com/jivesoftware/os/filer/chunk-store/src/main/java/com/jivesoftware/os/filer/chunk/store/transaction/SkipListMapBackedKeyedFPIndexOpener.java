@@ -15,6 +15,7 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
+import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.LocksProvider;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
@@ -25,19 +26,26 @@ import com.jivesoftware.os.filer.io.map.SkipListMapStore;
 import com.jivesoftware.os.filer.map.store.LexSkipListComparator;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Map;
 
 /**
  * @author jonathan.colt
  */
 public class SkipListMapBackedKeyedFPIndexOpener implements OpenFiler<SkipListMapBackedKeyedFPIndex, ChunkFiler> {
 
+    private final int seed;
     private final LocksProvider<byte[]> keyLocks;
     private final SemaphoreProvider<byte[]> keySemaphores;
+    private final KeyToFPCacheFactory cacheFactory; // Nullable
 
-    public SkipListMapBackedKeyedFPIndexOpener(LocksProvider<byte[]> keyLocks,
-        SemaphoreProvider<byte[]> keySemaphores) {
+    public SkipListMapBackedKeyedFPIndexOpener(int seed,
+        LocksProvider<byte[]> keyLocks,
+        SemaphoreProvider<byte[]> keySemaphores,
+        KeyToFPCacheFactory cacheFactory) {
+        this.seed = seed;
         this.keyLocks = keyLocks;
         this.keySemaphores = keySemaphores;
+        this.cacheFactory = cacheFactory;
     }
 
     @Override
@@ -46,7 +54,12 @@ public class SkipListMapBackedKeyedFPIndexOpener implements OpenFiler<SkipListMa
         byte[] headKey = new byte[mapContext.keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
         SkipListMapContext skipListMapContext = SkipListMapStore.INSTANCE.open(headKey, LexSkipListComparator.cSingleton, filer);
-        return new SkipListMapBackedKeyedFPIndex(filer.getChunkStore(), filer.getChunkFP(), skipListMapContext, this, keyLocks,  keySemaphores);
+        Map<IBA, Long> keyFPCache = null;
+        if (cacheFactory != null) {
+            keyFPCache = cacheFactory.createCache();
+        }
+        return new SkipListMapBackedKeyedFPIndex(seed,
+            filer.getChunkStore(), filer.getChunkFP(), skipListMapContext, this, keyLocks, keySemaphores, keyFPCache);
     }
 
 }

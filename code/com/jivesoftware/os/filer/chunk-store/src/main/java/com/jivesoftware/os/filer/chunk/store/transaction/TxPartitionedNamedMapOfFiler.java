@@ -74,7 +74,9 @@ public class TxPartitionedNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         }
         List<R> result = Lists.newArrayList();
         for (int p = 0; p < stores.length; p++) {
-            result.addAll(stores[p].readEach(mapName, partitionedFilerKeys[p], filerTransaction));
+            if (partitionedFilerKeys[p] != null) {
+                result.addAll(stores[p].readEach(mapName, partitionedFilerKeys[p], filerTransaction));
+            }
         }
         return result;
     }

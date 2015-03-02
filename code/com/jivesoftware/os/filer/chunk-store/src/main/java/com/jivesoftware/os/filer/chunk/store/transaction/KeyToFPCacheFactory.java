@@ -15,33 +15,15 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import java.util.concurrent.Semaphore;
+import com.jivesoftware.os.filer.io.IBA;
+import java.util.Map;
 
 /**
  *
  * @author jonathan.colt
  */
-public class IntIndexSemaphore implements SemaphoreProvider<Integer> {
+public interface KeyToFPCacheFactory {
 
-    private final Semaphore[] semaphores;
-    private final int numPermits;
-
-    public IntIndexSemaphore(int numSemaphores, int numPermits) {
-        this.numPermits = numPermits;
-        this.semaphores = new Semaphore[numSemaphores];
-        for (int i = 0; i < numSemaphores; i++) {
-            semaphores[i] = new Semaphore(numPermits, true);
-        }
-    }
-
-    @Override
-    public Semaphore semaphore(Integer index, int seed) {
-        return semaphores[index];
-    }
-
-    @Override
-    public int getNumPermits() {
-        return numPermits;
-    }
+    Map<IBA, Long> createCache();
 
 }

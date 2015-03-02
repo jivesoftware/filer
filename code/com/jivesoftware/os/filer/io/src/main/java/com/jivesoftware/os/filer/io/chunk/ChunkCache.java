@@ -84,7 +84,7 @@ public class ChunkCache {
             if (ai > -1) {
                 chunks[ai].acquisitions--;
                 acquisitions--;
-                if (chunks[ai].acquisitions == 0) {
+                if (chunks[ai].acquisitions == 0 && chunks[ai].monkey == null) {
                     remove(chunkFP);
                 }
                 return true;

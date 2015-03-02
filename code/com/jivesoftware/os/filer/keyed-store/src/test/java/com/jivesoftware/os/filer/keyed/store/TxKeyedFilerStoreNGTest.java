@@ -9,6 +9,7 @@
 package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
+import com.jivesoftware.os.filer.chunk.store.transaction.TxCogs;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFiler;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
@@ -36,6 +37,8 @@ import static org.testng.Assert.assertEquals;
  */
 public class TxKeyedFilerStoreNGTest {
 
+    TxCogs cogs = new TxCogs(256, 64, null, null, null);
+
     @Test
     public void keyedStoreTest() throws Exception {
         assertKeyedStoreTest(false);
@@ -53,7 +56,9 @@ public class TxKeyedFilerStoreNGTest {
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
-        TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(chunkStores,
+        TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(cogs,
+            0,
+            chunkStores,
             "booya".getBytes(),
             lexOrderKeys,
             TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
@@ -137,13 +142,16 @@ public class TxKeyedFilerStoreNGTest {
     }
 
     private void assertRewriteTest(boolean lexOrderKeys) throws IOException, Exception {
+
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
         ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
-        TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(chunkStores,
+        TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(cogs,
+            0,
+            chunkStores,
             "booya".getBytes(),
             lexOrderKeys,
             TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
@@ -175,7 +183,9 @@ public class TxKeyedFilerStoreNGTest {
             }
         });
 
-        store = new TxKeyedFilerStore<>(chunkStores,
+        store = new TxKeyedFilerStore<>(cogs,
+            0,
+            chunkStores,
             "booya".getBytes(),
             lexOrderKeys,
             TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
@@ -234,7 +244,9 @@ public class TxKeyedFilerStoreNGTest {
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
-        TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(chunkStores,
+        TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(cogs,
+            0,
+            chunkStores,
             "booya".getBytes(),
             lexOrderKeys,
             TxNamedMapOfFiler.CHUNK_FILER_CREATOR,

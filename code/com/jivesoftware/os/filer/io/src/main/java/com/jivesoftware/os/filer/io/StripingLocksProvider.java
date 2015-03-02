@@ -17,8 +17,8 @@ public class StripingLocksProvider<K> implements LocksProvider<K> {
     }
 
     @Override
-    public Object lock(K toLock) {
-        return locks[Math.abs(toLock.hashCode() % locks.length)];
+    public Object lock(K toLock, int seed) {
+        return locks[Math.abs((toLock.hashCode() ^ seed) % locks.length)];
     }
 
     static private class StripingLock {

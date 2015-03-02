@@ -32,14 +32,16 @@ import java.util.List;
  */
 public class PowerKeyedFPIndex implements FPIndex<Integer, PowerKeyedFPIndex> {
 
+    private final int seed;
     private final ChunkStore backingChunkStore;
     private final long backingFP;
     private final long[] fpIndex;
     private final IntIndexSemaphore keySemaphores = new IntIndexSemaphore(64, 64); //TODO expose?
     private final Object[] keySizeLocks;
 
-    PowerKeyedFPIndex(ChunkStore chunkStore, long fp, long[] fpIndex) throws IOException {
+    PowerKeyedFPIndex(int seed, ChunkStore chunkStore, long fp, long[] fpIndex) throws IOException {
 
+        this.seed = seed;
         this.backingChunkStore = chunkStore;
         this.backingFP = fp;
         this.fpIndex = fpIndex;
@@ -91,7 +93,7 @@ public class PowerKeyedFPIndex implements FPIndex<Integer, PowerKeyedFPIndex> {
     @Override
     public <H, M, R> R read(ChunkStore chunkStore, Integer key,
         OpenFiler<M, ChunkFiler> opener, ChunkTransaction<M, R> filerTransaction) throws IOException {
-        return KeyedFPIndexUtil.INSTANCE.read(this, keySemaphores.semaphore(key), keySemaphores.getNumPermits(), chunkStore, keySizeLocks[key],
+        return KeyedFPIndexUtil.INSTANCE.read(this, keySemaphores.semaphore(key, seed), keySemaphores.getNumPermits(), chunkStore, keySizeLocks[key],
             key, opener, filerTransaction);
     }
 
@@ -99,7 +101,7 @@ public class PowerKeyedFPIndex implements FPIndex<Integer, PowerKeyedFPIndex> {
     public <H, M, R> R writeNewReplace(ChunkStore chunkStore, Integer key, H hint,
         CreateFiler<H, M, ChunkFiler> creator, OpenFiler<M, ChunkFiler> opener, GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction) throws IOException {
-        return KeyedFPIndexUtil.INSTANCE.writeNewReplace(this, keySemaphores.semaphore(key), keySemaphores.getNumPermits(), chunkStore,
+        return KeyedFPIndexUtil.INSTANCE.writeNewReplace(this, keySemaphores.semaphore(key, seed), keySemaphores.getNumPermits(), chunkStore,
             keySizeLocks[key], key, hint, creator, opener, growFiler, filerTransaction);
     }
 
@@ -107,7 +109,7 @@ public class PowerKeyedFPIndex implements FPIndex<Integer, PowerKeyedFPIndex> {
     public <H, M, R> R readWriteAutoGrow(ChunkStore chunkStore, Integer key, H hint,
         CreateFiler<H, M, ChunkFiler> creator, OpenFiler<M, ChunkFiler> opener, GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction) throws IOException {
-        return KeyedFPIndexUtil.INSTANCE.readWriteAutoGrowIfNeeded(this, keySemaphores.semaphore(key), keySemaphores.getNumPermits(), chunkStore,
+        return KeyedFPIndexUtil.INSTANCE.readWriteAutoGrowIfNeeded(this, keySemaphores.semaphore(key, seed), keySemaphores.getNumPermits(), chunkStore,
             keySizeLocks[key], key, hint, creator, opener, growFiler, filerTransaction);
     }
 
