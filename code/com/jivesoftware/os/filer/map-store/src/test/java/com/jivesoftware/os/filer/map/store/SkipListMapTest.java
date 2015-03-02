@@ -18,6 +18,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import static org.testng.Assert.assertEquals;
+
 /**
  * @author jonathan
  */
@@ -39,6 +41,124 @@ public class SkipListMapTest {
 
         for (int i = 0; i < 96; i++) {
             sls.add(f, from, new byte[]{(byte) i}, new byte[0]);
+        }
+    }
+
+    @Test
+    public void addHeadKeyTest() throws IOException {
+        ByteBufferFactory provider = new HeapByteBufferFactory();
+        int capacity = 96;
+        int keySize = 4;
+        int payloadSize = 4;
+        SkipListMapStore sls = SkipListMapStore.INSTANCE;
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        ByteBufferBackedFiler f = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
+
+        byte[] headKey = new byte[keySize];
+        Arrays.fill(headKey, Byte.MIN_VALUE);
+        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, f);
+
+        for (int i = 0; i < 10; i++) {
+            sls.add(f, from, FilerIO.intBytes(i), FilerIO.intBytes(Integer.MAX_VALUE - i));
+        }
+
+        sls.add(f, from, headKey, FilerIO.intBytes(Integer.MIN_VALUE));
+
+        for (int i = 10; i < 20; i++) {
+            sls.add(f, from, FilerIO.intBytes(i), FilerIO.intBytes(Integer.MAX_VALUE - i));
+        }
+
+        sls.add(f, from, headKey, FilerIO.intBytes(Integer.MIN_VALUE + 1));
+
+        for (int i = 20; i < 30; i++) {
+            sls.add(f, from, FilerIO.intBytes(i), FilerIO.intBytes(Integer.MAX_VALUE - i));
+        }
+
+        sls.add(f, from, headKey, FilerIO.intBytes(Integer.MIN_VALUE + 2));
+
+        for (int i = 30; i < 40; i++) {
+            sls.add(f, from, FilerIO.intBytes(i), FilerIO.intBytes(Integer.MAX_VALUE - i));
+        }
+
+        for (int i = 0; i < 40; i++) {
+            assertEquals(sls.getExistingPayload(f, from, FilerIO.intBytes(i)), FilerIO.intBytes(Integer.MAX_VALUE - i));
+        }
+
+        assertEquals(sls.getExistingPayload(f, from, headKey), FilerIO.intBytes(Integer.MIN_VALUE + 2));
+    }
+
+    @Test
+    public void addAscending() throws IOException {
+        ByteBufferFactory provider = new HeapByteBufferFactory();
+        int capacity = 96;
+        int keySize = 4;
+        int payloadSize = 4;
+        SkipListMapStore sls = SkipListMapStore.INSTANCE;
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        ByteBufferBackedFiler f = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
+
+        byte[] headKey = new byte[keySize];
+        Arrays.fill(headKey, Byte.MIN_VALUE);
+        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, f);
+
+        for (int i = 0; i < capacity; i++) {
+            sls.add(f, from, FilerIO.intBytes(i), FilerIO.intBytes(Integer.MAX_VALUE - i));
+        }
+
+        for (int i = 0; i < capacity; i++) {
+            assertEquals(sls.getExistingPayload(f, from, FilerIO.intBytes(i)), FilerIO.intBytes(Integer.MAX_VALUE - i));
+        }
+    }
+
+    @Test
+    public void addDescending() throws IOException {
+        ByteBufferFactory provider = new HeapByteBufferFactory();
+        int capacity = 96;
+        int keySize = 4;
+        int payloadSize = 4;
+        SkipListMapStore sls = SkipListMapStore.INSTANCE;
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        ByteBufferBackedFiler f = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
+
+        byte[] headKey = new byte[keySize];
+        Arrays.fill(headKey, Byte.MIN_VALUE);
+        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, f);
+
+        for (int i = capacity; i > 0; i--) {
+            sls.add(f, from, FilerIO.intBytes(i), FilerIO.intBytes(Integer.MAX_VALUE - i));
+        }
+
+        for (int i = capacity; i > 0; i--) {
+            assertEquals(sls.getExistingPayload(f, from, FilerIO.intBytes(i)), FilerIO.intBytes(Integer.MAX_VALUE - i));
+        }
+    }
+
+    @Test
+    public void addRandom() throws IOException {
+        ByteBufferFactory provider = new HeapByteBufferFactory();
+        int capacity = 96;
+        int keySize = 4;
+        int payloadSize = 4;
+        SkipListMapStore sls = SkipListMapStore.INSTANCE;
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        ByteBufferBackedFiler f = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
+
+        byte[] headKey = new byte[keySize];
+        Arrays.fill(headKey, Byte.MIN_VALUE);
+        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, f);
+
+        int[] keys = new int[capacity];
+        Random rand = new Random();
+        for (int i = 0; i < capacity; i++) {
+            keys[i] = rand.nextInt();
+        }
+
+        for (int i = 0; i < capacity; i++) {
+            sls.add(f, from, FilerIO.intBytes(keys[i]), FilerIO.intBytes(Integer.MAX_VALUE - i));
+        }
+
+        for (int i = 0; i < capacity; i++) {
+            assertEquals(sls.getExistingPayload(f, from, FilerIO.intBytes(keys[i])), FilerIO.intBytes(Integer.MAX_VALUE - i));
         }
     }
 
@@ -87,17 +207,17 @@ public class SkipListMapTest {
             sls.add(f, from, new byte[]{(byte) i}, new byte[]{(byte) i});
         }
 
-        Assert.assertEquals(10, sls.getCount(f, from));
+        assertEquals(10, sls.getCount(f, from));
 
-        Assert.assertEquals(new byte[]{0}, sls.getFirst(f, from));
-        Assert.assertEquals(new byte[]{1}, sls.getNextKey(f, from, new byte[]{0}));
-        Assert.assertEquals(new byte[]{0}, sls.getPrior(f, from, new byte[]{1}));
+        assertEquals(new byte[] { 0 }, sls.getFirst(f, from));
+        assertEquals(new byte[] { 1 }, sls.getNextKey(f, from, new byte[] { 0 }));
+        assertEquals(new byte[] { 0 }, sls.getPrior(f, from, new byte[] { 1 }));
 
-        Assert.assertEquals(null, sls.getPrior(f, from, new byte[]{0}));
-        Assert.assertEquals(null, sls.getNextKey(f, from, new byte[]{9}));
+        assertEquals(null, sls.getPrior(f, from, new byte[] { 0 }));
+        assertEquals(null, sls.getNextKey(f, from, new byte[] { 9 }));
 
-        Assert.assertEquals(new byte[]{9}, sls.getExistingPayload(f, from, new byte[]{9}));
-        Assert.assertEquals(null, sls.getExistingPayload(f, from, new byte[]{11}));
+        assertEquals(new byte[] { 9 }, sls.getExistingPayload(f, from, new byte[] { 9 }));
+        assertEquals(null, sls.getExistingPayload(f, from, new byte[] { 11 }));
 
     }
 
@@ -280,7 +400,7 @@ public class SkipListMapTest {
                 return true;
             }
         });
-        Assert.assertEquals(count.intValue(), 11);
+        assertEquals(count.intValue(), 11);
 
     }
 
@@ -321,7 +441,7 @@ public class SkipListMapTest {
                 return true;
             }
         });
-        Assert.assertEquals(count.intValue(), 1);
+        assertEquals(count.intValue(), 1);
 
         System.out.println("-------");
         count.set(0);
@@ -336,7 +456,7 @@ public class SkipListMapTest {
                 return true;
             }
         });
-        Assert.assertEquals(count.intValue(), 3);
+        assertEquals(count.intValue(), 3);
 
         System.out.println("-------");
         count.set(0);
@@ -351,7 +471,7 @@ public class SkipListMapTest {
                 return true;
             }
         });
-        Assert.assertEquals(count.intValue(), 2);
+        assertEquals(count.intValue(), 2);
 
         System.out.println("-------");
         count.set(0);
@@ -366,7 +486,7 @@ public class SkipListMapTest {
                 return true;
             }
         });
-        Assert.assertEquals(count.intValue(), 1);
+        assertEquals(count.intValue(), 1);
 
         System.out.println("------- -2, -1");
         count.set(0);
@@ -381,7 +501,7 @@ public class SkipListMapTest {
                 return true;
             }
         });
-        Assert.assertEquals(count.intValue(), 0);
+        assertEquals(count.intValue(), 0);
 
     }
 

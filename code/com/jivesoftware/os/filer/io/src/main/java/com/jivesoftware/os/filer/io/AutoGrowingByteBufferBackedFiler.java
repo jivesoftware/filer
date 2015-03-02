@@ -65,7 +65,7 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
 
     public AutoGrowingByteBufferBackedFiler duplicateNew(AutoGrowingByteBufferBackedFiler current) {
         ByteBufferBackedFiler[] duplicate = new ByteBufferBackedFiler[filers.length];
-        System.arraycopy(filers, 0, duplicate, 0, current.filers.length - 1);
+        System.arraycopy(current.filers, 0, duplicate, 0, current.filers.length - 1);
         for (int i = current.filers.length - 1; i < duplicate.length; i++) {
             duplicate[i] = new ByteBufferBackedFiler(filers[i].buffer.duplicate());
         }

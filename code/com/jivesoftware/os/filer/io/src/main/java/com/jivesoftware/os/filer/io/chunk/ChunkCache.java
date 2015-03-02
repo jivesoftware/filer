@@ -80,11 +80,11 @@ public class ChunkCache {
 
     public boolean release(long chunkFP) throws IOException {
         if (mapContext != null) {
-            long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
+            int ai = (int) MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
             if (ai > -1) {
-                chunks[(int) ai].acquisitions--;
+                chunks[ai].acquisitions--;
                 acquisitions--;
-                if (acquisitions == 0) {
+                if (chunks[ai].acquisitions == 0) {
                     remove(chunkFP);
                 }
                 return true;
@@ -97,11 +97,11 @@ public class ChunkCache {
 
     public <M> Chunk<M> remove(long chunkFP) throws IOException {
         if (mapContext != null) {
-            long ai = MapStore.INSTANCE.remove(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
+            int ai = (int) MapStore.INSTANCE.remove(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
             if (ai > -1) {
-                Chunk<M> chunk = (Chunk<M>) chunks[(int) ai];
+                Chunk<M> chunk = (Chunk<M>) chunks[ai];
                 acquisitions -= chunk.acquisitions;
-                chunks[(int) ai] = null;
+                chunks[ai] = null;
                 return chunk;
             }
         }
@@ -116,7 +116,7 @@ public class ChunkCache {
         }
         chunks[(int) ai] = chunk;
         chunk.acquisitions++;
-        acquisitions += chunk.acquisitions;
+        acquisitions++;
         return chunk;
     }
 
