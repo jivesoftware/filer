@@ -37,7 +37,6 @@ public class StripedFiler {
         byte[] name,
         ByteBufferFactory bufferFactory,
         int numberOfStripes) {
-        numberOfStripes = 1024;
         this.root = root;
         this.name = name;
         this.bufferFactory = bufferFactory;
