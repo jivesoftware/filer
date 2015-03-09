@@ -128,6 +128,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
                 filer.seek(0);
                 lengthOfFile = FilerIO.readLong(filer, "lengthOfFile");
                 referenceNumber = FilerIO.readLong(filer, "referenceNumber");
+                filer.seek(lengthOfFile);
                 return null;
             }
         });
