@@ -86,6 +86,8 @@ public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
                 skipListPowerCog.grower,
                 filerCreator,
                 filerOpener,
+                cogs.getSkyHookKeySemaphores(),
+                cogs.getNamedKeySemaphores(),
                 overwriteGrowerProvider,
                 rewriteGrowerProvider);
         }
@@ -113,6 +115,8 @@ public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
                 powerCog.grower,
                 filerCreator,
                 filerOpener,
+                cogs.getSkyHookKeySemaphores(),
+                cogs.getNamedKeySemaphores(),
                 overwriteGrowerProvider,
                 rewriteGrowerProvider);
         }

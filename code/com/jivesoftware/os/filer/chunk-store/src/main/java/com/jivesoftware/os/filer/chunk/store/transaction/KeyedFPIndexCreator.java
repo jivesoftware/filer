@@ -33,11 +33,13 @@ public class KeyedFPIndexCreator implements CreateFiler<Void, PowerKeyedFPIndex,
     private final int seed;
     private final long magicHeader;
     private final int skyHookMaxKeySizePower;
+    private final IntIndexSemaphore keySemaphores;
 
-    public KeyedFPIndexCreator(int seed, long magicHeader, int skyHookMaxKeySizePower) {
+    public KeyedFPIndexCreator(int seed, long magicHeader, int skyHookMaxKeySizePower, IntIndexSemaphore keySemaphores) {
         this.seed = seed;
         this.magicHeader = magicHeader;
         this.skyHookMaxKeySizePower = skyHookMaxKeySizePower;
+        this.keySemaphores = keySemaphores;
     }
 
     @Override
@@ -49,7 +51,7 @@ public class KeyedFPIndexCreator implements CreateFiler<Void, PowerKeyedFPIndex,
         }
         long[] fps = new long[skyHookMaxKeySizePower];
         Arrays.fill(fps, -1L);
-        return new PowerKeyedFPIndex(seed, filer.getChunkStore(), filer.getChunkFP(), fps);
+        return new PowerKeyedFPIndex(seed, filer.getChunkStore(), filer.getChunkFP(), fps, keySemaphores);
     }
 
     @Override

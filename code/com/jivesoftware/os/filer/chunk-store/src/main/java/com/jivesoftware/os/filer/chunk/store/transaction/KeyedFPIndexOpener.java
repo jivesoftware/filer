@@ -29,11 +29,13 @@ public class KeyedFPIndexOpener implements OpenFiler<PowerKeyedFPIndex, ChunkFil
     private final int seed;
     private final long magicHeader; // = 5583112375L;
     private final int skyHookMaxKeySizePower; // = 16;
+    private final IntIndexSemaphore keySemaphores;
 
-    public KeyedFPIndexOpener(int seed, long magicHeader, int skyHookMaxKeySizePower) {
+    public KeyedFPIndexOpener(int seed, long magicHeader, int skyHookMaxKeySizePower, IntIndexSemaphore keySemaphores) {
         this.seed = seed;
         this.magicHeader = magicHeader;
         this.skyHookMaxKeySizePower = skyHookMaxKeySizePower;
+        this.keySemaphores = keySemaphores;
     }
 
     @Override
@@ -46,6 +48,6 @@ public class KeyedFPIndexOpener implements OpenFiler<PowerKeyedFPIndex, ChunkFil
         byte[] rawFPS = new byte[8 * skyHookMaxKeySizePower];
         FilerIO.read(filer, rawFPS);
         long[] fps = FilerIO.bytesLongs(rawFPS);
-        return new PowerKeyedFPIndex(seed, filer.getChunkStore(), filer.getChunkFP(), fps);
+        return new PowerKeyedFPIndex(seed, filer.getChunkStore(), filer.getChunkFP(), fps, keySemaphores);
     }
 }

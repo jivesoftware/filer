@@ -112,8 +112,10 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
     private final ChunkStore chunkStore;
     private final long constantFP;
 
-    private final CreateFiler<Void, PowerKeyedFPIndex, ChunkFiler> indexCreator;
-    private final OpenFiler<PowerKeyedFPIndex, ChunkFiler> indexOpener;
+    private final CreateFiler<Void, PowerKeyedFPIndex, ChunkFiler> skyHookIndexCreator;
+    private final OpenFiler<PowerKeyedFPIndex, ChunkFiler> skyHookIndexOpener;
+    private final CreateFiler<Void, PowerKeyedFPIndex, ChunkFiler> namedIndexCreator;
+    private final OpenFiler<PowerKeyedFPIndex, ChunkFiler> namedIndexOpener;
     private final CreateFiler<Integer, N, ChunkFiler>[] namedPowerCreator;
     private final OpenFiler<N, ChunkFiler> namedPowerOpener;
     private final GrowFiler<Integer, N, ChunkFiler> namedPowerGrower;
@@ -132,14 +134,23 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         GrowFiler<Integer, N, ChunkFiler> namedPowerGrower,
         CreateFiler<H, M, ChunkFiler> filerCreator,
         OpenFiler<M, ChunkFiler> filerOpener,
+        IntIndexSemaphore skyHookKeySemaphores,
+        IntIndexSemaphore namedKeySemaphores,
         TxNamedMapOfFilerOverwriteGrowerProvider<H, M> overwriteGrowerProvider,
         TxNamedMapOfFilerRewriteGrowerProvider<H, M> rewriteGrowerProvider) {
         this.skyhookCog = skyhookCog;
         this.chunkStore = chunkStore;
         this.constantFP = constantFP;
 
-        this.indexCreator = new KeyedFPIndexCreator(seed, KeyedFPIndexCreator.DEFAULT_MAGIC_HEADER, KeyedFPIndexCreator.DEFAULT_MAX_KEY_SIZE_POWER);
-        this.indexOpener = new KeyedFPIndexOpener(seed, KeyedFPIndexCreator.DEFAULT_MAGIC_HEADER, KeyedFPIndexCreator.DEFAULT_MAX_KEY_SIZE_POWER);
+        this.skyHookIndexCreator = new KeyedFPIndexCreator(seed, KeyedFPIndexCreator.DEFAULT_MAGIC_HEADER, KeyedFPIndexCreator.DEFAULT_MAX_KEY_SIZE_POWER,
+            skyHookKeySemaphores);
+        this.skyHookIndexOpener = new KeyedFPIndexOpener(seed, KeyedFPIndexCreator.DEFAULT_MAGIC_HEADER, KeyedFPIndexCreator.DEFAULT_MAX_KEY_SIZE_POWER,
+            skyHookKeySemaphores);
+
+        this.namedIndexCreator = new KeyedFPIndexCreator(seed, KeyedFPIndexCreator.DEFAULT_MAGIC_HEADER, KeyedFPIndexCreator.DEFAULT_MAX_KEY_SIZE_POWER,
+            namedKeySemaphores);
+        this.namedIndexOpener = new KeyedFPIndexOpener(seed, KeyedFPIndexCreator.DEFAULT_MAGIC_HEADER, KeyedFPIndexCreator.DEFAULT_MAX_KEY_SIZE_POWER,
+            namedKeySemaphores);
 
         this.namedPowerCreator = namedPowerCreator;
         this.namedPowerOpener = namedPowerOpener;
@@ -157,10 +168,10 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
 
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP)) {
-                chunkStore.newChunk(null, indexCreator);
+                chunkStore.newChunk(null, skyHookIndexCreator);
             }
         }
-        return chunkStore.execute(constantFP, indexOpener, new ChunkTransaction<PowerKeyedFPIndex, R>() {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, new ChunkTransaction<PowerKeyedFPIndex, R>() {
 
             @Override
             public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
@@ -172,7 +183,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                         @Override
                         public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
 
-                            return monkey.readWriteAutoGrow(chunkStore, mapName, null, indexCreator, indexOpener, null,
+                            return monkey.readWriteAutoGrow(chunkStore, mapName, null, namedIndexCreator, namedIndexOpener, null,
                                 new ChunkTransaction<PowerKeyedFPIndex, R>() {
                                     @Override
                                     public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
@@ -203,10 +214,10 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
 
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP)) {
-                chunkStore.newChunk(null, indexCreator);
+                chunkStore.newChunk(null, skyHookIndexCreator);
             }
         }
-        return chunkStore.execute(constantFP, indexOpener, new ChunkTransaction<PowerKeyedFPIndex, R>() {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, new ChunkTransaction<PowerKeyedFPIndex, R>() {
 
             @Override
             public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
@@ -219,7 +230,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                         @Override
                         public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
 
-                            return monkey.readWriteAutoGrow(chunkStore, mapName, null, indexCreator, indexOpener, null,
+                            return monkey.readWriteAutoGrow(chunkStore, mapName, null, namedIndexCreator, namedIndexOpener, null,
                                 new ChunkTransaction<PowerKeyedFPIndex, R>() {
                                     @Override
                                     public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
@@ -259,7 +270,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                 return filerTransaction.commit(null, null, null);
             }
         }
-        return chunkStore.execute(constantFP, indexOpener, new ChunkTransaction<PowerKeyedFPIndex, R>() {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, new ChunkTransaction<PowerKeyedFPIndex, R>() {
 
             @Override
             public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
@@ -277,7 +288,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                                 return filerTransaction.commit(null, null, null);
                             }
 
-                            return monkey.read(chunkStore, mapName, indexOpener,
+                            return monkey.read(chunkStore, mapName, namedIndexOpener,
                                 new ChunkTransaction<PowerKeyedFPIndex, R>() {
                                     @Override
                                     public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
@@ -326,7 +337,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         }
 
         final List<R> result = Lists.newArrayList();
-        chunkStore.execute(constantFP, indexOpener, new ChunkTransaction<PowerKeyedFPIndex, Void>() {
+        chunkStore.execute(constantFP, skyHookIndexOpener, new ChunkTransaction<PowerKeyedFPIndex, Void>() {
 
             @Override
             public Void commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
@@ -344,7 +355,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                                 return null;
                             }
 
-                            return monkey.read(chunkStore, mapName, indexOpener,
+                            return monkey.read(chunkStore, mapName, namedIndexOpener,
                                 new ChunkTransaction<PowerKeyedFPIndex, Void>() {
                                     @Override
                                     public Void commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
@@ -393,7 +404,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                 return true;
             }
         }
-        return chunkStore.execute(constantFP, indexOpener, new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
 
             @Override
             public Boolean commit(final PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
@@ -411,7 +422,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                                 return true;
                             }
 
-                            return monkey.read(chunkStore, mapName, indexOpener,
+                            return monkey.read(chunkStore, mapName, namedIndexOpener,
                                 new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
 
                                     @Override
@@ -467,7 +478,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                 return true;
             }
         }
-        return chunkStore.execute(constantFP, indexOpener, new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
 
             @Override
             public Boolean commit(final PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
@@ -485,7 +496,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                                 return true;
                             }
 
-                            return monkey.read(chunkStore, mapName, indexOpener,
+                            return monkey.read(chunkStore, mapName, namedIndexOpener,
                                 new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
 
                                     @Override

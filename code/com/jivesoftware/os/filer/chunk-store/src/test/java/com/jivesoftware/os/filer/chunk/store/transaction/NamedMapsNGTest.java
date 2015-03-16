@@ -46,15 +46,17 @@ public class NamedMapsNGTest {
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, 500, 5_000);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 500, 5_000);
 
         TxCogs cogs = new TxCogs(256, 64, null, null, null);
         TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog = cogs.getSkyhookCog(0);
 
-        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[]{
-            new TxNamedMap(skyhookCog, 0, chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
-            new TxNamedMap(skyhookCog, 0, chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
+        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[] {
+            new TxNamedMap(skyhookCog, 0, chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1),
+                cogs.getSkyHookKeySemaphores()),
+            new TxNamedMap(skyhookCog, 0, chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1),
+                cogs.getSkyHookKeySemaphores())
         });
 
         int tries = 128;
@@ -163,11 +165,10 @@ public class NamedMapsNGTest {
 
     @Test
     public void testVariableNamedMapOfFilers() throws Exception {
-        StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
         File dir = Files.createTempDirectory("testVariableNamedMapOfFilers").toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, 500, 5_000);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 500, 5_000);
 
         TxCogs cogs = new TxCogs(256, 64, null, null, null);
         TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog = cogs.getSkyhookCog(0);
@@ -175,13 +176,15 @@ public class NamedMapsNGTest {
 
         TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(
             ByteArrayPartitionFunction.INSTANCE,
-            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[]{
+            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[] {
                 new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore1, 464,
                     powerCog.creators,
                     powerCog.opener,
                     powerCog.grower,
                     TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
                     TxNamedMapOfFiler.CHUNK_FILER_OPENER,
+                    cogs.getSkyHookKeySemaphores(),
+                    cogs.getNamedKeySemaphores(),
                     TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
                     TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER),
                 new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore2, 464,
@@ -190,6 +193,8 @@ public class NamedMapsNGTest {
                     powerCog.grower,
                     TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
                     TxNamedMapOfFiler.CHUNK_FILER_OPENER,
+                    cogs.getSkyHookKeySemaphores(),
+                    cogs.getNamedKeySemaphores(),
                     TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
                     TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER)
             });
@@ -253,8 +258,8 @@ public class NamedMapsNGTest {
     public void testCommit() throws Exception {
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
         File dir = Files.createTempDirectory("testCommit").toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, 500, 5_000);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 500, 5_000);
 
         TxCogs cogs = new TxCogs(256, 64, null, null, null);
         TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog = cogs.getSkyhookCog(0);
@@ -262,13 +267,15 @@ public class NamedMapsNGTest {
 
         TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(
             ByteArrayPartitionFunction.INSTANCE,
-            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[]{
+            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[] {
                 new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore1, 464,
                     powerCog.creators,
                     powerCog.opener,
                     powerCog.grower,
                     TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
                     TxNamedMapOfFiler.CHUNK_FILER_OPENER,
+                    cogs.getSkyHookKeySemaphores(),
+                    cogs.getNamedKeySemaphores(),
                     TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
                     TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER),
                 new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore2, 464,
@@ -277,13 +284,17 @@ public class NamedMapsNGTest {
                     powerCog.grower,
                     TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
                     TxNamedMapOfFiler.CHUNK_FILER_OPENER,
+                    cogs.getSkyHookKeySemaphores(),
+                    cogs.getNamedKeySemaphores(),
                     TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
                     TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER)
             });
 
-        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[]{
-            new TxNamedMap(skyhookCog, 0, chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
-            new TxNamedMap(skyhookCog, 0, chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
+        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[] {
+            new TxNamedMap(skyhookCog, 0, chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1),
+                cogs.getSkyHookKeySemaphores()),
+            new TxNamedMap(skyhookCog, 0, chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1),
+                cogs.getSkyHookKeySemaphores())
         });
 
         final int addCount = 16;
@@ -328,20 +339,19 @@ public class NamedMapsNGTest {
                             ChunkFiler newFiler,
                             Object newLock) throws IOException {
 
-                                synchronized (newLock) {
-                                    FilerIO.writeLong(newFiler, key, "value");
-                                    //System.out.println("Rewrite:" + (oldValue + key) + " " + newFiler.getChunkFP());
-                                    return null;
-                                }
-
+                            synchronized (newLock) {
+                                FilerIO.writeLong(newFiler, key, "value");
+                                //System.out.println("Rewrite:" + (oldValue + key) + " " + newFiler.getChunkFP());
+                                return null;
                             }
+
+                        }
                     });
 
                 //System.out.println("Accum:" + accum);
             }
 
             final AtomicBoolean failed = new AtomicBoolean();
-            final int expectedAccum = accum;
             for (int i = 0; i < addCount; i++) {
                 final int key = i;
 
@@ -401,17 +411,19 @@ public class NamedMapsNGTest {
 
         }
 
-        chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000);
-        chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000);
+        chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, 500, 5_000);
+        chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 500, 5_000);
 
         namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE,
-            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[]{
+            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[] {
                 new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore1, 464,
                     powerCog.creators,
                     powerCog.opener,
                     powerCog.grower,
                     TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
                     TxNamedMapOfFiler.CHUNK_FILER_OPENER,
+                    cogs.getSkyHookKeySemaphores(),
+                    cogs.getNamedKeySemaphores(),
                     TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
                     TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER),
                 new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore2, 464,
@@ -420,13 +432,17 @@ public class NamedMapsNGTest {
                     powerCog.grower,
                     TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
                     TxNamedMapOfFiler.CHUNK_FILER_OPENER,
+                    cogs.getSkyHookKeySemaphores(),
+                    cogs.getNamedKeySemaphores(),
                     TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
                     TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER)
             });
 
-        namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[]{
-            new TxNamedMap(skyhookCog, 0, chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1)),
-            new TxNamedMap(skyhookCog, 0, chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1))
+        namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[] {
+            new TxNamedMap(skyhookCog, 0, chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1),
+                cogs.getSkyHookKeySemaphores()),
+            new TxNamedMap(skyhookCog, 0, chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(1),
+                cogs.getSkyHookKeySemaphores())
         });
 
         for (int c = 0; c < 10; c++) {
@@ -476,7 +492,6 @@ public class NamedMapsNGTest {
         for (int i = 0; i < addCount; i++) {
             accum += i;
         }
-        final int expectedAccum = accum;
         final AtomicBoolean failed = new AtomicBoolean();
         for (int i = 0; i < addCount; i++) {
             final int key = i;

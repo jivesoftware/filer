@@ -36,15 +36,16 @@ public class PowerKeyedFPIndex implements FPIndex<Integer, PowerKeyedFPIndex> {
     private final ChunkStore backingChunkStore;
     private final long backingFP;
     private final long[] fpIndex;
-    private final IntIndexSemaphore keySemaphores = new IntIndexSemaphore(64, 64); //TODO expose?
+    private final IntIndexSemaphore keySemaphores;
     private final Object[] keySizeLocks;
 
-    PowerKeyedFPIndex(int seed, ChunkStore chunkStore, long fp, long[] fpIndex) throws IOException {
+    PowerKeyedFPIndex(int seed, ChunkStore chunkStore, long fp, long[] fpIndex, IntIndexSemaphore keySemaphores) throws IOException {
 
         this.seed = seed;
         this.backingChunkStore = chunkStore;
         this.backingFP = fp;
         this.fpIndex = fpIndex;
+        this.keySemaphores = keySemaphores;
         this.keySizeLocks = new Object[fpIndex.length];
         for (int i = 0; i < fpIndex.length; i++) {
             keySizeLocks[i] = new Object();

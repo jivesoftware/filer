@@ -21,7 +21,6 @@ import com.jivesoftware.os.filer.chunk.store.transaction.TxCog;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxCogs;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.PartitionFunction;
-import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.io.api.KeyValueContext;
 import com.jivesoftware.os.filer.io.api.KeyValueStore;
 import com.jivesoftware.os.filer.io.api.KeyValueTransaction;
@@ -54,7 +53,6 @@ public class TxKeyObjectStoreNGTest {
         TxCogs cogs = new TxCogs(256, 64, null, null, null);
         TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog = cogs.getSkyhookCog(0);
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
-        StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
         ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, 500, 5_000);
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 500, 5_000);
@@ -68,8 +66,8 @@ public class TxKeyObjectStoreNGTest {
                 }
             },
             (TxKeyObjectStore<Long, Long>[]) new TxKeyObjectStore[] {
-                new TxKeyObjectStore<>(skyhookCog, 0, chunkStore1, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false),
-                new TxKeyObjectStore<>(skyhookCog, 0, chunkStore2, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false)
+                new TxKeyObjectStore<>(skyhookCog, cogs.getSkyHookKeySemaphores(), 0, chunkStore1, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false),
+                new TxKeyObjectStore<>(skyhookCog, cogs.getSkyHookKeySemaphores(), 0, chunkStore2, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false)
             });
     }
 

@@ -17,6 +17,9 @@ public class TxCogs {
     private final ByteArrayStripingLocksProvider powerLocks;
     private final ByteArrayStripingSemaphore powerSemaphores;
 
+    private final IntIndexSemaphore skyHookKeySemaphores;
+    private final IntIndexSemaphore namedKeySemaphores;
+
     private final KeyToFPCacheFactory skyHookFpCacheFactory;
     private final KeyToFPCacheFactory namedPowerFpCacheFactory;
     private final KeyToFPCacheFactory slNamedPowerCacheFactory;
@@ -37,6 +40,8 @@ public class TxCogs {
         powerLocks = new ByteArrayStripingLocksProvider(stripingLevel);
         powerSemaphores = new ByteArrayStripingSemaphore(stripingLevel, numSemaphorePermits);
 
+        skyHookKeySemaphores = new IntIndexSemaphore(stripingLevel, numSemaphorePermits);
+        namedKeySemaphores = new IntIndexSemaphore(stripingLevel, numSemaphorePermits);
     }
 
     public TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> getSkyhookCog(int seed) {
@@ -72,5 +77,11 @@ public class TxCogs {
         return new TxCog<>(creators, opener, grower);
     }
 
+    public IntIndexSemaphore getSkyHookKeySemaphores() {
+        return skyHookKeySemaphores;
+    }
 
+    public IntIndexSemaphore getNamedKeySemaphores() {
+        return namedKeySemaphores;
+    }
 }

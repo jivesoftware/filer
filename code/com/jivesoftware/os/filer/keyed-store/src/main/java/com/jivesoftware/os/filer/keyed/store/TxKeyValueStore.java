@@ -15,6 +15,7 @@
  */
 package com.jivesoftware.os.filer.keyed.store;
 
+import com.jivesoftware.os.filer.chunk.store.transaction.IntIndexSemaphore;
 import com.jivesoftware.os.filer.chunk.store.transaction.MapBackedKeyedFPIndex;
 import com.jivesoftware.os.filer.chunk.store.transaction.MapCreator;
 import com.jivesoftware.os.filer.chunk.store.transaction.MapGrower;
@@ -49,6 +50,7 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
     private final TxPartitionedNamedMap namedMap;
 
     public TxKeyValueStore(TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog,
+        IntIndexSemaphore skyHookKeySemaphores,
         int seed,
         ChunkStore[] chunkStores,
         KeyValueMarshaller<K, V> keyValueMarshaller,
@@ -66,7 +68,8 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
             stores[i] = new TxNamedMap(skyhookCog, seed, chunkStores[i], SKY_HOOK_FP,
                 new MapCreator(2, keySize, variableKeySize, payloadSize, variablePayloadSize),
                 MapOpener.INSTANCE,
-                new MapGrower<>(1));
+                new MapGrower<>(1),
+                skyHookKeySemaphores);
         }
 
         this.namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, stores);

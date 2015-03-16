@@ -62,8 +62,10 @@ public class TxKeyValueStoreNGTest {
         ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, bbf, 500, 5_000);
         ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
 
-        store1 = new TxKeyValueStore<>(skyhookCog, 0, chunkStores, new LongLongKeyValueMarshaller(), "booya1".getBytes(), 8, false, 8, false);
-        store2 = new TxKeyValueStore<>(skyhookCog, 0, chunkStores, new LongLongKeyValueMarshaller(), "booya2".getBytes(), 8, false, 8, false);
+        store1 = new TxKeyValueStore<>(skyhookCog, cogs.getSkyHookKeySemaphores(),
+            0, chunkStores, new LongLongKeyValueMarshaller(), "booya1".getBytes(), 8, false, 8, false);
+        store2 = new TxKeyValueStore<>(skyhookCog, cogs.getSkyHookKeySemaphores(),
+            0, chunkStores, new LongLongKeyValueMarshaller(), "booya2".getBytes(), 8, false, 8, false);
     }
 
     @Test(enabled = false)
