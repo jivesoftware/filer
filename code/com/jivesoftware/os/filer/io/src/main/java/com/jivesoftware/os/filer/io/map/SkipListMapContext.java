@@ -23,4 +23,15 @@ public class SkipListMapContext {
         this.maxHeight = 9; // TODO expose to constructor
     }
 
+    @Override
+    public String toString() {
+        return "SkipListMapContext{"
+            + "mapContext=" + mapContext
+            + ", maxHeight=" + maxHeight
+            + ", keyComparator=" + keyComparator
+            + ", headIndex=" + headIndex
+            + ", headKey=" + headKey
+            + '}';
+    }
+
 }
