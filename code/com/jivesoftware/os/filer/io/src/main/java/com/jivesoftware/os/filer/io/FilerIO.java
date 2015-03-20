@@ -1721,6 +1721,9 @@ public class FilerIO {
      * @return
      */
     public static int chunkPower(long length, int _minPower) {
+        if (length == 0) {
+            return 0;
+        }
         int numberOfTrailingZeros = Long.numberOfLeadingZeros(length - 1);
         return Math.max(_minPower, 64 - numberOfTrailingZeros);
     }
