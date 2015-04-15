@@ -22,6 +22,7 @@ import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.api.CorruptionException;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -230,7 +231,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
                 filer.seek(fp);
                 long magicNumber = FilerIO.readLong(filer, "magicNumber");
                 if (magicNumber != cMagicNumber) {
-                    throw new IOException("Invalid chunkFP " + fp);
+                    throw new CorruptionException("Invalid chunkFP " + fp);
                 }
                 int chunkPower = (int) FilerIO.readLong(filer, "chunkPower");
                 FilerIO.readLong(filer, "chunkNexFreeChunkFP");
@@ -302,7 +303,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
                     filer.seek(chunkFP);
                     long magicNumber = FilerIO.readLong(filer, "magicNumber");
                     if (magicNumber != cMagicNumber) {
-                        throw new IOException("Invalid chunkFP " + chunkFP);
+                        throw new CorruptionException("Invalid chunkFP " + chunkFP);
                     }
                     int chunkPower = (int) FilerIO.readLong(filer, "chunkPower");
                     FilerIO.readLong(filer, "chunkNexFreeChunkFP");
@@ -364,7 +365,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
                 filer.seek(fp);
                 long magicNumber = FilerIO.readLong(filer, "magicNumber");
                 if (magicNumber != cMagicNumber) {
-                    throw new IOException("Invalid chunkFP " + fp);
+                    throw new CorruptionException("Invalid chunkFP " + fp);
                 }
                 int chunkPower = (int) FilerIO.readLong(filer, "chunkPower");
                 FilerIO.readLong(filer, "chunkNexFreeChunkFP");
