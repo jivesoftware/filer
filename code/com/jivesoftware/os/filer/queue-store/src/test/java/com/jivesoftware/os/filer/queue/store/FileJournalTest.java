@@ -34,28 +34,22 @@ public class FileJournalTest {
 
         final MutableLong count = new MutableLong();
         // ensure absent key is empty
-        j.getAll("noPresent", new QueueEntryStream<Long>() {
-            @Override
-            public Long stream(Long value) throws Exception {
-                if (value == null) {
-                    return value;
-                }
-                count.increment();
+        j.getAll("noPresent", value -> {
+            if (value == null) {
                 return value;
             }
+            count.increment();
+            return value;
         });
         AssertJUnit.assertEquals(count.longValue(), 0);
 
         // ensure epected key has added items
-        j.getAll(journalName, new QueueEntryStream<Long>() {
-            @Override
-            public Long stream(Long value) throws Exception {
-                if (value == null) {
-                    return value;
-                }
-                count.increment();
+        j.getAll(journalName, value -> {
+            if (value == null) {
                 return value;
             }
+            count.increment();
+            return value;
         });
         AssertJUnit.assertEquals(count.longValue(), add);
         System.out.println("##teamcity[buildStatisticValue key='journalSpeedElapse' value='" + (System.currentTimeMillis() - start) + "']");

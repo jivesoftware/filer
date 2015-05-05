@@ -81,16 +81,13 @@ public class FileQueueTest {
         queue1.close();
         AssertJUnit.assertTrue("is=" + file1Hard.length() + " vs expected=" + expectFileLenth, file1Hard.length() == expectFileLenth);
 
-        queue1.read(0, 0, new QueueEntryStream<FileQueueEntry>() {
-            @Override
-            public FileQueueEntry stream(FileQueueEntry readed) throws Exception {
-                if (readed == null) {
-                    return readed;
-                }
-                byte[] wasWritten = wrote.remove(0);
-                AssertJUnit.assertArrayEquals(readed.getEntry(), wasWritten);
-                return readed;
+        queue1.read(0, 0, read -> {
+            if (read == null) {
+                return read;
             }
+            byte[] wasWritten = wrote.remove(0);
+            AssertJUnit.assertArrayEquals(read.getEntry(), wasWritten);
+            return read;
         });
         queue1.close();
 

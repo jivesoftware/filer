@@ -14,7 +14,6 @@ import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.NoOpCreateFiler;
 import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
-import com.jivesoftware.os.filer.io.api.ChunkTransaction;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import java.io.File;
@@ -24,7 +23,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -61,14 +59,11 @@ public class ChunkStoreTest {
             long start = System.currentTimeMillis();
             List<Future<?>> futures = new ArrayList<>(numThreads);
             for (int n = 0; n < numThreads; n++) {
-                futures.add(executorService.submit(new Callable<Void>() {
-                    @Override
-                    public Void call() throws Exception {
-                        for (int i = 0; i < numIterations / numThreads; i++) {
-                            long chunkFP = chunkStore.newChunk(chunkLength, createFiler);
-                        }
-                        return null;
+                futures.add(executorService.submit(() -> {
+                    for (int i = 0; i < numIterations / numThreads; i++) {
+                        long chunkFP = chunkStore.newChunk(chunkLength, createFiler);
                     }
+                    return null;
                 }));
             }
 
@@ -129,27 +124,21 @@ public class ChunkStoreTest {
     }
 
     private void writeIntToChunk(ChunkStore chunkStore, long chunkFP, final int value) throws IOException {
-        chunkStore.execute(chunkFP, openFiler, new ChunkTransaction<Void, Void>() {
-            @Override
-            public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                synchronized (lock) {
-                    FilerIO.writeInt(filer, value, "");
-                    return null;
-                }
+        chunkStore.execute(chunkFP, openFiler, (monkey, filer, lock) -> {
+            synchronized (lock) {
+                FilerIO.writeInt(filer, value, "");
+                return null;
             }
         });
     }
 
     private void assertIntInChunk(ChunkStore chunkStore, long chunk10, final int expected) throws IOException {
-        chunkStore.execute(chunk10, openFiler, new ChunkTransaction<Void, Void>() {
-            @Override
-            public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                synchronized (lock) {
-                    int value = FilerIO.readInt(filer, "");
-                    System.out.println("expected:" + value);
-                    assertEquals(value, expected);
-                    return null;
-                }
+        chunkStore.execute(chunk10, openFiler, (monkey, filer, lock) -> {
+            synchronized (lock) {
+                int value = FilerIO.readInt(filer, "");
+                System.out.println("expected:" + value);
+                assertEquals(value, expected);
+                return null;
             }
         });
     }
@@ -167,27 +156,21 @@ public class ChunkStoreTest {
 
         for (int i = 0; i < 1_000; i++) {
             long chunk257 = chunkStore.newChunk(257L, createFiler);
-            chunkStore.execute(chunk257, new NoOpOpenFiler<ChunkFiler>(), new ChunkTransaction<Void, Void>() {
-                @Override
-                public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                    synchronized (lock) {
-                        filer.seek(0);
-                        filer.write(bytes);
-                    }
-                    return null;
+            chunkStore.execute(chunk257, new NoOpOpenFiler<>(), (Void monkey, ChunkFiler filer, Object lock) -> {
+                synchronized (lock) {
+                    filer.seek(0);
+                    filer.write(bytes);
                 }
+                return null;
             });
-            chunkStore.execute(chunk257, new NoOpOpenFiler<ChunkFiler>(), new ChunkTransaction<Void, Void>() {
-                @Override
-                public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                    synchronized (lock) {
-                        filer.seek(0);
-                        byte[] actual = new byte[257];
-                        filer.read(actual);
-                        assertEquals(actual, bytes);
-                    }
-                    return null;
+            chunkStore.execute(chunk257, new NoOpOpenFiler<>(), (Void monkey, ChunkFiler filer, Object lock) -> {
+                synchronized (lock) {
+                    filer.seek(0);
+                    byte[] actual = new byte[257];
+                    filer.read(actual);
+                    assertEquals(actual, bytes);
                 }
+                return null;
             });
         }
     }
@@ -220,29 +203,23 @@ public class ChunkStoreTest {
         ChunkStore chunkStore = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data", size, byteBufferFactory, 500, 5_000);
 
         long chunk10 = chunkStore.newChunk(size * 4L, createFiler);
-        chunkStore.execute(chunk10, openFiler, new ChunkTransaction<Void, Void>() {
-            @Override
-            public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                synchronized (lock) {
-                    byte[] bytes = new byte[size * 4];
-                    bytes[0] = 1;
-                    bytes[bytes.length - 1] = 1;
-                    FilerIO.write(filer, bytes);
-                    return null;
-                }
+        chunkStore.execute(chunk10, openFiler, (monkey, filer, lock) -> {
+            synchronized (lock) {
+                byte[] bytes = new byte[size * 4];
+                bytes[0] = 1;
+                bytes[bytes.length - 1] = 1;
+                FilerIO.write(filer, bytes);
+                return null;
             }
         });
 
-        chunkStore.execute(chunk10, openFiler, new ChunkTransaction<Void, Void>() {
-            @Override
-            public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                synchronized (lock) {
-                    byte[] bytes = new byte[size * 4];
-                    FilerIO.read(filer, bytes);
-                    assertEquals(bytes[0], 1);
-                    assertEquals(bytes[bytes.length - 1], 1);
-                    return null;
-                }
+        chunkStore.execute(chunk10, openFiler, (monkey, filer, lock) -> {
+            synchronized (lock) {
+                byte[] bytes = new byte[size * 4];
+                FilerIO.read(filer, bytes);
+                assertEquals(bytes[0], 1);
+                assertEquals(bytes[bytes.length - 1], 1);
+                return null;
             }
         });
     }

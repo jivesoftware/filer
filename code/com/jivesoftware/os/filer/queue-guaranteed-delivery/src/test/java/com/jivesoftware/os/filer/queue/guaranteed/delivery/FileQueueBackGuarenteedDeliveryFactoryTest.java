@@ -26,15 +26,12 @@ public class FileQueueBackGuarenteedDeliveryFactoryTest {
     @Test
     public void testCreateService() throws Exception {
         final List<Long> delivered = new ArrayList<Long>();
-        DeliveryCallback deliveryCallback = new DeliveryCallback() {
-            @Override
-            public boolean deliver(Iterable<byte[]> deliver) {
-                for (byte[] d : deliver) {
-                    System.out.println("Delivered value=" + FilerIO.bytesLong(d));
-                    delivered.add(FilerIO.bytesLong(d));
-                }
-                return true;
+        DeliveryCallback deliveryCallback = deliver -> {
+            for (byte[] d : deliver) {
+                System.out.println("Delivered value=" + FilerIO.bytesLong(d));
+                delivered.add(FilerIO.bytesLong(d));
             }
+            return true;
         };
 
         PhasedQueueProcessorConfig processorConfig = PhasedQueueProcessorConfig.newBuilder("testProcessor").build();

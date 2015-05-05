@@ -95,17 +95,13 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
             got = keyToFpCache.get(ibaKey);
         }
         if (got == null) {
-            got = backingChunkStore.execute(backingFP, opener, new ChunkTransaction<MapBackedKeyedFPIndex, Long>() {
-
-                @Override
-                public Long commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                    synchronized (lock) {
-                        long ai = MapStore.INSTANCE.get(filer, monkey.mapContext, key);
-                        if (ai < 0) {
-                            return -1L;
-                        }
-                        return FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey.mapContext, ai));
+            got = backingChunkStore.execute(backingFP, opener, (monkey, filer, lock) -> {
+                synchronized (lock) {
+                    long ai = MapStore.INSTANCE.get(filer, monkey.mapContext, key);
+                    if (ai < 0) {
+                        return -1L;
                     }
+                    return FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey.mapContext, ai));
                 }
             });
             if (keyToFpCache != null) {
@@ -120,15 +116,11 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
         if (keyToFpCache != null) {
             keyToFpCache.put(new IBA(key), fp);
         }
-        backingChunkStore.execute(backingFP, opener, new ChunkTransaction<MapBackedKeyedFPIndex, Void>() {
-
-            @Override
-            public Void commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                synchronized (lock) {
-                    MapStore.INSTANCE.add(filer, monkey.mapContext, (byte) 1, key, FilerIO.longBytes(fp));
-                }
-                return null;
+        backingChunkStore.execute(backingFP, opener, (monkey, filer, lock) -> {
+            synchronized (lock) {
+                MapStore.INSTANCE.add(filer, monkey.mapContext, (byte) 1, key, FilerIO.longBytes(fp));
             }
+            return null;
         });
     }
 
@@ -137,19 +129,15 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
         if (keyToFpCache != null) {
             keyToFpCache.put(new IBA(key), fp);
         }
-        return backingChunkStore.execute(backingFP, opener, new ChunkTransaction<MapBackedKeyedFPIndex, Long>() {
-
-            @Override
-            public Long commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                synchronized (lock) {
-                    long ai = MapStore.INSTANCE.get(filer, monkey.mapContext, key);
-                    long got = -1L;
-                    if (ai > -1) {
-                        got = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey.mapContext, ai));
-                    }
-                    MapStore.INSTANCE.add(filer, monkey.mapContext, (byte) 1, key, FilerIO.longBytes(fp));
-                    return got;
+        return backingChunkStore.execute(backingFP, opener, (monkey, filer, lock) -> {
+            synchronized (lock) {
+                long ai = MapStore.INSTANCE.get(filer, monkey.mapContext, key);
+                long got = -1L;
+                if (ai > -1) {
+                    got = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey.mapContext, ai));
                 }
+                MapStore.INSTANCE.add(filer, monkey.mapContext, (byte) 1, key, FilerIO.longBytes(fp));
+                return got;
             }
         });
     }
@@ -182,22 +170,18 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
 
     @Override
     public boolean stream(final List<KeyRange> ranges, final KeysStream<byte[]> keysStream) throws IOException {
-        final MapStore.KeyStream mapKeyStream = new MapStore.KeyStream() {
-
-            @Override
-            public boolean stream(byte[] key) throws IOException {
-                if (ranges != null) {
-                    for (KeyRange range : ranges) {
-                        if (range.contains(key)) {
-                            if (!keysStream.stream(key)) {
-                                return false;
-                            }
+        final MapStore.KeyStream mapKeyStream = key -> {
+            if (ranges != null) {
+                for (KeyRange range : ranges) {
+                    if (range.contains(key)) {
+                        if (!keysStream.stream(key)) {
+                            return false;
                         }
                     }
-                    return true;
-                } else {
-                    return keysStream.stream(key);
                 }
+                return true;
+            } else {
+                return keysStream.stream(key);
             }
         };
 

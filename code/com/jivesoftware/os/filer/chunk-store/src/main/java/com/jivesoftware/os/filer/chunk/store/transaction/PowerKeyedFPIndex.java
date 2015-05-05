@@ -59,16 +59,12 @@ public class PowerKeyedFPIndex implements FPIndex<Integer, PowerKeyedFPIndex> {
 
     @Override
     public void set(final Integer key, final long fp) throws IOException {
-        backingChunkStore.execute(backingFP, null, new ChunkTransaction<PowerKeyedFPIndex, Void>() {
-
-            @Override
-            public Void commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                synchronized (lock) {
-                    filer.seek(8 + (8 * key));
-                    FilerIO.writeLong(filer, fp, "fp");
-                }
-                return null;
+        backingChunkStore.execute(backingFP, null, (monkey, filer, lock) -> {
+            synchronized (lock) {
+                filer.seek(8 + (8 * key));
+                FilerIO.writeLong(filer, fp, "fp");
             }
+            return null;
         });
         fpIndex[key] = fp;
     }
@@ -76,16 +72,12 @@ public class PowerKeyedFPIndex implements FPIndex<Integer, PowerKeyedFPIndex> {
     @Override
     public long getAndSet(final Integer key, final long fp) throws IOException {
         long got = fpIndex[key];
-        backingChunkStore.execute(backingFP, null, new ChunkTransaction<PowerKeyedFPIndex, Void>() {
-
-            @Override
-            public Void commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                synchronized (lock) {
-                    filer.seek(8 + (8 * key));
-                    FilerIO.writeLong(filer, fp, "fp");
-                }
-                return null;
+        backingChunkStore.execute(backingFP, null, (monkey, filer, lock) -> {
+            synchronized (lock) {
+                filer.seek(8 + (8 * key));
+                FilerIO.writeLong(filer, fp, "fp");
             }
+            return null;
         });
         fpIndex[key] = fp;
         return got;

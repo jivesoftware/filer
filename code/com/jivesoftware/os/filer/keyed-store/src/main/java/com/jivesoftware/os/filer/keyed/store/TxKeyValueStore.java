@@ -23,16 +23,13 @@ import com.jivesoftware.os.filer.chunk.store.transaction.MapOpener;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxCog;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMap;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxPartitionedNamedMap;
-import com.jivesoftware.os.filer.chunk.store.transaction.TxStream;
 import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
-import com.jivesoftware.os.filer.io.api.ChunkTransaction;
 import com.jivesoftware.os.filer.io.api.KeyValueContext;
 import com.jivesoftware.os.filer.io.api.KeyValueStore;
 import com.jivesoftware.os.filer.io.api.KeyValueTransaction;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
-import com.jivesoftware.os.filer.io.map.MapContext;
 import com.jivesoftware.os.filer.io.map.MapStore;
 import java.io.IOException;
 import java.util.List;
@@ -88,120 +85,94 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
     public <R> R execute(final K key, boolean createIfAbsent, final KeyValueTransaction<V, R> keyValueTransaction) throws IOException {
         final byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         if (createIfAbsent) {
-            return namedMap.readWriteAutoGrow(keyBytes, name, new ChunkTransaction<MapContext, R>() {
+            return namedMap.readWriteAutoGrow(keyBytes, name,
+                (monkey, filer, lock) -> keyValueTransaction.commit(new KeyValueContext<V>() {
 
-                @Override
-                public R commit(final MapContext monkey, final ChunkFiler filer, final Object lock) throws IOException {
-                    return keyValueTransaction.commit(new KeyValueContext<V>() {
-
-                        @Override
-                        public void set(V value) throws IOException {
-                            synchronized (lock) {
-                                MapStore.INSTANCE.add(filer, monkey, (byte) 1, keyBytes, keyValueMarshaller.valueBytes(value));
-                            }
+                    @Override
+                    public void set(V value) throws IOException {
+                        synchronized (lock) {
+                            MapStore.INSTANCE.add(filer, monkey, (byte) 1, keyBytes, keyValueMarshaller.valueBytes(value));
                         }
+                    }
 
-                        @Override
-                        public void remove() throws IOException {
+                    @Override
+                    public void remove() throws IOException {
+                        synchronized (lock) {
+                            MapStore.INSTANCE.remove(filer, monkey, keyBytes);
+                        }
+                    }
+
+                    @Override
+                    public V get() throws IOException {
+                        synchronized (lock) {
+                            long pi = MapStore.INSTANCE.get(filer, monkey, keyBytes);
+                            if (pi > -1) {
+                                byte[] rawValue = MapStore.INSTANCE.getPayload(filer, monkey, pi);
+                                return keyValueMarshaller.bytesValue(key, rawValue, 0);
+                            }
+                            return null;
+                        }
+                    }
+                }));
+        } else {
+            return namedMap.read(keyBytes, name,
+                (monkey, filer, lock) -> keyValueTransaction.commit(new KeyValueContext<V>() {
+
+                    @Override
+                    public void set(V value) throws IOException {
+                        throw new IllegalStateException("cannot set within a read tx.");
+                    }
+
+                    @Override
+                    public void remove() throws IOException {
+                        if (filer != null && monkey != null) {
                             synchronized (lock) {
                                 MapStore.INSTANCE.remove(filer, monkey, keyBytes);
                             }
                         }
+                    }
 
-                        @Override
-                        public V get() throws IOException {
+                    @Override
+                    public V get() throws IOException {
+                        if (filer != null && monkey != null) {
                             synchronized (lock) {
                                 long pi = MapStore.INSTANCE.get(filer, monkey, keyBytes);
                                 if (pi > -1) {
                                     byte[] rawValue = MapStore.INSTANCE.getPayload(filer, monkey, pi);
                                     return keyValueMarshaller.bytesValue(key, rawValue, 0);
                                 }
-                                return null;
                             }
                         }
-                    });
-                }
-            });
-        } else {
-            return namedMap.read(keyBytes, name, new ChunkTransaction<MapContext, R>() {
-
-                @Override
-                public R commit(final MapContext monkey, final ChunkFiler filer, final Object lock) throws IOException {
-                    return keyValueTransaction.commit(new KeyValueContext<V>() {
-
-                        @Override
-                        public void set(V value) throws IOException {
-                            throw new IllegalStateException("cannot set within a read tx.");
-                        }
-
-                        @Override
-                        public void remove() throws IOException {
-                            if (filer != null && monkey != null) {
-                                synchronized (lock) {
-                                    MapStore.INSTANCE.remove(filer, monkey, keyBytes);
-                                }
-                            }
-                        }
-
-                        @Override
-                        public V get() throws IOException {
-                            if (filer != null && monkey != null) {
-                                synchronized (lock) {
-                                    long pi = MapStore.INSTANCE.get(filer, monkey, keyBytes);
-                                    if (pi > -1) {
-                                        byte[] rawValue = MapStore.INSTANCE.getPayload(filer, monkey, pi);
-                                        return keyValueMarshaller.bytesValue(key, rawValue, 0);
-                                    }
-                                }
-                            }
-                            return null;
-                        }
-                    });
-                }
-            });
+                        return null;
+                    }
+                }));
         }
     }
 
     @Override
     public boolean stream(final EntryStream<K, V> stream) throws IOException {
-        return namedMap.stream(name, new TxStream<byte[], MapContext, ChunkFiler>() {
-
-            @Override
-            public boolean stream(byte[] key, MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
-                if (monkey == null || filer == null) {
-                    return true;
-                }
-                return MapStore.INSTANCE.stream(filer, monkey, lock, new MapStore.EntryStream() {
-
-                    @Override
-                    public boolean stream(MapStore.Entry entry) throws IOException {
-                        K k = keyValueMarshaller.bytesKey(entry.key, 0);
-                        V v = keyValueMarshaller.bytesValue(k, entry.payload, 0);
-                        return stream.stream(k, v);
-                    }
-                });
+        return namedMap.stream(name, (key, monkey, filer, lock) -> {
+            if (monkey == null || filer == null) {
+                return true;
             }
+            return MapStore.INSTANCE.stream(filer, monkey, lock, entry -> {
+                K k = keyValueMarshaller.bytesKey(entry.key, 0);
+                V v = keyValueMarshaller.bytesValue(k, entry.payload, 0);
+                return stream.stream(k, v);
+            });
         });
     }
 
     @Override
     public boolean streamKeys(final KeyStream<K> stream) throws IOException {
-        return namedMap.stream(name, new TxStream<byte[], MapContext, ChunkFiler>() {
-
-            @Override
-            public boolean stream(byte[] key, MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
-                if (monkey == null || filer == null) {
-                    return true;
-                }
-                return MapStore.INSTANCE.streamKeys(filer, monkey, lock, new MapStore.KeyStream() {
-
-                    @Override
-                    public boolean stream(byte[] key) throws IOException {
-                        K k = keyValueMarshaller.bytesKey(key, 0);
-                        return stream.stream(k);
-                    }
-                });
+        return namedMap.stream(name, (key, monkey, filer, lock) -> {
+            if (monkey == null || filer == null) {
+                return true;
             }
+            return MapStore.INSTANCE.streamKeys(filer, monkey, lock, key1 -> {
+                K k = keyValueMarshaller.bytesKey(key1, 0);
+                return stream.stream(k);
+            });
         });
     }
 }

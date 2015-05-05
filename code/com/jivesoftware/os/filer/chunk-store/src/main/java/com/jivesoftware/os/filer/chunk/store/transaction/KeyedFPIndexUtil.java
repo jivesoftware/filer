@@ -91,19 +91,15 @@ public class KeyedFPIndexUtil {
             final long grownFP = chunkStore.newChunk(hint, creator);
             R result;
             final AtomicLong currentFP = new AtomicLong(-1);
-            result = chunkStore.execute(grownFP, opener, new ChunkTransaction<M, R>() {
-
-                @Override
-                public R commit(M newMonkey, ChunkFiler newFiler, Object newLock) throws IOException {
-                    growFiler.growAndAcquire(null, null, newMonkey, newFiler, newLock, newLock);
-                    try {
-                        synchronized (keyLock) {
-                            currentFP.set(backingFPIndex.getAndSet(key, grownFP));
-                        }
-                        return filerTransaction.commit(newMonkey, newFiler, newLock);
-                    } finally {
-                        growFiler.release(newMonkey, newLock);
+            result = chunkStore.execute(grownFP, opener, (newMonkey, newFiler, newLock) -> {
+                growFiler.growAndAcquire(null, null, newMonkey, newFiler, newLock, newLock);
+                try {
+                    synchronized (keyLock) {
+                        currentFP.set(backingFPIndex.getAndSet(key, grownFP));
                     }
+                    return filerTransaction.commit(newMonkey, newFiler, newLock);
+                } finally {
+                    growFiler.release(newMonkey, newLock);
                 }
             });
 
@@ -166,22 +162,19 @@ public class KeyedFPIndexUtil {
                 }
             }
 
-            Bag<R> bag = chunkStore.execute(fp, opener, new ChunkTransaction<M, Bag<R>>() {
-                @Override
-                public Bag<R> commit(M monkey, ChunkFiler filer, Object lock) throws IOException {
-                    if (growFiler != null) {
-                        H hint = growFiler.acquire(monkey, filer, lock);
-                        try {
-                            if (hint != null) {
-                                return null;
-                            }
-                            return new Bag<>(filerTransaction.commit(monkey, filer, lock));
-                        } finally {
-                            growFiler.release(monkey, lock);
+            Bag<R> bag = chunkStore.execute(fp, opener, (monkey, filer, lock) -> {
+                if (growFiler != null) {
+                    H hint1 = growFiler.acquire(monkey, filer, lock);
+                    try {
+                        if (hint1 != null) {
+                            return null;
                         }
-                    } else {
                         return new Bag<>(filerTransaction.commit(monkey, filer, lock));
+                    } finally {
+                        growFiler.release(monkey, lock);
                     }
+                } else {
+                    return new Bag<>(filerTransaction.commit(monkey, filer, lock));
                 }
             });
             if (bag != null) {
@@ -207,40 +200,33 @@ public class KeyedFPIndexUtil {
             }
             final AtomicLong removeFP = new AtomicLong(-1);
             try {
-                return chunkStore.execute(fp, opener, new ChunkTransaction<M, R>() {
-                    @Override
-                    public R commit(final M monkey, final ChunkFiler filer, final Object lock) throws IOException {
-                        H hint = growFiler.acquire(monkey, filer, lock);
-                        try {
-                            if (hint != null) {
-                                final long grownFP = chunkStore.newChunk(hint, creator);
-                                return chunkStore.execute(grownFP, opener, new ChunkTransaction<M, R>() {
+                return chunkStore.execute(fp, opener, (monkey, filer, lock) -> {
+                    H hint1 = growFiler.acquire(monkey, filer, lock);
+                    try {
+                        if (hint1 != null) {
+                            final long grownFP = chunkStore.newChunk(hint1, creator);
+                            return chunkStore.execute(grownFP, opener, (newMonkey, newFiler, newLock) -> {
+                                growFiler.growAndAcquire(monkey, filer, newMonkey, newFiler, lock, newLock);
+                                try {
+                                    backingFPIndex.set(key, grownFP);
+                                    removeFP.set(filer.getChunkFP());
 
-                                    @Override
-                                    public R commit(M newMonkey, ChunkFiler newFiler, Object newLock) throws IOException {
-                                        growFiler.growAndAcquire(monkey, filer, newMonkey, newFiler, lock, newLock);
-                                        try {
-                                            backingFPIndex.set(key, grownFP);
-                                            removeFP.set(filer.getChunkFP());
+                                    semaphore.release(numPermits - 1);
+                                    releasablePermits.set(1);
+                                    return filerTransaction.commit(newMonkey, newFiler, newLock);
+                                } finally {
+                                    growFiler.release(newMonkey, newLock);
+                                }
+                            });
 
-                                            semaphore.release(numPermits - 1);
-                                            releasablePermits.set(1);
-                                            return filerTransaction.commit(newMonkey, newFiler, newLock);
-                                        } finally {
-                                            growFiler.release(newMonkey, newLock);
-                                        }
-                                    }
-                                });
+                        } else {
+                            semaphore.release(numPermits - 1);
+                            releasablePermits.set(1);
 
-                            } else {
-                                semaphore.release(numPermits - 1);
-                                releasablePermits.set(1);
-
-                                return filerTransaction.commit(monkey, filer, lock);
-                            }
-                        } finally {
-                            growFiler.release(monkey, lock);
+                            return filerTransaction.commit(monkey, filer, lock);
                         }
+                    } finally {
+                        growFiler.release(monkey, lock);
                     }
                 });
             } finally {

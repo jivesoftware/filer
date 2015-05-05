@@ -10,7 +10,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.lang.mutable.MutableBoolean;
 
@@ -74,30 +73,22 @@ abstract public class FileJournal<V> {
             stream.stream(null); //EOS
             return;
         }
-        Arrays.sort(allPages, new Comparator<File>() {
-
-            @Override
-            public int compare(File o1, File o2) {
-                return new UniqueOrderableFileName(o1.getName()).getOrderId().compareTo(new UniqueOrderableFileName(o2.getName()).getOrderId());
-            }
-        });
+        Arrays.sort(allPages,
+            (o1, o2) -> new UniqueOrderableFileName(o1.getName()).getOrderId().compareTo(new UniqueOrderableFileName(o2.getName()).getOrderId()));
         final MutableBoolean callerStopped = new MutableBoolean(false);
         for (File page : allPages) {
             FileQueue journal = new FileQueue(page, false);
-            journal.read(0, 0, new QueueEntryStream<FileQueueEntry>() {
-                @Override
-                public FileQueueEntry stream(FileQueueEntry value) throws Exception {
-                    if (value == null) {
-                        return value;
-                    }
-                    V vector = toInstance(ByteBuffer.wrap(value.getEntry()));
-                    V response = stream.stream(vector);
-                    if (response == null) {
-                        callerStopped.setValue(true);
-                        return null; // stops the stream
-                    }
+            journal.read(0, 0, value -> {
+                if (value == null) {
                     return value;
                 }
+                V vector = toInstance(ByteBuffer.wrap(value.getEntry()));
+                V response = stream.stream(vector);
+                if (response == null) {
+                    callerStopped.setValue(true);
+                    return null; // stops the stream
+                }
+                return value;
             });
             if (callerStopped.isTrue()) {
                 break;

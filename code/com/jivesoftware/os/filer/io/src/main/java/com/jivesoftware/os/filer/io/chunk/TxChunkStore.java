@@ -123,12 +123,9 @@ public class TxChunkStore implements Copyable<ChunkStore> {
 
     public void commit() throws IOException {
 
-        fplut.removeAll(new FPTx<Void>() {
-            @Override
-            public Void tx(OverlayFP overlayFP, Long masterFP) throws IOException {
-                //master.slabTransfer(overlay, overlayFP.overlayFP, masterFP);
-                return null;
-            }
+        fplut.removeAll((overlayFP, masterFP) -> {
+            //master.slabTransfer(overlay, overlayFP.overlayFP, masterFP);
+            return null;
         });
 
         for (Integer chunkPower : reusableMasterFP.keySet()) {
@@ -179,80 +176,64 @@ public class TxChunkStore implements Copyable<ChunkStore> {
         final OpenFiler<M, ChunkFiler> openFiler,
         final ChunkTransaction<M, R> chunkTransaction) throws IOException {
 
-        return fplut.get(masterFP, new FPTx<R>() {
+        return fplut.get(masterFP, (overlayFP, gotMasterFp) -> {
 
-            @Override
-            public R tx(OverlayFP overlayFP, final Long masterFP) throws IOException {
+            if (overlayFP == null) {
+                overlayFP = master.execute(gotMasterFp, openFiler, (monkey, masterFiler, lock) -> {
+                    synchronized (lock) {
+                        long size = masterFiler.getSize();
+                        int chunkPower = FilerIO.chunkPower(size, ChunkStore.cMinPower); // Grrr
+                        long fp = overlay.newChunk(size, new CreateFiler<Long, M, ChunkFiler>() {
 
-                if (overlayFP == null) {
-                    overlayFP = master.execute(masterFP, openFiler, new ChunkTransaction<M, OverlayFP>() {
-
-                        @Override
-                        public OverlayFP commit(final M monkey, final ChunkFiler masterFiler, Object lock) throws IOException {
-                            synchronized (lock) {
-                                long size = masterFiler.getSize();
-                                int chunkPower = FilerIO.chunkPower(size, ChunkStore.cMinPower); // Grrr
-                                long fp = overlay.newChunk(size, new CreateFiler<Long, M, ChunkFiler>() {
-
-                                    @Override
-                                    public long sizeInBytes(Long hint) throws IOException {
-                                        return hint;
-                                    }
-
-                                    @Override
-                                    public M create(Long hint, ChunkFiler overlayFiler) throws IOException {
-                                        FilerIO.copy(masterFiler, overlayFiler, -1);
-                                        return monkey;
-                                    }
-
-                                });
-                                return new OverlayFP(level, chunkPower, fp, masterFP);
+                            @Override
+                            public long sizeInBytes(Long hint) throws IOException {
+                                return hint;
                             }
-                        }
-                    });
-                    fplut.set(overlayFP, overlayFP.masterFP);
 
-                }
-                return overlay.execute(overlayFP.overlayFP, openFiler, chunkTransaction);
+                            @Override
+                            public M create(Long hint, ChunkFiler overlayFiler) throws IOException {
+                                FilerIO.copy(masterFiler, overlayFiler, -1);
+                                return monkey;
+                            }
+
+                        });
+                        return new OverlayFP(level, chunkPower, fp, gotMasterFp);
+                    }
+                });
+                fplut.set(overlayFP, overlayFP.masterFP);
+
             }
+            return overlay.execute(overlayFP.overlayFP, openFiler, chunkTransaction);
         });
 
     }
 
     public void remove(final long masterFP) throws IOException {
-        fplut.remove(masterFP, new FPTx<Void>() {
-
-            @Override
-            public Void tx(OverlayFP overlayFP, Long masterFP) throws IOException {
-                if (overlayFP != null) {
-                    BlockingQueue<Long> free = reusableMasterFP.get(overlayFP.power);
-                    if (free == null) {
-                        free = new LinkedBlockingQueue<>(Integer.MAX_VALUE);
-                        BlockingQueue<Long> had = reusableMasterFP.putIfAbsent(overlayFP.power, free);
-                        if (had != null) {
-                            free = had;
-                        }
+        fplut.remove(masterFP, (overlayFP, masterFP1) -> {
+            if (overlayFP != null) {
+                BlockingQueue<Long> free = reusableMasterFP.get(overlayFP.power);
+                if (free == null) {
+                    free = new LinkedBlockingQueue<>(Integer.MAX_VALUE);
+                    BlockingQueue<Long> had = reusableMasterFP.putIfAbsent(overlayFP.power, free);
+                    if (had != null) {
+                        free = had;
                     }
-                    free.add(masterFP);
-
-                } else {
-                    master.remove(masterFP);
                 }
-                return null;
+                free.add(masterFP1);
+
+            } else {
+                master.remove(masterFP1);
             }
+            return null;
         });
     }
 
     public boolean isValid(long masterFP) throws IOException {
-        return fplut.contains(masterFP, new FPTx<Boolean>() {
-
-            @Override
-            public Boolean tx(OverlayFP overlayFP, Long masterFP) throws IOException {
-                if (overlayFP != null) {
-                    return true;
-                }
-                return master.isValid(masterFP);
+        return fplut.contains(masterFP, (overlayFP, gotMasterFp) -> {
+            if (overlayFP != null) {
+                return true;
             }
+            return master.isValid(gotMasterFp);
         });
 
     }

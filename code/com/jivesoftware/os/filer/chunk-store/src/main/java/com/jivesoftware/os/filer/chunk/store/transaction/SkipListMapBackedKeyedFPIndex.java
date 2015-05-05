@@ -96,17 +96,13 @@ public class SkipListMapBackedKeyedFPIndex implements FPIndex<byte[], SkipListMa
             got = keyToFpCache.get(ibaKey);
         }
         if (got == null) {
-            got = backingChunkStore.execute(backingFP, opener, new ChunkTransaction<SkipListMapBackedKeyedFPIndex, Long>() {
-
-                @Override
-                public Long commit(SkipListMapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                    synchronized (lock) {
-                        byte[] got = SkipListMapStore.INSTANCE.getExistingPayload(filer, monkey.context, key);
-                        if (got == null) {
-                            return -1L;
-                        }
-                        return FilerIO.bytesLong(got);
+            got = backingChunkStore.execute(backingFP, opener, (monkey, filer, lock) -> {
+                synchronized (lock) {
+                    byte[] got1 = SkipListMapStore.INSTANCE.getExistingPayload(filer, monkey.context, key);
+                    if (got1 == null) {
+                        return -1L;
                     }
+                    return FilerIO.bytesLong(got1);
                 }
             });
             if (keyToFpCache != null) {
@@ -121,15 +117,11 @@ public class SkipListMapBackedKeyedFPIndex implements FPIndex<byte[], SkipListMa
         if (keyToFpCache != null) {
             keyToFpCache.put(new IBA(key), fp);
         }
-        backingChunkStore.execute(backingFP, opener, new ChunkTransaction<SkipListMapBackedKeyedFPIndex, Void>() {
-
-            @Override
-            public Void commit(SkipListMapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                synchronized (lock) {
-                    SkipListMapStore.INSTANCE.add(filer, context, key, FilerIO.longBytes(fp));
-                }
-                return null;
+        backingChunkStore.execute(backingFP, opener, (monkey, filer, lock) -> {
+            synchronized (lock) {
+                SkipListMapStore.INSTANCE.add(filer, context, key, FilerIO.longBytes(fp));
             }
+            return null;
         });
     }
 
@@ -138,19 +130,15 @@ public class SkipListMapBackedKeyedFPIndex implements FPIndex<byte[], SkipListMa
         if (keyToFpCache != null) {
             keyToFpCache.put(new IBA(key), fp);
         }
-        return backingChunkStore.execute(backingFP, opener, new ChunkTransaction<SkipListMapBackedKeyedFPIndex, Long>() {
-
-            @Override
-            public Long commit(SkipListMapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                synchronized (lock) {
-                    byte[] payload = SkipListMapStore.INSTANCE.getExistingPayload(filer, monkey.context, key);
-                    long got = -1L;
-                    if (payload != null) {
-                        got = FilerIO.bytesLong(payload);
-                    }
-                    SkipListMapStore.INSTANCE.add(filer, context, key, FilerIO.longBytes(fp));
-                    return got;
+        return backingChunkStore.execute(backingFP, opener, (monkey, filer, lock) -> {
+            synchronized (lock) {
+                byte[] payload = SkipListMapStore.INSTANCE.getExistingPayload(filer, monkey.context, key);
+                long got = -1L;
+                if (payload != null) {
+                    got = FilerIO.bytesLong(payload);
                 }
+                SkipListMapStore.INSTANCE.add(filer, context, key, FilerIO.longBytes(fp));
+                return got;
             }
         });
     }
@@ -183,13 +171,7 @@ public class SkipListMapBackedKeyedFPIndex implements FPIndex<byte[], SkipListMa
 
     @Override
     public boolean stream(final List<KeyRange> ranges, final KeysStream<byte[]> keysStream) throws IOException {
-        final MapStore.KeyStream mapKeyStream = new MapStore.KeyStream() {
-
-            @Override
-            public boolean stream(byte[] key) throws IOException {
-                return keysStream.stream(key);
-            }
-        };
+        final MapStore.KeyStream mapKeyStream = keysStream::stream;
 
         return backingChunkStore.execute(backingFP, null, new ChunkTransaction<SkipListMapBackedKeyedFPIndex, Boolean>() {
 

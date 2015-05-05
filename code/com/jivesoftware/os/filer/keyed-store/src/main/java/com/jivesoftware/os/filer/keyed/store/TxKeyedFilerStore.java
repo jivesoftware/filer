@@ -23,8 +23,6 @@ import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFiler;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFilerOverwriteGrowerProvider;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFilerRewriteGrowerProvider;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxPartitionedNamedMapOfFiler;
-import com.jivesoftware.os.filer.chunk.store.transaction.TxStream;
-import com.jivesoftware.os.filer.chunk.store.transaction.TxStreamKeys;
 import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.Filer;
@@ -40,33 +38,35 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * @author jonathan.colt
  * @param <H>
  * @param <M>
+ * @author jonathan.colt
  */
 public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
 
     static final long SKY_HOOK_FP = 464; // I died a little bit doing this.
 
     private final byte[] name;
-    private final TxPartitionedNamedMapOfFiler<?, H, M> namedMapOfFilers;
+    private final TxPartitionedNamedMapOfFiler<?, H, M> namedMapOfFiler;
 
-    public TxKeyedFilerStore(TxCogs cogs, int seed, ChunkStore[] chunkStores, byte[] name, boolean lexOrderKeys,
+    public TxKeyedFilerStore(TxCogs cogs,
+        int seed,
+        ChunkStore[] chunkStores,
+        byte[] name,
+        boolean lexOrderKeys,
         CreateFiler<H, M, ChunkFiler> filerCreator,
         OpenFiler<M, ChunkFiler> filerOpener,
         TxNamedMapOfFilerOverwriteGrowerProvider<H, M> overwriteGrowerProvider,
         TxNamedMapOfFilerRewriteGrowerProvider<H, M> rewriteGrowerProvider) {
         // TODO consider replacing with builder pattern
         this.name = name;
-        this.namedMapOfFilers = lexOrderKeys
-            ? new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE, createOrder(cogs, seed, chunkStores, filerCreator, filerOpener,
-                    overwriteGrowerProvider, rewriteGrowerProvider))
-            : new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE, create(cogs, seed, chunkStores, filerCreator, filerOpener,
-                    overwriteGrowerProvider, rewriteGrowerProvider));
+        this.namedMapOfFiler = lexOrderKeys
+            ? createOrder(cogs, seed, chunkStores, filerCreator, filerOpener, overwriteGrowerProvider, rewriteGrowerProvider)
+            : create(cogs, seed, chunkStores, filerCreator, filerOpener, overwriteGrowerProvider, rewriteGrowerProvider);
 
     }
 
-    TxNamedMapOfFiler<SkipListMapBackedKeyedFPIndex, H, M>[] createOrder(TxCogs cogs,
+    TxPartitionedNamedMapOfFiler<SkipListMapBackedKeyedFPIndex, H, M> createOrder(TxCogs cogs,
         int seed,
         ChunkStore[] chunkStores,
         CreateFiler<H, M, ChunkFiler> filerCreator,
@@ -91,10 +91,10 @@ public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
                 overwriteGrowerProvider,
                 rewriteGrowerProvider);
         }
-        return stores;
+        return new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE, stores);
     }
 
-    TxNamedMapOfFiler<MapBackedKeyedFPIndex, H, M>[] create(TxCogs cogs,
+    TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, H, M> create(TxCogs cogs,
         int seed,
         ChunkStore[] chunkStores,
         CreateFiler<H, M, ChunkFiler> filerCreator,
@@ -120,54 +120,46 @@ public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
                 overwriteGrowerProvider,
                 rewriteGrowerProvider);
         }
-        return stores;
+        return new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE, stores);
     }
 
     @Override
     public <R> R read(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction) throws IOException {
-        return namedMapOfFilers.read(keyBytes, name, keyBytes, transaction);
+        return namedMapOfFiler.read(keyBytes, name, keyBytes, transaction);
     }
 
     @Override
     public <R> List<R> readEach(byte[][] eachKeyBytes, H newFilerInitialCapacity, ChunkTransaction<M, R> transaction) throws IOException {
-        return namedMapOfFilers.readEach(eachKeyBytes, name, eachKeyBytes, transaction);
+        return namedMapOfFiler.readEach(eachKeyBytes, name, eachKeyBytes, transaction);
     }
 
     @Override
     public <R> R readWriteAutoGrow(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction) throws IOException {
-        return namedMapOfFilers.readWriteAutoGrow(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction);
+        return namedMapOfFiler.readWriteAutoGrow(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction);
 
     }
 
     @Override
     public <R> R writeNewReplace(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction) throws IOException {
-        return namedMapOfFilers.writeNewReplace(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction);
+        return namedMapOfFiler.writeNewReplace(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction);
     }
 
     @Override
     public boolean stream(List<KeyRange> ranges, final KeyValueStore.EntryStream<IBA, Filer> stream) throws IOException {
-        return namedMapOfFilers.stream(name, ranges, new TxStream<byte[], M, ChunkFiler>() {
-
-            @Override
-            public boolean stream(byte[] key, M monkey, ChunkFiler filer, Object lock) throws IOException {
-                synchronized (lock) {
-                    return stream.stream(new IBA(key), filer);
-                }
+        return namedMapOfFiler.stream(name, ranges, (key, monkey, filer, lock) -> {
+            synchronized (lock) {
+                return stream.stream(new IBA(key), filer);
             }
         });
     }
 
     @Override
     public boolean streamKeys(List<KeyRange> ranges, final KeyValueStore.KeyStream<IBA> stream) throws IOException {
-        return namedMapOfFilers.streamKeys(name, ranges, new TxStreamKeys<byte[]>() {
-
-            @Override
-            public boolean stream(byte[] key) throws IOException {
-                if (key != null) {
-                    return stream.stream(new IBA(key));
-                }
-                return true;
+        return namedMapOfFiler.streamKeys(name, ranges, key -> {
+            if (key != null) {
+                return stream.stream(new IBA(key));
             }
+            return true;
         });
     }
 

@@ -62,15 +62,11 @@ public class MapStoreTest {
         MapStore.INSTANCE.toSysOut(filer2, context2);
 
         final Set<Long> ids = new HashSet<>();
-        MapStore.INSTANCE.get(filer2, context2, new IndexStream<RuntimeException>() {
-
-            @Override
-            public boolean stream(long i) throws RuntimeException {
-                if (i > -1) {
-                    ids.add(i);
-                }
-                return true;
+        MapStore.INSTANCE.get(filer2, context2, i -> {
+            if (i > -1) {
+                ids.add(i);
             }
+            return true;
         });
         Assert.assertEquals(ids.size(), 2);
     }
@@ -106,36 +102,24 @@ public class MapStoreTest {
 
         Object lock = new Object();
         final Set<Integer> keys = new HashSet<>();
-        MapStore.INSTANCE.streamKeys(filer, context, lock, new MapStore.KeyStream() {
-
-            @Override
-            public boolean stream(byte[] key) throws IOException {
-                keys.add((int) key[0]);
-                return true;
-            }
+        MapStore.INSTANCE.streamKeys(filer, context, lock, key -> {
+            keys.add((int) key[0]);
+            return true;
         });
         Assert.assertEquals(keys.size(), 128);
 
-        MapStore.INSTANCE.stream(filer, context, lock, new MapStore.EntryStream() {
-
-            @Override
-            public boolean stream(MapStore.Entry entry) throws IOException {
-                Assert.assertEquals(entry.key, entry.payload);
-                return true;
-            }
+        MapStore.INSTANCE.stream(filer, context, lock, entry -> {
+            Assert.assertEquals(entry.key, entry.payload);
+            return true;
         });
 
         MapStore.INSTANCE.toSysOut(filer, context);
 
         MapContext reopened = MapStore.INSTANCE.open(filer);
 
-        MapStore.INSTANCE.stream(filer, reopened, lock, new MapStore.EntryStream() {
-
-            @Override
-            public boolean stream(MapStore.Entry entry) throws IOException {
-                Assert.assertEquals(entry.key, entry.payload, new String(entry.key) + " " + new String(entry.payload));
-                return true;
-            }
+        MapStore.INSTANCE.stream(filer, reopened, lock, entry -> {
+            Assert.assertEquals(entry.key, entry.payload, new String(entry.key) + " " + new String(entry.payload));
+            return true;
         });
 
         for (int i = 0; i < 64; i++) {
@@ -143,13 +127,9 @@ public class MapStoreTest {
         }
 
         final Set<Integer> keysAfterRemove = new HashSet<>();
-        MapStore.INSTANCE.streamKeys(filer, reopened, lock, new MapStore.KeyStream() {
-
-            @Override
-            public boolean stream(byte[] key) throws IOException {
-                keysAfterRemove.add((int) key[0]);
-                return true;
-            }
+        MapStore.INSTANCE.streamKeys(filer, reopened, lock, key -> {
+            keysAfterRemove.add((int) key[0]);
+            return true;
         });
         Assert.assertEquals(keysAfterRemove.size(), 64);
 

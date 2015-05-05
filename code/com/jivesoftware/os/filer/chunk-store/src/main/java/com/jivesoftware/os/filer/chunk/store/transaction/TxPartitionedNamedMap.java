@@ -46,19 +46,16 @@ public class TxPartitionedNamedMap {
         for (int p = 0; p < namedMaps.length; p++) {
             final byte[][] currentKeysBytes = partitionedKeysBytes[p];
             final boolean[] currentContains = partitionedContains[p];
-            namedMaps[p].read(mapName, new ChunkTransaction<MapContext, Void>() {
-                @Override
-                public Void commit(MapContext context, ChunkFiler filer, Object lock) throws IOException {
-                    if (filer != null) {
-                        synchronized (lock) {
-                            for (int i = 0; i < currentKeysBytes.length; i++) {
-                                byte[] keyBytes = currentKeysBytes[i];
-                                currentContains[i] = (keyBytes != null && MapStore.INSTANCE.contains(filer, context, keyBytes));
-                            }
+            namedMaps[p].read(mapName, (context, filer, lock) -> {
+                if (filer != null) {
+                    synchronized (lock) {
+                        for (int i = 0; i < currentKeysBytes.length; i++) {
+                            byte[] keyBytes = currentKeysBytes[i];
+                            currentContains[i] = (keyBytes != null && MapStore.INSTANCE.contains(filer, context, keyBytes));
                         }
                     }
-                    return null;
                 }
+                return null;
             });
         }
 

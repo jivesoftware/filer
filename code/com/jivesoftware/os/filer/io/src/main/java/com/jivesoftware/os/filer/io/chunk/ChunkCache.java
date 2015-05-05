@@ -137,12 +137,8 @@ public class ChunkCache {
                 ByteBufferBackedFiler newMapFiler = new ByteBufferBackedFiler(bufferFactory.allocate(name, newSize));
                 MapContext newMapContext = MapStore.INSTANCE.create(nextGrowSize, 8, false, 0, false, newMapFiler);
                 final Chunk<?>[] newChunks = new Chunk[newMapContext.capacity];
-                MapStore.INSTANCE.copyTo(mapFiler, mapContext, newMapFiler, newMapContext, new MapStore.CopyToStream() {
-                    @Override
-                    public void copied(long fromIndex, long toIndex) {
-                        newChunks[(int) toIndex] = chunks[(int) fromIndex];
-                    }
-                });
+                MapStore.INSTANCE.copyTo(mapFiler, mapContext, newMapFiler, newMapContext,
+                    (fromIndex, toIndex) -> newChunks[(int) toIndex] = chunks[(int) fromIndex]);
                 mapFiler = newMapFiler;
                 mapContext = newMapContext;
                 chunks = newChunks;

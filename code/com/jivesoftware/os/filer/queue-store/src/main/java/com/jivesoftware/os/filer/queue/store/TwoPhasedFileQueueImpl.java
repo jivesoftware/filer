@@ -13,7 +13,6 @@ import com.jivesoftware.os.mlogger.core.MetricLoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -151,26 +150,19 @@ public class TwoPhasedFileQueueImpl {
             logger.debug("No files so we don't have anything to populate anything.");
             return null;
         }
-        Thread th = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                readExistingQueueFiles(allQueueFiles, makeItThisMode);
-            }
+        Thread th = new Thread(() -> {
+            readExistingQueueFiles(allQueueFiles, makeItThisMode);
         });
         th.start();
         return th;
     }
 
     private void readExistingQueueFiles(File[] allQueueFiles, long makeItThisMode) {
-        Arrays.sort(allQueueFiles, new Comparator<File>() {
-
-            @Override
-            public int compare(File o1, File o2) {
-                if (o1.getName().endsWith("corrupt")) {
-                    return 0;
-                }
-                return new UniqueOrderableFileName(o1.getName()).getOrderId().compareTo(new UniqueOrderableFileName(o2.getName()).getOrderId());
+        Arrays.sort(allQueueFiles, (o1, o2) -> {
+            if (o1.getName().endsWith("corrupt")) {
+                return 0;
             }
+            return new UniqueOrderableFileName(o1.getName()).getOrderId().compareTo(new UniqueOrderableFileName(o2.getName()).getOrderId());
         });
 
         logger.info("Init Populating " + allQueueFiles.length + " files into full queues.");

@@ -75,23 +75,12 @@ public class TxNamedMap {
                 checkState(fp == constantFP, "Must initialize to constantFP");
             }
         }
-        return chunkStore.execute(constantFP, skyHookIndexOpener, new ChunkTransaction<PowerKeyedFPIndex, R>() {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, lock) -> {
 
-            @Override
-            public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
+            int chunkPower = FilerIO.chunkPower(mapName.length, 0);
+            return monkey.readWriteAutoGrow(chunkStore, chunkPower, 1, skyHookCog.creators[chunkPower], skyHookCog.opener, grower,
+                (monkey1, filer1, lock1) -> monkey1.readWriteAutoGrow(chunkStore, mapName, 1, mapCreator, mapOpener, mapGrower, mapTransaction));
 
-                int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.readWriteAutoGrow(chunkStore, chunkPower, 1, skyHookCog.creators[chunkPower], skyHookCog.opener, grower,
-                    new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
-
-                        @Override
-                        public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                            return monkey.readWriteAutoGrow(chunkStore, mapName, 1, mapCreator, mapOpener, mapGrower, mapTransaction);
-                        }
-
-                    });
-
-            }
         });
     }
 
@@ -101,30 +90,21 @@ public class TxNamedMap {
                 return mapTransaction.commit(null, null, null);
             }
         }
-        return chunkStore.execute(constantFP, skyHookIndexOpener, new ChunkTransaction<PowerKeyedFPIndex, R>() {
-
-            @Override
-            public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                if (monkey == null || filer == null) {
-                    return mapTransaction.commit(null, null, null);
-                }
-
-                int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.read(chunkStore, chunkPower, skyHookCog.opener,
-                    new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
-
-                        @Override
-                        public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                            if (monkey != null && filer != null) {
-                                return monkey.read(chunkStore, mapName, mapOpener, mapTransaction);
-                            } else {
-                                return mapTransaction.commit(null, null, null);
-                            }
-                        }
-
-                    });
-
+        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, lock) -> {
+            if (monkey == null || filer == null) {
+                return mapTransaction.commit(null, null, null);
             }
+
+            int chunkPower = FilerIO.chunkPower(mapName.length, 0);
+            return monkey.read(chunkStore, chunkPower, skyHookCog.opener,
+                (monkey1, filer1, lock1) -> {
+                    if (monkey1 != null && filer1 != null) {
+                        return monkey1.read(chunkStore, mapName, mapOpener, mapTransaction);
+                    } else {
+                        return mapTransaction.commit(null, null, null);
+                    }
+                });
+
         });
     }
 
@@ -134,36 +114,24 @@ public class TxNamedMap {
                 return true;
             }
         }
-        return chunkStore.execute(constantFP, skyHookIndexOpener, new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
-
-            @Override
-            public Boolean commit(final PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                if (monkey == null || filer == null) {
-                    return true;
-                }
-
-                int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.read(chunkStore, chunkPower, skyHookCog.opener,
-                    new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
-
-                        @Override
-                        public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                            if (monkey == null || filer == null) {
-                                return true;
-                            }
-                            return monkey.read(chunkStore, mapName, mapOpener, new ChunkTransaction<MapContext, Boolean>() {
-
-                                @Override
-                                public Boolean commit(MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
-                                    if (monkey == null || filer == null) {
-                                        return true;
-                                    }
-                                    return stream.stream(mapName, monkey, filer, lock);
-                                }
-                            });
-                        }
-                    });
+        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, lock) -> {
+            if (monkey == null || filer == null) {
+                return true;
             }
+
+            int chunkPower = FilerIO.chunkPower(mapName.length, 0);
+            return monkey.read(chunkStore, chunkPower, skyHookCog.opener,
+                (skyHookMonkey, skyHookFiler, skyHookLock) -> {
+                    if (skyHookMonkey == null || skyHookFiler == null) {
+                        return true;
+                    }
+                    return skyHookMonkey.read(chunkStore, mapName, mapOpener, (mapMonkey, mapFiler, mapLock) -> {
+                        if (mapMonkey == null || mapFiler == null) {
+                            return true;
+                        }
+                        return stream.stream(mapName, mapMonkey, mapFiler, mapLock);
+                    });
+                });
         });
     }
 }

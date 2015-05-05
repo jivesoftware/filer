@@ -11,14 +11,9 @@ package com.jivesoftware.os.filer.keyed.store;
 import com.jivesoftware.os.filer.chunk.store.ChunkStoreInitializer;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxCogs;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFiler;
-import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
-import com.jivesoftware.os.filer.io.IBA;
-import com.jivesoftware.os.filer.io.api.ChunkTransaction;
 import com.jivesoftware.os.filer.io.api.KeyRange;
-import com.jivesoftware.os.filer.io.api.KeyValueStore;
-import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import java.io.File;
 import java.io.IOException;
@@ -69,63 +64,45 @@ public class TxKeyedFilerStoreNGTest {
         long newFilerInitialCapacity = 512;
 
         byte[] key = FilerIO.intBytes(1010);
-        store.readWriteAutoGrow(key, newFilerInitialCapacity, new ChunkTransaction<Void, Void>() {
-            @Override
-            public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                synchronized (lock) {
-                    FilerIO.writeInt(filer, 10, "");
-                    return null;
-                }
+        store.readWriteAutoGrow(key, newFilerInitialCapacity, (monkey, filer, lock) -> {
+            synchronized (lock) {
+                FilerIO.writeInt(filer, 10, "");
+                return null;
             }
         });
 
-        store.readWriteAutoGrow(key, newFilerInitialCapacity, new ChunkTransaction<Void, Void>() {
-            @Override
-            public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                synchronized (lock) {
-                    filer.seek(0);
-                    int ten = FilerIO.readInt(filer, "");
-                    System.out.println("ten:" + ten);
-                    assertEquals(ten, 10);
-                    return null;
-                }
+        store.readWriteAutoGrow(key, newFilerInitialCapacity, (monkey, filer, lock) -> {
+            synchronized (lock) {
+                filer.seek(0);
+                int ten = FilerIO.readInt(filer, "");
+                System.out.println("ten:" + ten);
+                assertEquals(ten, 10);
+                return null;
             }
         });
 
         List<KeyRange> ranges = new ArrayList<>();
         ranges.add(new KeyRange(FilerIO.intBytes(900), FilerIO.intBytes(1010)));
         final AtomicInteger count = new AtomicInteger();
-        store.streamKeys(ranges, new KeyValueStore.KeyStream<IBA>() {
-
-            @Override
-            public boolean stream(IBA key) throws IOException {
-                count.incrementAndGet();
-                return true;
-            }
+        store.streamKeys(ranges, key1 -> {
+            count.incrementAndGet();
+            return true;
         });
 
         Assert.assertEquals(count.get(), 0);
 
         ranges.add(new KeyRange(FilerIO.intBytes(1011), FilerIO.intBytes(1030)));
-        store.streamKeys(ranges, new KeyValueStore.KeyStream<IBA>() {
-
-            @Override
-            public boolean stream(IBA key) throws IOException {
-                count.incrementAndGet();
-                return true;
-            }
+        store.streamKeys(ranges, key1 -> {
+            count.incrementAndGet();
+            return true;
         });
 
         Assert.assertEquals(count.get(), 0);
 
         ranges.add(new KeyRange(FilerIO.intBytes(1010), FilerIO.intBytes(1030)));
-        store.streamKeys(ranges, new KeyValueStore.KeyStream<IBA>() {
-
-            @Override
-            public boolean stream(IBA key) throws IOException {
-                count.incrementAndGet();
-                return true;
-            }
+        store.streamKeys(ranges, key1 -> {
+            count.incrementAndGet();
+            return true;
         });
 
         Assert.assertEquals(count.get(), 1);
@@ -162,24 +139,18 @@ public class TxKeyedFilerStoreNGTest {
         long newFilerInitialCapacity = 512;
 
         final byte[] key = FilerIO.intBytes(1020);
-        store.readWriteAutoGrow(key, newFilerInitialCapacity, new ChunkTransaction<Void, Void>() {
-            @Override
-            public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                synchronized (lock) {
-                    filer.seek(0);
-                    FilerIO.writeInt(filer, 10, "");
-                    return null;
-                }
+        store.readWriteAutoGrow(key, newFilerInitialCapacity, (monkey, filer, lock) -> {
+            synchronized (lock) {
+                filer.seek(0);
+                FilerIO.writeInt(filer, 10, "");
+                return null;
             }
         });
-        store.writeNewReplace(key, newFilerInitialCapacity, new ChunkTransaction<Void, Void>() {
-            @Override
-            public Void commit(Void monkey, ChunkFiler newFiler, Object newLock) throws IOException {
-                synchronized (newLock) {
-                    newFiler.seek(0);
-                    FilerIO.writeInt(newFiler, 20, "");
-                    return null;
-                }
+        store.writeNewReplace(key, newFilerInitialCapacity, (monkey, newFiler, newLock) -> {
+            synchronized (newLock) {
+                newFiler.seek(0);
+                FilerIO.writeInt(newFiler, 20, "");
+                return null;
             }
         });
 
@@ -193,37 +164,26 @@ public class TxKeyedFilerStoreNGTest {
             TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
             TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER);
 
-        store.readWriteAutoGrow(key, newFilerInitialCapacity, new ChunkTransaction<Void, Void>() {
-            @Override
-            public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                synchronized (lock) {
-                    filer.seek(0);
-                    int twenty = FilerIO.readInt(filer, "");
-                    assertEquals(twenty, 20);
-                    return null;
-                }
-            }
-        });
-
-        store.stream(null, new KeyValueStore.EntryStream<IBA, Filer>() {
-
-            @Override
-            public boolean stream(IBA k, Filer filer) throws IOException {
-                assertEquals(k.getBytes(), key);
+        store.readWriteAutoGrow(key, newFilerInitialCapacity, (monkey, filer, lock) -> {
+            synchronized (lock) {
                 filer.seek(0);
                 int twenty = FilerIO.readInt(filer, "");
                 assertEquals(twenty, 20);
-                return true;
+                return null;
             }
         });
 
-        store.streamKeys(null, new KeyValueStore.KeyStream<IBA>() {
+        store.stream(null, (k, filer) -> {
+            assertEquals(k.getBytes(), key);
+            filer.seek(0);
+            int twenty = FilerIO.readInt(filer, "");
+            assertEquals(twenty, 20);
+            return true;
+        });
 
-            @Override
-            public boolean stream(IBA k) throws IOException {
-                assertEquals(k.getBytes(), key);
-                return true;
-            }
+        store.streamKeys(null, k -> {
+            assertEquals(k.getBytes(), key);
+            return true;
         });
     }
 
@@ -259,14 +219,11 @@ public class TxKeyedFilerStoreNGTest {
         for (int i = 0; i < 20; i++) {
             final int value = i;
             final byte[] key = FilerIO.intBytes(i);
-            store.readWriteAutoGrow(key, newFilerInitialCapacity, new ChunkTransaction<Void, Void>() {
-                @Override
-                public Void commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                    synchronized (lock) {
-                        filer.seek(0);
-                        FilerIO.writeInt(filer, value, "");
-                        return null;
-                    }
+            store.readWriteAutoGrow(key, newFilerInitialCapacity, (monkey, filer, lock) -> {
+                synchronized (lock) {
+                    filer.seek(0);
+                    FilerIO.writeInt(filer, value, "");
+                    return null;
                 }
             });
         }
@@ -276,13 +233,10 @@ public class TxKeyedFilerStoreNGTest {
             allKeys[i] = FilerIO.intBytes(i);
         }
 
-        List<Integer> values = store.readEach(allKeys, newFilerInitialCapacity, new ChunkTransaction<Void, Integer>() {
-            @Override
-            public Integer commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                synchronized (lock) {
-                    filer.seek(0);
-                    return FilerIO.readInt(filer, "");
-                }
+        List<Integer> values = store.readEach(allKeys, newFilerInitialCapacity, (monkey, filer, lock) -> {
+            synchronized (lock) {
+                filer.seek(0);
+                return FilerIO.readInt(filer, "");
             }
         });
 

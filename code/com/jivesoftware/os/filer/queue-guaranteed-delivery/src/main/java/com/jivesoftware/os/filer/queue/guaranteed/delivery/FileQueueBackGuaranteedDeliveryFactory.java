@@ -127,40 +127,34 @@ public class FileQueueBackGuaranteedDeliveryFactory {
             this.queueProcessorsThreads = Executors.newFixedThreadPool(numberOfConsumers);
             this.queueProcessors = new PhasedQueueProcessor[numberOfConsumers];
 
-            PhasedQueueBatchProcessor batchProcessor = new PhasedQueueBatchProcessor() {
-                @Override
-                public List<PhasedQueueEntry> process(final List<PhasedQueueEntry> process) {
-                    if (deliveryCallback.deliver(new Iterable<byte[]>() {
+            PhasedQueueBatchProcessor batchProcessor = process -> {
+                if (deliveryCallback.deliver(() -> {
+                    final Iterator<PhasedQueueEntry> processablesIterator = process.iterator();
+                    return new Iterator<byte[]>() {
                         @Override
-                        public Iterator<byte[]> iterator() {
-                            final Iterator<PhasedQueueEntry> processablesIterator = process.iterator();
-                            return new Iterator<byte[]>() {
-                                @Override
-                                public boolean hasNext() {
-                                    return processablesIterator.hasNext();
-                                }
-
-                                @Override
-                                public byte[] next() {
-                                    return processablesIterator.next().getEntry();
-                                }
-
-                                @Override
-                                public void remove() {
-                                    throw new UnsupportedOperationException("Not ever supported!");
-                                }
-                            };
-
+                        public boolean hasNext() {
+                            return processablesIterator.hasNext();
                         }
-                    })) {
-                        delivered.add(process.size());
-                        for (PhasedQueueEntry p : process) {
-                            p.processed();
+
+                        @Override
+                        public byte[] next() {
+                            return processablesIterator.next().getEntry();
                         }
-                        return Collections.emptyList();
-                    } else {
-                        return process;
+
+                        @Override
+                        public void remove() {
+                            throw new UnsupportedOperationException("Not ever supported!");
+                        }
+                    };
+
+                })) {
+                    delivered.add(process.size());
+                    for (PhasedQueueEntry p : process) {
+                        p.processed();
                     }
+                    return Collections.emptyList();
+                } else {
+                    return process;
                 }
             };
 

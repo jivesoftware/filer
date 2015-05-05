@@ -277,16 +277,12 @@ public class SkipListMapTest {
 
     private void assertContents(SkipListMapStore sls, ByteBufferBackedFiler f, SkipListMapContext from, final HashSet<Byte> expectedContains)
         throws IOException {
-        sls.streamKeys(f, from, new Object(), null, new MapStore.KeyStream() {
-
-            @Override
-            public boolean stream(byte[] key) throws IOException {
-                if (key != null) {
-                    Assert.assertTrue(expectedContains.contains(key[0]), "Expected:" + key[0]);
-                    expectedContains.remove(key[0]);
-                }
-                return true;
+        sls.streamKeys(f, from, new Object(), null, key -> {
+            if (key != null) {
+                Assert.assertTrue(expectedContains.contains(key[0]), "Expected:" + key[0]);
+                expectedContains.remove(key[0]);
             }
+            return true;
         });
         Assert.assertTrue(expectedContains.isEmpty());
     }
@@ -318,13 +314,7 @@ public class SkipListMapTest {
         ByteBufferBackedFiler t = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
 
         SkipListMapContext to = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, t);
-        sls.copyTo(f, from, t, to, new MapStore.CopyToStream() {
-
-            @Override
-            public void copied(long fromIndex, long toIndex) {
-                System.out.println(fromIndex + " " + toIndex);
-            }
-        });
+        sls.copyTo(f, from, t, to, (fromIndex, toIndex) -> System.out.println(fromIndex + " " + toIndex));
 
         sls.toSysOut(t, to, new SkipListMapStore.BytesToBytesString());
         assertContents(sls, t, to, expectedContains);
@@ -359,13 +349,9 @@ public class SkipListMapTest {
             }
         });
 
-        sls.streamKeys(filer, context, new Object(), null, new MapStore.KeyStream() {
-
-            @Override
-            public boolean stream(byte[] key) throws IOException {
-                System.out.println("stream:" + Arrays.toString(key));
-                return true;
-            }
+        sls.streamKeys(filer, context, new Object(), null, key -> {
+            System.out.println("stream:" + Arrays.toString(key));
+            return true;
         });
 
     }
@@ -391,14 +377,10 @@ public class SkipListMapTest {
         List<KeyRange> ranges = new ArrayList<>();
         ranges.add(new KeyRange(FilerIO.intBytes(10), FilerIO.intBytes(21)));
         final AtomicInteger count = new AtomicInteger();
-        sls.streamKeys(filer, context, new Object(), ranges, new MapStore.KeyStream() {
-
-            @Override
-            public boolean stream(byte[] key) throws IOException {
-                System.out.println("stream:" + Arrays.toString(key));
-                count.incrementAndGet();
-                return true;
-            }
+        sls.streamKeys(filer, context, new Object(), ranges, key -> {
+            System.out.println("stream:" + Arrays.toString(key));
+            count.incrementAndGet();
+            return true;
         });
         assertEquals(count.intValue(), 11);
 
@@ -432,14 +414,10 @@ public class SkipListMapTest {
 
         List<KeyRange> ranges = new ArrayList<>();
         ranges.add(new KeyRange(new byte[]{19, -5}, new byte[]{50}));
-        sls.streamKeys(filer, context, new Object(), ranges, new MapStore.KeyStream() {
-
-            @Override
-            public boolean stream(byte[] key) throws IOException {
-                System.out.println("stream:" + Arrays.toString(key));
-                count.incrementAndGet();
-                return true;
-            }
+        sls.streamKeys(filer, context, new Object(), ranges, key -> {
+            System.out.println("stream:" + Arrays.toString(key));
+            count.incrementAndGet();
+            return true;
         });
         assertEquals(count.intValue(), 1);
 
@@ -447,14 +425,10 @@ public class SkipListMapTest {
         count.set(0);
         ranges.clear();
         ranges.add(new KeyRange(new byte[]{19}, new byte[]{50, -126}));
-        sls.streamKeys(filer, context, new Object(), ranges, new MapStore.KeyStream() {
-
-            @Override
-            public boolean stream(byte[] key) throws IOException {
-                System.out.println("stream:" + Arrays.toString(key));
-                count.incrementAndGet();
-                return true;
-            }
+        sls.streamKeys(filer, context, new Object(), ranges, key -> {
+            System.out.println("stream:" + Arrays.toString(key));
+            count.incrementAndGet();
+            return true;
         });
         assertEquals(count.intValue(), 3);
 
@@ -462,14 +436,10 @@ public class SkipListMapTest {
         count.set(0);
         ranges.clear();
         ranges.add(new KeyRange(new byte[]{-11}, new byte[]{-4}));
-        sls.streamKeys(filer, context, new Object(), ranges, new MapStore.KeyStream() {
-
-            @Override
-            public boolean stream(byte[] key) throws IOException {
-                System.out.println("stream:" + Arrays.toString(key));
-                count.incrementAndGet();
-                return true;
-            }
+        sls.streamKeys(filer, context, new Object(), ranges, key -> {
+            System.out.println("stream:" + Arrays.toString(key));
+            count.incrementAndGet();
+            return true;
         });
         assertEquals(count.intValue(), 2);
 
@@ -477,14 +447,10 @@ public class SkipListMapTest {
         count.set(0);
         ranges.clear();
         ranges.add(new KeyRange(new byte[]{-11}, new byte[]{-5}));
-        sls.streamKeys(filer, context, new Object(), ranges, new MapStore.KeyStream() {
-
-            @Override
-            public boolean stream(byte[] key) throws IOException {
-                System.out.println("stream:" + Arrays.toString(key));
-                count.incrementAndGet();
-                return true;
-            }
+        sls.streamKeys(filer, context, new Object(), ranges, key -> {
+            System.out.println("stream:" + Arrays.toString(key));
+            count.incrementAndGet();
+            return true;
         });
         assertEquals(count.intValue(), 1);
 
@@ -492,14 +458,10 @@ public class SkipListMapTest {
         count.set(0);
         ranges.clear();
         ranges.add(new KeyRange(new byte[]{-2}, new byte[]{-1}));
-        sls.streamKeys(filer, context, new Object(), ranges, new MapStore.KeyStream() {
-
-            @Override
-            public boolean stream(byte[] key) throws IOException {
-                System.out.println("stream:" + Arrays.toString(key));
-                count.incrementAndGet();
-                return true;
-            }
+        sls.streamKeys(filer, context, new Object(), ranges, key -> {
+            System.out.println("stream:" + Arrays.toString(key));
+            count.incrementAndGet();
+            return true;
         });
         assertEquals(count.intValue(), 0);
 

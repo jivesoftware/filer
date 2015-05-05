@@ -14,10 +14,7 @@ import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFiler;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
-import com.jivesoftware.os.filer.io.api.ChunkTransaction;
-import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
-import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -102,52 +99,40 @@ public class TxKeyedFilerStoreConcurrencyNGTest {
                     TxKeyedFilerStore store = get(rand.nextInt(2));
                     byte[] key = FilerIO.longBytes(rand.nextInt(256));
                     // read
-                    store.read(key, -1, new ChunkTransaction<Void, Boolean>() {
-
-                        @Override
-                        public Boolean commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                            if (filer != null) {
-                                synchronized (lock) {
-                                    filer.seek(0);
-                                    for (int i = 0; i < filer.length(); i++) {
-                                        filer.read();
-                                    }
+                    store.read(key, -1, (monkey, filer, lock) -> {
+                        if (filer != null) {
+                            synchronized (lock) {
+                                filer.seek(0);
+                                for (int i = 0; i < filer.length(); i++) {
+                                    filer.read();
                                 }
+                            }
+                        }
+                        return true;
+                    });
+
+                    // write
+                    final long filerLength = 1 + rand.nextInt(1024);
+                    store.readWriteAutoGrow(key, filerLength, (monkey, filer, lock) -> {
+                        synchronized (lock) {
+                            filer.seek(0);
+                            Assert.assertFalse(filer.length() < filerLength, "Was:" + filer.length() + " expected: " + filerLength);
+                            for (int i = 0; i < filerLength; i++) {
+                                filer.write((byte) rand.nextInt(255));
                             }
                             return true;
                         }
                     });
 
-                    // write
-                    final long filerLength = 1 + rand.nextInt(1024);
-                    store.readWriteAutoGrow(key, filerLength, new ChunkTransaction<Void, Boolean>() {
-
-                        @Override
-                        public Boolean commit(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                            synchronized (lock) {
-                                filer.seek(0);
-                                Assert.assertFalse(filer.length() < filerLength, "Was:" + filer.length() + " expected: " + filerLength);
-                                for (int i = 0; i < filerLength; i++) {
-                                    filer.write((byte) rand.nextInt(255));
-                                }
-                                return true;
-                            }
-                        }
-                    });
-
                     // rewrite
                     final long rewriteFilerLength = 1 + rand.nextInt(1024);
-                    store.writeNewReplace(key, rewriteFilerLength, new ChunkTransaction<Void, Boolean>() {
-
-                        @Override
-                        public Boolean commit(Void monkey, ChunkFiler newFiler, Object newLock) throws IOException {
-                            synchronized (newLock) {
-                                newFiler.seek(0);
-                                for (int i = 0; i < rewriteFilerLength; i++) {
-                                    newFiler.write((byte) rand.nextInt(255));
-                                }
-                                return true;
+                    store.writeNewReplace(key, rewriteFilerLength, (monkey, newFiler, newLock) -> {
+                        synchronized (newLock) {
+                            newFiler.seek(0);
+                            for (int i = 0; i < rewriteFilerLength; i++) {
+                                newFiler.write((byte) rand.nextInt(255));
                             }
+                            return true;
                         }
                     });
 

@@ -32,48 +32,42 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * @author jonathan.colt
  * @param <N>
  * @param <H>
  * @param <M>
+ * @author jonathan.colt
  */
 public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
 
     public static final NoOpCreateFiler<ChunkFiler> CHUNK_FILER_CREATOR = new NoOpCreateFiler<>();
     public static final NoOpOpenFiler<ChunkFiler> CHUNK_FILER_OPENER = new NoOpOpenFiler<>();
     public static final TxNamedMapOfFilerOverwriteGrowerProvider<Long, Void> OVERWRITE_GROWER_PROVIDER =
-        new TxNamedMapOfFilerOverwriteGrowerProvider<Long, Void>() {
+        sizeHint -> new GrowFiler<Long, Void, ChunkFiler>() {
 
             @Override
-            public GrowFiler<Long, Void, ChunkFiler> create(final Long sizeHint) {
-                return new GrowFiler<Long, Void, ChunkFiler>() {
+            public Long acquire(Void monkey, ChunkFiler filer, Object lock) throws IOException {
+                return filer.length() < sizeHint ? sizeHint : null;
+            }
 
-                    @Override
-                    public Long acquire(Void monkey, ChunkFiler filer, Object lock) throws IOException {
-                        return filer.length() < sizeHint ? sizeHint : null;
+            @Override
+            public void growAndAcquire(Void currentMonkey,
+                ChunkFiler currentFiler,
+                Void newMonkey,
+                ChunkFiler newFiler,
+                Object currentLock,
+                Object newLock
+            ) throws IOException {
+                synchronized (currentLock) {
+                    synchronized (newLock) {
+                        currentFiler.seek(0);
+                        newFiler.seek(0);
+                        FilerIO.copy(currentFiler, newFiler, -1);
                     }
+                }
+            }
 
-                    @Override
-                    public void growAndAcquire(Void currentMonkey,
-                        ChunkFiler currentFiler,
-                        Void newMonkey,
-                        ChunkFiler newFiler,
-                        Object currentLock,
-                        Object newLock
-                    ) throws IOException {
-                        synchronized (currentLock) {
-                            synchronized (newLock) {
-                                currentFiler.seek(0);
-                                newFiler.seek(0);
-                                FilerIO.copy(currentFiler, newFiler, -1);
-                            }
-                        }
-                    }
-
-                    @Override
-                    public void release(Void monkey, Object lock) {
-                    }
-                };
+            @Override
+            public void release(Void monkey, Object lock) {
             }
         };
 
@@ -171,39 +165,23 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                 chunkStore.newChunk(null, skyHookIndexCreator);
             }
         }
-        return chunkStore.execute(constantFP, skyHookIndexOpener, new ChunkTransaction<PowerKeyedFPIndex, R>() {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, lock) -> {
 
-            @Override
-            public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-
-                int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.readWriteAutoGrow(chunkStore, chunkPower, 2, skyhookCog.creators[chunkPower], skyhookCog.opener,
-                    skyhookCog.grower, new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
-
-                        @Override
-                        public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-
-                            return monkey.readWriteAutoGrow(chunkStore, mapName, null, namedIndexCreator, namedIndexOpener, null,
-                                new ChunkTransaction<PowerKeyedFPIndex, R>() {
-                                    @Override
-                                    public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                                        int chunkPower = FilerIO.chunkPower(filerKey.length, 0);
-                                        return monkey.readWriteAutoGrow(chunkStore, chunkPower, 2, namedPowerCreator[chunkPower], namedPowerOpener,
-                                            namedPowerGrower,
-                                            new ChunkTransaction<N, R>() {
-                                                @Override
-                                                public R commit(N monkey, ChunkFiler filer, Object lock) throws IOException {
-                                                    // TODO consider using the provided filer in appropriate cases.
-                                                    GrowFiler<H, M, ChunkFiler> overwriteGrower = overwriteGrowerProvider.create(sizeHint);
-                                                    return monkey.readWriteAutoGrow(chunkStore, filerKey, sizeHint, filerCreator, filerOpener,
-                                                        overwriteGrower, filerTransaction);
-                                                }
-                                            });
-                                    }
-                                });
-                        }
-                    });
-            }
+            int chunkPower = FilerIO.chunkPower(mapName.length, 0);
+            return monkey.readWriteAutoGrow(chunkStore, chunkPower, 2, skyhookCog.creators[chunkPower], skyhookCog.opener, skyhookCog.grower,
+                (skyHookMonkey, skyHookFiler, skyHookLock) -> skyHookMonkey.readWriteAutoGrow(chunkStore,
+                    mapName, null, namedIndexCreator, namedIndexOpener, null,
+                    (namedIndexMonkey, namedIndexFiler, namedIndexLock) -> {
+                        int chunkPower1 = FilerIO.chunkPower(filerKey.length, 0);
+                        return namedIndexMonkey.readWriteAutoGrow(chunkStore, chunkPower1, 2, namedPowerCreator[chunkPower1], namedPowerOpener,
+                            namedPowerGrower,
+                            (namedPowerMonkey, namedPowerFiler, namedPowerLock) -> {
+                                // TODO consider using the provided filer in appropriate cases.
+                                GrowFiler<H, M, ChunkFiler> overwriteGrower = overwriteGrowerProvider.create(sizeHint);
+                                return namedPowerMonkey.readWriteAutoGrow(chunkStore, filerKey, sizeHint, filerCreator, filerOpener,
+                                    overwriteGrower, filerTransaction);
+                            });
+                    }));
         });
     }
 
@@ -217,50 +195,27 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                 chunkStore.newChunk(null, skyHookIndexCreator);
             }
         }
-        return chunkStore.execute(constantFP, skyHookIndexOpener, new ChunkTransaction<PowerKeyedFPIndex, R>() {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, lock) -> {
 
-            @Override
-            public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-
-                int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.readWriteAutoGrow(chunkStore, chunkPower, 2, skyhookCog.creators[chunkPower], skyhookCog.opener,
-                    skyhookCog.grower,
-                    new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
-
-                        @Override
-                        public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-
-                            return monkey.readWriteAutoGrow(chunkStore, mapName, null, namedIndexCreator, namedIndexOpener, null,
-                                new ChunkTransaction<PowerKeyedFPIndex, R>() {
-                                    @Override
-                                    public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                                        int chunkPower = FilerIO.chunkPower(filerKey.length, 0);
-                                        return monkey.readWriteAutoGrow(chunkStore, chunkPower, 1, namedPowerCreator[chunkPower], namedPowerOpener,
-                                            namedPowerGrower,
-                                            new ChunkTransaction<N, R>() {
-
-                                                @Override
-                                                public R commit(N monkey, ChunkFiler filer, Object lock) throws IOException {
-                                                    // TODO consider using the provided filer in appropriate cases.
-                                                    final AtomicReference<R> result = new AtomicReference<>();
-                                                    GrowFiler<H, M, ChunkFiler> rewriteGrower = rewriteGrowerProvider.create(sizeHint,
-                                                        chunkTransaction, result);
-                                                    return monkey.writeNewReplace(chunkStore, filerKey, sizeHint, filerCreator, filerOpener,
-                                                        rewriteGrower,
-                                                        new ChunkTransaction<M, R>() {
-
-                                                            @Override
-                                                            public R commit(M monkey, ChunkFiler filer, Object lock) throws IOException {
-                                                                return result.get();
-                                                            }
-                                                        });
-                                                }
-                                            });
-                                    }
-                                });
-                        }
-                    });
-            }
+            int chunkPower = FilerIO.chunkPower(mapName.length, 0);
+            return monkey.readWriteAutoGrow(chunkStore, chunkPower, 2, skyhookCog.creators[chunkPower], skyhookCog.opener,
+                skyhookCog.grower,
+                (skyHookMonkey, skyHookFiler, skyHookLock) -> skyHookMonkey.readWriteAutoGrow(chunkStore,
+                    mapName, null, namedIndexCreator, namedIndexOpener, null,
+                    (namedIndexMonkey, namedIndexFiler, namedIndexLock) -> {
+                        int chunkPower1 = FilerIO.chunkPower(filerKey.length, 0);
+                        return namedIndexMonkey.readWriteAutoGrow(chunkStore, chunkPower1, 1, namedPowerCreator[chunkPower1], namedPowerOpener,
+                            namedPowerGrower,
+                            (namedPowerMonkey, namedPowerFiler, namedPowerLock) -> {
+                                // TODO consider using the provided filer in appropriate cases.
+                                final AtomicReference<R> result = new AtomicReference<>();
+                                GrowFiler<H, M, ChunkFiler> rewriteGrower = rewriteGrowerProvider.create(sizeHint,
+                                    chunkTransaction, result);
+                                return namedPowerMonkey.writeNewReplace(chunkStore, filerKey, sizeHint, filerCreator, filerOpener,
+                                    rewriteGrower,
+                                    (filerMonkey, filerFiler, filerLock) -> result.get());
+                            });
+                    }));
         });
     }
 
@@ -270,50 +225,35 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                 return filerTransaction.commit(null, null, null);
             }
         }
-        return chunkStore.execute(constantFP, skyHookIndexOpener, new ChunkTransaction<PowerKeyedFPIndex, R>() {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, lock) -> {
+            if (monkey == null || filer == null) {
+                return filerTransaction.commit(null, null, null);
+            }
 
-            @Override
-            public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                if (monkey == null || filer == null) {
-                    return filerTransaction.commit(null, null, null);
-                }
+            int chunkPower = FilerIO.chunkPower(mapName.length, 0);
+            return monkey.read(chunkStore, chunkPower, skyhookCog.opener,
+                (skyHookMonkey, skyHookFiler, skyHookLock) -> {
+                    if (skyHookMonkey == null || skyHookFiler == null) {
+                        return filerTransaction.commit(null, null, null);
+                    }
 
-                int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.read(chunkStore, chunkPower, skyhookCog.opener,
-                    new ChunkTransaction<MapBackedKeyedFPIndex, R>() {
-
-                        @Override
-                        public R commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                            if (monkey == null || filer == null) {
+                    return skyHookMonkey.read(chunkStore, mapName, namedIndexOpener,
+                        (namedIndexMonkey, namedIndexFiler, namedIndexLock) -> {
+                            if (namedIndexMonkey == null || namedIndexFiler == null) {
                                 return filerTransaction.commit(null, null, null);
                             }
 
-                            return monkey.read(chunkStore, mapName, namedIndexOpener,
-                                new ChunkTransaction<PowerKeyedFPIndex, R>() {
-                                    @Override
-                                    public R commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                                        if (monkey == null || filer == null) {
-                                            return filerTransaction.commit(null, null, null);
-                                        }
-
-                                        int chunkPower = FilerIO.chunkPower(filerKey.length, 0);
-                                        return monkey.read(chunkStore, chunkPower, namedPowerOpener,
-                                            new ChunkTransaction<N, R>() {
-
-                                                @Override
-                                                public R commit(N monkey, ChunkFiler filer, Object lock) throws IOException {
-                                                    if (monkey == null || filer == null) {
-                                                        return filerTransaction.commit(null, null, null);
-                                                    }
-                                                    // TODO consider using the provided filer in appropriate cases.
-                                                    return monkey.read(chunkStore, filerKey, filerOpener, filerTransaction);
-                                                }
-                                            });
+                            int chunkPower1 = FilerIO.chunkPower(filerKey.length, 0);
+                            return namedIndexMonkey.read(chunkStore, chunkPower1, namedPowerOpener,
+                                (namedPowerMonkey, namedPowerFiler, namedPowerLock) -> {
+                                    if (namedPowerMonkey == null || namedPowerFiler == null) {
+                                        return filerTransaction.commit(null, null, null);
                                     }
+                                    // TODO consider using the provided filer in appropriate cases.
+                                    return namedPowerMonkey.read(chunkStore, filerKey, filerOpener, filerTransaction);
                                 });
-                        }
-                    });
-            }
+                        });
+                });
         });
     }
 
@@ -337,63 +277,48 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         }
 
         final List<R> result = Lists.newArrayList();
-        chunkStore.execute(constantFP, skyHookIndexOpener, new ChunkTransaction<PowerKeyedFPIndex, Void>() {
+        chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, lock) -> {
+            if (monkey == null || filer == null) {
+                return null;
+            }
 
-            @Override
-            public Void commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                if (monkey == null || filer == null) {
-                    return null;
-                }
+            int chunkPower = FilerIO.chunkPower(mapName.length, 0);
+            return monkey.read(chunkStore, chunkPower, skyhookCog.opener,
+                (skyHookMonkey, skyHookFiler, skyHookLock) -> {
+                    if (skyHookMonkey == null || skyHookFiler == null) {
+                        return null;
+                    }
 
-                int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.read(chunkStore, chunkPower, skyhookCog.opener,
-                    new ChunkTransaction<MapBackedKeyedFPIndex, Void>() {
-
-                        @Override
-                        public Void commit(MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                            if (monkey == null || filer == null) {
+                    return skyHookMonkey.read(chunkStore, mapName, namedIndexOpener,
+                        (namedIndexMonkey, namedIndexFiler, namedIndexLock) -> {
+                            if (namedIndexMonkey == null || namedIndexFiler == null) {
                                 return null;
                             }
 
-                            return monkey.read(chunkStore, mapName, namedIndexOpener,
-                                new ChunkTransaction<PowerKeyedFPIndex, Void>() {
-                                    @Override
-                                    public Void commit(PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                                        if (monkey == null || filer == null) {
-                                            return null;
-                                        }
-
-                                        for (int chunkPower = 0; chunkPower < powerFilerKeys.length; chunkPower++) {
-                                            final byte[][] keysForMonkey = powerFilerKeys[chunkPower];
-                                            if (keysForMonkey != null) {
-                                                monkey.read(chunkStore, chunkPower, namedPowerOpener,
-                                                    new ChunkTransaction<N, Void>() {
-
-                                                        @Override
-                                                        public Void commit(N monkey, ChunkFiler filer, Object lock) throws IOException {
-                                                            if (monkey == null || filer == null) {
-                                                                return null;
-                                                            }
-                                                            // TODO consider using the provided filer in appropriate cases.
-                                                            for (byte[] filerKey : keysForMonkey) {
-                                                                if (filerKey != null) {
-                                                                    R got = monkey.read(chunkStore, filerKey, filerOpener, filerTransaction);
-                                                                    if (got != null) {
-                                                                        result.add(got);
-                                                                    }
-                                                                }
-                                                            }
-                                                            return null;
-                                                        }
-                                                    });
+                            for (int chunkPower1 = 0; chunkPower1 < powerFilerKeys.length; chunkPower1++) {
+                                final byte[][] keysForMonkey = powerFilerKeys[chunkPower1];
+                                if (keysForMonkey != null) {
+                                    namedIndexMonkey.read(chunkStore, chunkPower1, namedPowerOpener,
+                                        (N namedPowerMonkey, ChunkFiler namedPowerFiler, Object namedPowerLock) -> {
+                                            if (namedPowerMonkey == null || namedPowerFiler == null) {
+                                                return null;
                                             }
-                                        }
-                                        return null;
-                                    }
-                                });
-                        }
-                    });
-            }
+                                            // TODO consider using the provided filer in appropriate cases.
+                                            for (byte[] filerKey : keysForMonkey) {
+                                                if (filerKey != null) {
+                                                    R got = namedPowerMonkey.read(chunkStore, filerKey, filerOpener, filerTransaction);
+                                                    if (got != null) {
+                                                        result.add(got);
+                                                    }
+                                                }
+                                            }
+                                            return null;
+                                        });
+                                }
+                            }
+                            return null;
+                        });
+                });
         });
         return result;
     }
@@ -404,71 +329,41 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                 return true;
             }
         }
-        return chunkStore.execute(constantFP, skyHookIndexOpener, new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, lock) -> {
+            if (monkey == null || filer == null) {
+                return true;
+            }
 
-            @Override
-            public Boolean commit(final PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                if (monkey == null || filer == null) {
-                    return true;
-                }
+            int chunkPower = FilerIO.chunkPower(mapName.length, 0);
+            return monkey.read(chunkStore, chunkPower, skyhookCog.opener,
+                (skyHookMonkey, skyHookFiler, skyHookLock) -> {
+                    if (skyHookMonkey == null || skyHookFiler == null) {
+                        return true;
+                    }
 
-                int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.read(chunkStore, chunkPower, skyhookCog.opener,
-                    new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
-
-                        @Override
-                        public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                            if (monkey == null || filer == null) {
+                    return skyHookMonkey.read(chunkStore, mapName, namedIndexOpener,
+                        (namedIndexMonkey, namedIndexFiler, namedIndexLock) -> {
+                            if (namedIndexMonkey == null || namedIndexFiler == null) {
                                 return true;
                             }
-
-                            return monkey.read(chunkStore, mapName, namedIndexOpener,
-                                new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
-
-                                    @Override
-                                    public Boolean commit(final PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                                        if (monkey == null || filer == null) {
+                            return namedIndexMonkey.stream(null, namedIndexKey -> {
+                                Boolean namedIndexResult = namedIndexMonkey.read(chunkStore, namedIndexKey, namedPowerOpener,
+                                    (namedPowerMonkey, namedPowerFiler, namedPowerLock) -> {
+                                        if (namedPowerMonkey == null || namedPowerFiler == null) {
                                             return true;
                                         }
-                                        return monkey.stream(null, new KeysStream<Integer>() {
-
-                                            @Override
-                                            public boolean stream(Integer key) throws IOException {
-                                                Boolean result = monkey.read(chunkStore, key, namedPowerOpener,
-                                                    new ChunkTransaction<N, Boolean>() {
-
-                                                        @Override
-                                                        public Boolean commit(final N monkey, ChunkFiler filer, Object lock)
-                                                        throws IOException {
-                                                            if (monkey == null || filer == null) {
-                                                                return true;
-                                                            }
-                                                            return monkey.stream(ranges, new KeysStream<byte[]>() {
-
-                                                                @Override
-                                                                public boolean stream(final byte[] key) throws IOException {
-                                                                    Boolean result = monkey.read(chunkStore, key, filerOpener,
-                                                                        new ChunkTransaction<M, Boolean>() {
-
-                                                                            @Override
-                                                                            public Boolean commit(M monkey, ChunkFiler filer, Object lock) throws IOException {
-                                                                                return stream.stream(key, monkey, filer, lock);
-                                                                            }
-                                                                        });
-                                                                    return result;
-                                                                }
-                                                            });
-                                                        }
-                                                    });
-                                                return result;
-                                            }
+                                        return namedPowerMonkey.stream(ranges, (byte[] filerKey) -> {
+                                            Boolean filerResult = namedPowerMonkey.read(chunkStore, filerKey, filerOpener,
+                                                (M filerMonkey, ChunkFiler filerFiler, Object filerLock) ->
+                                                    stream.stream(filerKey, filerMonkey, filerFiler, filerLock));
+                                            return filerResult;
                                         });
-                                    }
-                                });
+                                    });
+                                return namedIndexResult;
+                            });
+                        });
 
-                        }
-                    });
-            }
+                });
         });
     }
 
@@ -478,64 +373,37 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                 return true;
             }
         }
-        return chunkStore.execute(constantFP, skyHookIndexOpener, new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, lock) -> {
+            if (monkey == null || filer == null) {
+                return true;
+            }
 
-            @Override
-            public Boolean commit(final PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                if (monkey == null || filer == null) {
-                    return true;
-                }
+            int chunkPower = FilerIO.chunkPower(mapName.length, 0);
+            return monkey.read(chunkStore, chunkPower, skyhookCog.opener,
+                (skyHookMonkey, skyHookFiler, skyHookLock) -> {
+                    if (skyHookMonkey == null || skyHookFiler == null) {
+                        return true;
+                    }
 
-                int chunkPower = FilerIO.chunkPower(mapName.length, 0);
-                return monkey.read(chunkStore, chunkPower, skyhookCog.opener,
-                    new ChunkTransaction<MapBackedKeyedFPIndex, Boolean>() {
-
-                        @Override
-                        public Boolean commit(final MapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                            if (monkey == null || filer == null) {
+                    return skyHookMonkey.read(chunkStore, mapName, namedIndexOpener,
+                        (namedIndexMonkey, namedIndexFiler, namedIndexLock) -> {
+                            if (namedIndexMonkey == null || namedIndexFiler == null) {
                                 return true;
                             }
-
-                            return monkey.read(chunkStore, mapName, namedIndexOpener,
-                                new ChunkTransaction<PowerKeyedFPIndex, Boolean>() {
-
-                                    @Override
-                                    public Boolean commit(final PowerKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                                        if (monkey == null || filer == null) {
+                            return namedIndexMonkey.stream(null, key -> {
+                                Boolean namedIndexResult = namedIndexMonkey.read(chunkStore, key, namedPowerOpener,
+                                    (N namedPowerMonkey, ChunkFiler namedPowerFiler, Object namedPowerLock) -> {
+                                        if (namedPowerMonkey == null || namedPowerFiler == null) {
                                             return true;
                                         }
-                                        return monkey.stream(null, new KeysStream<Integer>() {
+                                        Boolean filerResult = namedPowerMonkey.stream(ranges, stream::stream);
+                                        return filerResult;
+                                    });
+                                return namedIndexResult;
+                            });
+                        });
 
-                                            @Override
-                                            public boolean stream(Integer key) throws IOException {
-                                                Boolean result = monkey.read(chunkStore, key, namedPowerOpener,
-                                                    new ChunkTransaction<N, Boolean>() {
-
-                                                        @Override
-                                                        public Boolean commit(final N monkey, ChunkFiler filer, Object lock)
-                                                        throws IOException {
-                                                            if (monkey == null || filer == null) {
-                                                                return true;
-                                                            }
-                                                            Boolean result = monkey.stream(ranges, new KeysStream<byte[]>() {
-
-                                                                @Override
-                                                                public boolean stream(final byte[] key) throws IOException {
-                                                                    return stream.stream(key);
-                                                                }
-                                                            });
-                                                            return result;
-                                                        }
-                                                    });
-                                                return result;
-                                            }
-                                        });
-                                    }
-                                });
-
-                        }
-                    });
-            }
+                });
         });
 
     }

@@ -20,10 +20,6 @@ import com.jivesoftware.os.filer.chunk.store.transaction.MapBackedKeyedFPIndex;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxCog;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxCogs;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
-import com.jivesoftware.os.filer.io.PartitionFunction;
-import com.jivesoftware.os.filer.io.api.KeyValueContext;
-import com.jivesoftware.os.filer.io.api.KeyValueStore;
-import com.jivesoftware.os.filer.io.api.KeyValueTransaction;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import com.jivesoftware.os.filer.io.primative.LongKeyMarshaller;
@@ -58,13 +54,7 @@ public class TxKeyObjectStoreNGTest {
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 500, 5_000);
 
         store = new TxPartitionedKeyObjectStore<>(
-            new PartitionFunction<Long>() {
-
-                @Override
-                public int partition(int partitionCount, Long key) {
-                    return Math.abs(key.hashCode()) % partitionCount;
-                }
-            },
+            (partitionCount, key) -> Math.abs(key.hashCode()) % partitionCount,
             (TxKeyObjectStore<Long, Long>[]) new TxKeyObjectStore[] {
                 new TxKeyObjectStore<>(skyhookCog, cogs.getSkyHookKeySemaphores(), 0, chunkStore1, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false),
                 new TxKeyObjectStore<>(skyhookCog, cogs.getSkyHookKeySemaphores(), 0, chunkStore2, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false)
@@ -80,41 +70,29 @@ public class TxKeyObjectStoreNGTest {
             final long v = i;
             keys.add(k);
 
-            store.execute(k, false, new KeyValueTransaction<Long, Void>() {
-
-                @Override
-                public Void commit(KeyValueContext<Long> context) throws IOException {
-                    Long got = context.get();
-                    Assert.assertNull(got);
-                    return null;
-                }
+            store.execute(k, false, context -> {
+                Long got = context.get();
+                Assert.assertNull(got);
+                return null;
             });
 
-            store.execute(k, true, new KeyValueTransaction<Long, Void>() {
-
-                @Override
-                public Void commit(KeyValueContext<Long> context) throws IOException {
-                    Long got = context.get();
-                    Assert.assertNull(got);
-                    context.set(v);
-                    got = context.get();
-                    Assert.assertNotNull(got);
-                    context.remove();
-                    got = context.get();
-                    Assert.assertNull(got);
-                    context.set(v);
-                    return null;
-                }
+            store.execute(k, true, context -> {
+                Long got = context.get();
+                Assert.assertNull(got);
+                context.set(v);
+                got = context.get();
+                Assert.assertNotNull(got);
+                context.remove();
+                got = context.get();
+                Assert.assertNull(got);
+                context.set(v);
+                return null;
             });
 
-            store.execute(k, false, new KeyValueTransaction<Long, Void>() {
-
-                @Override
-                public Void commit(KeyValueContext<Long> context) throws IOException {
-                    Long got = context.get();
-                    Assert.assertEquals(got, (Long) v);
-                    return null;
-                }
+            store.execute(k, false, context -> {
+                Long got = context.get();
+                Assert.assertEquals(got, (Long) v);
+                return null;
             });
         }
 
@@ -139,27 +117,19 @@ public class TxKeyObjectStoreNGTest {
         for (int i = 0; i < 16; i++) {
             final long k = i;
             final long v = i;
-            store.execute(k, true, new KeyValueTransaction<Long, Void>() {
-
-                @Override
-                public Void commit(KeyValueContext<Long> context) throws IOException {
-                    context.set(v);
-                    truth.put(k, v);
-                    return null;
-                }
+            store.execute(k, true, context -> {
+                context.set(v);
+                truth.put(k, v);
+                return null;
             });
         }
 
-        store.stream(new KeyValueStore.EntryStream<Long, Long>() {
+        store.stream((key, value) -> {
 
-            @Override
-            public boolean stream(Long key, Long value) throws IOException {
-
-                Assert.assertTrue(truth.containsKey(key));
-                Long t = truth.remove(key);
-                Assert.assertEquals(value, t);
-                return true;
-            }
+            Assert.assertTrue(truth.containsKey(key));
+            Long t = truth.remove(key);
+            Assert.assertEquals(value, t);
+            return true;
         });
 
         Assert.assertTrue(truth.isEmpty());
@@ -172,26 +142,17 @@ public class TxKeyObjectStoreNGTest {
         for (int i = 0; i < 16; i++) {
             final long k = i;
             final long v = i;
-            store.execute(k, true, new KeyValueTransaction<Long, Void>() {
-
-                @Override
-                public Void commit(KeyValueContext<Long> context) throws IOException {
-                    context.set(v);
-                    truth.put(k, v);
-                    return null;
-                }
+            store.execute(k, true, context -> {
+                context.set(v);
+                truth.put(k, v);
+                return null;
             });
         }
 
-        store.streamKeys(new KeyValueStore.KeyStream<Long>() {
-
-            @Override
-            public boolean stream(Long key) throws IOException {
-                Assert.assertTrue(truth.containsKey(key));
-                truth.remove(key);
-                return true;
-            }
-
+        store.streamKeys(key -> {
+            Assert.assertTrue(truth.containsKey(key));
+            truth.remove(key);
+            return true;
         });
 
         Assert.assertTrue(truth.isEmpty());

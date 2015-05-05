@@ -70,17 +70,13 @@ public class FileCursorTest {
                 FileChannel fileChannel = raf.getChannel();
                 final MappedByteBuffer channel = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, (int) fileChannel.size());
                 for (int i = 0; i < numThreads; i++) {
-                    await.add(executorService.submit(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            for (int r = 0; r < numreads; r++) {
-                                synchronized (uberLock) {
-                                    try {
-                                        channel.get(rand.nextInt(legnth));
-                                    } catch (Exception x) {
-                                        x.printStackTrace();
-                                    }
+                    await.add(executorService.submit(() -> {
+                        for (int r1 = 0; r1 < numreads; r1++) {
+                            synchronized (uberLock) {
+                                try {
+                                    channel.get(rand.nextInt(legnth));
+                                } catch (Exception x) {
+                                    x.printStackTrace();
                                 }
                             }
                         }
@@ -106,16 +102,12 @@ public class FileCursorTest {
                 final MappedByteBuffer channel = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, (int) fileChannel.size());
                 final ByteBuffer bb = channel.duplicate();
                 for (int i = 0; i < numThreads; i++) {
-                    await.add(executorService.submit(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            for (int r = 0; r < numreads; r++) {
-                                try {
-                                    bb.get(rand.nextInt(legnth));
-                                } catch (Exception x) {
-                                    x.printStackTrace();
-                                }
+                    await.add(executorService.submit(() -> {
+                        for (int r1 = 0; r1 < numreads; r1++) {
+                            try {
+                                bb.get(rand.nextInt(legnth));
+                            } catch (Exception x) {
+                                x.printStackTrace();
                             }
                         }
                     }));
@@ -140,16 +132,12 @@ public class FileCursorTest {
                 for (int i = 0; i < numThreads; i++) {
                     final FileChannel fileChannel = raf.getChannel();
                     final MappedByteBuffer channel = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0, (int) fileChannel.size());
-                    await.add(executorService.submit(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            for (int r = 0; r < numreads; r++) {
-                                try {
-                                    channel.get(rand.nextInt(legnth));
-                                } catch (Exception x) {
-                                    x.printStackTrace();
-                                }
+                    await.add(executorService.submit(() -> {
+                        for (int r1 = 0; r1 < numreads; r1++) {
+                            try {
+                                channel.get(rand.nextInt(legnth));
+                            } catch (Exception x) {
+                                x.printStackTrace();
                             }
                         }
                     }));
@@ -174,18 +162,14 @@ public class FileCursorTest {
             for (int r = 0; r < numRuns; r++) {
                 long start = System.currentTimeMillis();
                 for (int i = 0; i < numThreads; i++) {
-                    await.add(executorService.submit(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            for (int r = 0; r < numreads; r++) {
-                                synchronized (uberLock) {
-                                    try {
-                                        raf.seek(rand.nextInt(legnth));
-                                        raf.read();
-                                    } catch (Exception x) {
-                                        x.printStackTrace();
-                                    }
+                    await.add(executorService.submit(() -> {
+                        for (int r1 = 0; r1 < numreads; r1++) {
+                            synchronized (uberLock) {
+                                try {
+                                    raf.seek(rand.nextInt(legnth));
+                                    raf.read();
+                                } catch (Exception x) {
+                                    x.printStackTrace();
                                 }
                             }
                         }
