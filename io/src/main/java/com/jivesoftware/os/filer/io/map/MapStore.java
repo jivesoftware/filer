@@ -603,7 +603,7 @@ public class MapStore {
             seed = x;
             hash += (_key[_start + i] + 128) * x;
         }
-        return Math.abs(hash);
+        return hash == Long.MIN_VALUE ? Long.MAX_VALUE : Math.abs(hash);
     }
 
     public boolean stream(final Filer filer, final MapContext context, final Object lock, EntryStream stream) throws IOException {

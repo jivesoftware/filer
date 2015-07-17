@@ -21,7 +21,6 @@ import com.jivesoftware.os.filer.io.FilerIO;
 import java.io.IOException;
 
 /**
- *
  * @author jonathan.colt
  */
 public class StripedFiler {
@@ -69,7 +68,7 @@ public class StripedFiler {
     }
 
     public <R> R tx(long fp, StripeTx<R> stripeTx) throws IOException {
-        int stripe = (int) Math.abs(hashFP(fp) % stripes.length);
+        int stripe = Math.abs(hashFP(fp) % stripes.length);
         synchronized (locks[stripe]) {
             if (stripes[stripe] == null) {
                 stripes[stripe] = root.duplicateAll();

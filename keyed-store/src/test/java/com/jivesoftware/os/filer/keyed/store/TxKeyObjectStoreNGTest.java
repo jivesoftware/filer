@@ -54,7 +54,7 @@ public class TxKeyObjectStoreNGTest {
         ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 500, 5_000);
 
         store = new TxPartitionedKeyObjectStore<>(
-            (partitionCount, key) -> Math.abs(key.hashCode()) % partitionCount,
+            (partitionCount, key) -> Math.abs(key.hashCode() % partitionCount),
             (TxKeyObjectStore<Long, Long>[]) new TxKeyObjectStore[] {
                 new TxKeyObjectStore<>(skyhookCog, cogs.getSkyHookKeySemaphores(), 0, chunkStore1, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false),
                 new TxKeyObjectStore<>(skyhookCog, cogs.getSkyHookKeySemaphores(), 0, chunkStore2, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false)

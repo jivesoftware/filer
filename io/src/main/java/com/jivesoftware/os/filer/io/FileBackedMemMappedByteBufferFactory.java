@@ -27,7 +27,7 @@ public class FileBackedMemMappedByteBufferFactory implements ByteBufferFactory {
     }
 
     private File getDirectory(String key) {
-        return directories[Math.abs(key.hashCode() + directoryOffset) % directories.length];
+        return directories[Math.abs((key.hashCode() + directoryOffset) % directories.length)];
     }
 
     public MappedByteBuffer open(String key) {

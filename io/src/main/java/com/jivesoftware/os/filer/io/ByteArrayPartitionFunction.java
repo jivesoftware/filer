@@ -30,7 +30,7 @@ public class ByteArrayPartitionFunction implements PartitionFunction<byte[]> {
 
     @Override
     public int partition(int partitionCount, byte[] key) {
-        return Math.abs(Arrays.hashCode(key)) % partitionCount;
+        return Math.abs(Arrays.hashCode(key) % partitionCount);
     }
 
 }
