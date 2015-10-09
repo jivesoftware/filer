@@ -16,6 +16,7 @@
 package com.jivesoftware.os.filer.keyed.store;
 
 import com.jivesoftware.os.filer.io.PartitionFunction;
+import com.jivesoftware.os.filer.io.api.IndexAlignedKeyValueTransaction;
 import com.jivesoftware.os.filer.io.api.KeyValueStore;
 import com.jivesoftware.os.filer.io.api.KeyValueTransaction;
 import java.io.IOException;
@@ -65,6 +66,11 @@ public class TxPartitionedKeyObjectStore<K, V> implements KeyValueStore<K, V> {
             }
         }
         return result;
+    }
+
+    @Override
+    public void multiExecute(K[] keys, IndexAlignedKeyValueTransaction<V> indexAlignedKeyValueTransaction) throws IOException {
+        throw new UnsupportedOperationException("TODO");
     }
 
     @Override

@@ -24,27 +24,22 @@ import java.io.IOException;
  */
 public class SkipListMapBackedKeyedFPIndexGrower implements GrowFiler<Integer, SkipListMapBackedKeyedFPIndex, ChunkFiler> {
 
-    private final int alwaysRoomForNMoreKeys;
-
-    public SkipListMapBackedKeyedFPIndexGrower(int alwaysRoomForNMoreKeys) {
-        this.alwaysRoomForNMoreKeys = alwaysRoomForNMoreKeys;
-    }
-
     @Override
-    public Integer acquire(SkipListMapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
+    public Integer acquire(Integer sizeHint, SkipListMapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
         synchronized (lock) {
-            if (monkey.acquire(alwaysRoomForNMoreKeys)) {
+            if (monkey.acquire(sizeHint)) {
                 // there is definitely room for N more
                 return null;
             } else {
                 // there might not be room for N more
-                return monkey.nextGrowSize(alwaysRoomForNMoreKeys);
+                return monkey.nextGrowSize(sizeHint);
             }
         }
     }
 
     @Override
-    public void growAndAcquire(SkipListMapBackedKeyedFPIndex currentMonkey,
+    public void growAndAcquire(Integer sizeHint,
+        SkipListMapBackedKeyedFPIndex currentMonkey,
         ChunkFiler currentFiler,
         SkipListMapBackedKeyedFPIndex newMonkey,
         ChunkFiler newFiler,
@@ -53,7 +48,7 @@ public class SkipListMapBackedKeyedFPIndexGrower implements GrowFiler<Integer, S
 
         synchronized (currentLock) {
             synchronized (newLock) {
-                if (newMonkey.acquire(alwaysRoomForNMoreKeys)) {
+                if (newMonkey.acquire(sizeHint)) {
                     currentMonkey.copyTo(currentFiler, newMonkey, newFiler);
                 } else {
                     throw new RuntimeException("Newly allocated MapBackedKeyedFPIndexGrower context does not have necessary capacity!");
@@ -63,9 +58,9 @@ public class SkipListMapBackedKeyedFPIndexGrower implements GrowFiler<Integer, S
     }
 
     @Override
-    public void release(SkipListMapBackedKeyedFPIndex monkey, Object lock) {
+    public void release(Integer sizeHint, SkipListMapBackedKeyedFPIndex monkey, Object lock) {
         synchronized (lock) {
-            monkey.release(alwaysRoomForNMoreKeys);
+            monkey.release(sizeHint);
         }
     }
 }

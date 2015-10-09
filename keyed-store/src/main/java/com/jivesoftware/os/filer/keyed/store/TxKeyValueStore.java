@@ -25,6 +25,7 @@ import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMap;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxPartitionedNamedMap;
 import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
 import com.jivesoftware.os.filer.io.KeyValueMarshaller;
+import com.jivesoftware.os.filer.io.api.IndexAlignedKeyValueTransaction;
 import com.jivesoftware.os.filer.io.api.KeyValueContext;
 import com.jivesoftware.os.filer.io.api.KeyValueStore;
 import com.jivesoftware.os.filer.io.api.KeyValueTransaction;
@@ -65,7 +66,7 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
             stores[i] = new TxNamedMap(skyhookCog, seed, chunkStores[i], SKY_HOOK_FP,
                 new MapCreator(2, keySize, variableKeySize, payloadSize, variablePayloadSize),
                 MapOpener.INSTANCE,
-                new MapGrower<>(1),
+                new MapGrower<>(),
                 skyHookKeySemaphores);
         }
 
@@ -79,6 +80,39 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
             keysBytes[i] = keyValueMarshaller.keyBytes(keys.get(i));
         }
         return namedMap.contains(keysBytes, name);
+    }
+
+    @Override
+    public void multiExecute(K[] keys, IndexAlignedKeyValueTransaction<V> indexAlignedKeyValueTransaction) throws IOException {
+        byte[][] keysBytes = new byte[keys.length][];
+        for (int i = 0; i < keysBytes.length; i++) {
+            keysBytes[i] = keys[i] != null ? keyValueMarshaller.keyBytes(keys[i]) : null;
+        }
+        namedMap.multiReadWriteAutoGrow(keysBytes, name,
+            (monkey, filer, index) -> {
+                indexAlignedKeyValueTransaction.commit(new KeyValueContext<V>() {
+
+                    @Override
+                    public void set(V value) throws IOException {
+                        MapStore.INSTANCE.add(filer, monkey, (byte) 1, keysBytes[index], keyValueMarshaller.valueBytes(value));
+                    }
+
+                    @Override
+                    public void remove() throws IOException {
+                        MapStore.INSTANCE.remove(filer, monkey, keysBytes[index]);
+                    }
+
+                    @Override
+                    public V get() throws IOException {
+                        long pi = MapStore.INSTANCE.get(filer, monkey, keysBytes[index]);
+                        if (pi > -1) {
+                            byte[] rawValue = MapStore.INSTANCE.getPayload(filer, monkey, pi);
+                            return keyValueMarshaller.bytesValue(keys[index], rawValue, 0);
+                        }
+                        return null;
+                    }
+                }, index);
+            });
     }
 
     @Override

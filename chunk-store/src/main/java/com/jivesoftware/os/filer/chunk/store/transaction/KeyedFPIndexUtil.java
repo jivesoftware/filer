@@ -92,14 +92,14 @@ public class KeyedFPIndexUtil {
             R result;
             final AtomicLong currentFP = new AtomicLong(-1);
             result = chunkStore.execute(grownFP, opener, (newMonkey, newFiler, newLock) -> {
-                growFiler.growAndAcquire(null, null, newMonkey, newFiler, newLock, newLock);
+                growFiler.growAndAcquire(hint, null, null, newMonkey, newFiler, newLock, newLock);
                 try {
                     synchronized (keyLock) {
                         currentFP.set(backingFPIndex.getAndSet(key, grownFP));
                     }
                     return filerTransaction.commit(newMonkey, newFiler, newLock);
                 } finally {
-                    growFiler.release(newMonkey, newLock);
+                    growFiler.release(hint, newMonkey, newLock);
                 }
             });
 
@@ -164,14 +164,14 @@ public class KeyedFPIndexUtil {
 
             Bag<R> bag = chunkStore.execute(fp, opener, (monkey, filer, lock) -> {
                 if (growFiler != null) {
-                    H hint1 = growFiler.acquire(monkey, filer, lock);
+                    H hint1 = growFiler.acquire(hint, monkey, filer, lock);
                     try {
                         if (hint1 != null) {
                             return null;
                         }
                         return new Bag<>(filerTransaction.commit(monkey, filer, lock));
                     } finally {
-                        growFiler.release(monkey, lock);
+                        growFiler.release(hint, monkey, lock);
                     }
                 } else {
                     return new Bag<>(filerTransaction.commit(monkey, filer, lock));
@@ -201,12 +201,12 @@ public class KeyedFPIndexUtil {
             final AtomicLong removeFP = new AtomicLong(-1);
             try {
                 return chunkStore.execute(fp, opener, (monkey, filer, lock) -> {
-                    H hint1 = growFiler.acquire(monkey, filer, lock);
+                    H hint1 = growFiler.acquire(hint, monkey, filer, lock);
                     try {
                         if (hint1 != null) {
                             final long grownFP = chunkStore.newChunk(hint1, creator);
                             return chunkStore.execute(grownFP, opener, (newMonkey, newFiler, newLock) -> {
-                                growFiler.growAndAcquire(monkey, filer, newMonkey, newFiler, lock, newLock);
+                                growFiler.growAndAcquire(hint, monkey, filer, newMonkey, newFiler, lock, newLock);
                                 try {
                                     backingFPIndex.set(key, grownFP);
                                     removeFP.set(filer.getChunkFP());
@@ -215,7 +215,7 @@ public class KeyedFPIndexUtil {
                                     releasablePermits.set(1);
                                     return filerTransaction.commit(newMonkey, newFiler, newLock);
                                 } finally {
-                                    growFiler.release(newMonkey, newLock);
+                                    growFiler.release(hint, newMonkey, newLock);
                                 }
                             });
 
@@ -226,7 +226,7 @@ public class KeyedFPIndexUtil {
                             return filerTransaction.commit(monkey, filer, lock);
                         }
                     } finally {
-                        growFiler.release(monkey, lock);
+                        growFiler.release(hint, monkey, lock);
                     }
                 });
             } finally {

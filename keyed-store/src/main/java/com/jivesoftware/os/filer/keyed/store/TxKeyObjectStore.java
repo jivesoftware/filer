@@ -23,6 +23,7 @@ import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.KeyMarshaller;
 import com.jivesoftware.os.filer.io.OpenFiler;
+import com.jivesoftware.os.filer.io.api.IndexAlignedKeyValueTransaction;
 import com.jivesoftware.os.filer.io.api.KeyValueContext;
 import com.jivesoftware.os.filer.io.api.KeyValueStore;
 import com.jivesoftware.os.filer.io.api.KeyValueTransaction;
@@ -88,18 +89,19 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
 
         GrowFiler<Integer, MapContext, ChunkFiler> grower = new GrowFiler<Integer, MapContext, ChunkFiler>() {
             @Override
-            public Integer acquire(MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
+            public Integer acquire(Integer sizeHint, MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
                 synchronized (lock) {
-                    if (MapStore.INSTANCE.acquire(monkey, 1)) {
+                    if (MapStore.INSTANCE.acquire(monkey, sizeHint)) {
                         return null;
                     } else {
-                        return MapStore.INSTANCE.nextGrowSize(monkey, 1);
+                        return MapStore.INSTANCE.nextGrowSize(monkey, sizeHint);
                     }
                 }
             }
 
             @Override
-            public void growAndAcquire(MapContext currentMonkey,
+            public void growAndAcquire(Integer sizeHint,
+                MapContext currentMonkey,
                 ChunkFiler currentFiler,
                 MapContext newMonkey,
                 ChunkFiler newFiler,
@@ -118,9 +120,9 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
             }
 
             @Override
-            public void release(MapContext monkey, Object lock) {
+            public void release(Integer sizeHint, MapContext monkey, Object lock) {
                 synchronized (lock) {
-                    MapStore.INSTANCE.release(monkey, 1);
+                    MapStore.INSTANCE.release(monkey, sizeHint);
                 }
             }
         };
@@ -149,13 +151,18 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
+    public void multiExecute(K[] keys, IndexAlignedKeyValueTransaction<V> indexAlignedKeyValueTransaction) throws IOException {
+        throw new UnsupportedOperationException("TODO");
+    }
+
+    @Override
     public <R> R execute(K key,
         boolean createIfAbsent,
         final KeyValueTransaction<V, R> keyValueTransaction) throws IOException {
 
         final byte[] keyBytes = keyMarshaller.keyBytes(key);
         if (createIfAbsent) {
-            return namedMap.readWriteAutoGrow(mapName,
+            return namedMap.readWriteAutoGrow(mapName, 1,
                 (monkey, filer, lock) -> keyValueTransaction.commit(new KeyValueContext<V>() {
 
                     @Override

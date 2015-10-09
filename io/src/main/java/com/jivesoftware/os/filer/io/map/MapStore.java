@@ -297,23 +297,23 @@ public class MapStore {
         return -1;
     }
 
-    private void write(Filer filer, int offest, int destOffset, int length, byte[] key, int size, int keyOffset) throws IOException {
+    private void write(Filer filer, int offset, int destOffset, int length, byte[] key, int size, int keyOffset) throws IOException {
 
         if (length == 0) {
         } else if (length == 1) {
-            write(filer, offest + destOffset, (byte) key.length);
+            write(filer, offset + destOffset, (byte) key.length);
         } else if (length == 2) {
-            writeUnsignedShort(filer, offest + destOffset, key.length);
+            writeUnsignedShort(filer, offset + destOffset, key.length);
         } else if (length == 4) {
-            writeInt(filer, offest + destOffset, key.length);
+            writeInt(filer, offset + destOffset, key.length);
         } else {
             throw new RuntimeException("Unsupported length. 0,1,2,4 valid but encounterd:" + length);
         }
-        write(filer, offest + destOffset + length, key, keyOffset, key.length);
+        write(filer, offset + destOffset + length, key, keyOffset, key.length);
 
         int padding = size - destOffset - key.length;
         if (padding > 0) {
-            write(filer, offest + destOffset + length + key.length, new byte[padding], 0, padding);
+            write(filer, offset + destOffset + length + key.length, new byte[padding], 0, padding);
         }
     }
 
@@ -367,6 +367,11 @@ public class MapStore {
 
     public byte[] getPayload(Filer filer, MapContext context, byte[] key) throws IOException {
         long i = get(filer, context, key);
+        return (i == -1) ? null : getPayload(filer, context, i);
+    }
+
+    public byte[] getPayload(Filer filer, MapContext context, long keyHash, byte[] key) throws IOException {
+        long i = get(filer, context, keyHash, key);
         return (i == -1) ? null : getPayload(filer, context, i);
     }
 
@@ -592,7 +597,7 @@ public class MapStore {
         }
     }
 
-    private long hash(byte[] _key, int _start, int _length) {
+    public long hash(byte[] _key, int _start, int _length) {
         long hash = 0;
         long randMult = 0x5_DEEC_E66DL;
         long randAdd = 0xBL;

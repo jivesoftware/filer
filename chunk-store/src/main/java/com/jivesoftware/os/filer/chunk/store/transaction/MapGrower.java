@@ -12,25 +12,20 @@ import java.io.IOException;
  */
 public class MapGrower<M extends MapContext> implements GrowFiler<Integer, M, ChunkFiler> {
 
-    private final int alwaysRoomForNMoreKeys;
-
-    public MapGrower(int alwaysRoomForNMoreKeys) {
-        this.alwaysRoomForNMoreKeys = alwaysRoomForNMoreKeys;
-    }
-
     @Override
-    public Integer acquire(M monkey, ChunkFiler filer, Object lock) throws IOException {
+    public Integer acquire(Integer sizeHint, M monkey, ChunkFiler filer, Object lock) throws IOException {
         synchronized (lock) {
-            if (MapStore.INSTANCE.acquire(monkey, alwaysRoomForNMoreKeys)) {
+            if (MapStore.INSTANCE.acquire(monkey, sizeHint)) {
                 return null;
             } else {
-                return MapStore.INSTANCE.nextGrowSize(monkey, alwaysRoomForNMoreKeys);
+                return MapStore.INSTANCE.nextGrowSize(monkey, sizeHint);
             }
         }
     }
 
     @Override
-    public void growAndAcquire(M currentMonkey,
+    public void growAndAcquire(Integer sizeHint,
+        M currentMonkey,
         ChunkFiler currentFiler,
         M newMonkey,
         ChunkFiler newFiler,
@@ -39,7 +34,7 @@ public class MapGrower<M extends MapContext> implements GrowFiler<Integer, M, Ch
 
         synchronized (currentLock) {
             synchronized (newLock) {
-                if (MapStore.INSTANCE.acquire(newMonkey, alwaysRoomForNMoreKeys)) {
+                if (MapStore.INSTANCE.acquire(newMonkey, sizeHint)) {
                     MapStore.INSTANCE.copyTo(currentFiler, currentMonkey, newFiler, newMonkey, null);
                 } else {
                     throw new RuntimeException("Newly allocated MapGrower context does not have necessary capacity!");
@@ -49,9 +44,9 @@ public class MapGrower<M extends MapContext> implements GrowFiler<Integer, M, Ch
     }
 
     @Override
-    public void release(M monkey, Object lock) {
+    public void release(Integer sizeHint, M monkey, Object lock) {
         synchronized (lock) {
-            MapStore.INSTANCE.release(monkey, alwaysRoomForNMoreKeys);
+            MapStore.INSTANCE.release(monkey, sizeHint);
         }
     }
 }

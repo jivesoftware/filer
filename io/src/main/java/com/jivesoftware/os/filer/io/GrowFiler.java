@@ -26,9 +26,9 @@ import java.io.IOException;
  */
 public interface GrowFiler<H, M, F extends Filer> {
 
-    H acquire(M monkey, F filer, Object lock) throws IOException;
+    H acquire(H additionalSizeHint, M monkey, F filer, Object lock) throws IOException;
 
-    void growAndAcquire(M currentMonkey, F currentFiler, M newMonkey, F newFiler, Object currentLock, Object newLock) throws IOException;
+    void growAndAcquire(H additionalSizeHint, M currentMonkey, F currentFiler, M newMonkey, F newFiler, Object currentLock, Object newLock) throws IOException;
 
-    void release(M monkey, Object lock);
+    void release(H additionalSizeHint, M monkey, Object lock);
 }

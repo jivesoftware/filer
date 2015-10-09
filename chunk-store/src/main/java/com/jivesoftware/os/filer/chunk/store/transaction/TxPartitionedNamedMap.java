@@ -17,6 +17,7 @@ package com.jivesoftware.os.filer.chunk.store.transaction;
 
 import com.jivesoftware.os.filer.io.PartitionFunction;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.api.IndexAlignedChunkTransaction;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.map.MapContext;
 import com.jivesoftware.os.filer.io.map.MapStore;
@@ -71,7 +72,37 @@ public class TxPartitionedNamedMap {
     public <R> R readWriteAutoGrow(byte[] partitionKey, final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction) throws IOException {
         int i = partitionFunction.partition(namedMaps.length, partitionKey);
         final TxNamedMap namedMap = namedMaps[i];
-        return namedMap.readWriteAutoGrow(mapName, mapTransaction);
+        return namedMap.readWriteAutoGrow(mapName, 1, mapTransaction);
+    }
+
+    public void multiReadWriteAutoGrow(byte[][] keysBytes,
+        final byte[] mapName,
+        final IndexAlignedChunkTransaction<MapContext> indexAlignedChunkTransaction) throws IOException {
+
+        byte[][][] partitionedKeysBytes = new byte[namedMaps.length][keysBytes.length][];
+        int[] additionalCapacity = new int[namedMaps.length];
+        for (int i = 0; i < keysBytes.length; i++) {
+            int p = partitionFunction.partition(namedMaps.length, keysBytes[i]);
+            partitionedKeysBytes[p][i] = keysBytes[i];
+            additionalCapacity[p]++;
+        }
+
+        for (int p = 0; p < namedMaps.length; p++) {
+            final byte[][] currentKeysBytes = partitionedKeysBytes[p];
+            namedMaps[p].readWriteAutoGrow(mapName, additionalCapacity[p], (context, filer, lock) -> {
+                if (filer != null) {
+                    synchronized (lock) {
+                        for (int i = 0; i < currentKeysBytes.length; i++) {
+                            byte[] keyBytes = currentKeysBytes[i];
+                            if (keyBytes != null) {
+                                indexAlignedChunkTransaction.commit(context, filer, i);
+                            }
+                        }
+                    }
+                }
+                return null;
+            });
+        }
     }
 
     public <R> R read(byte[] partitionKey, final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction) throws IOException {

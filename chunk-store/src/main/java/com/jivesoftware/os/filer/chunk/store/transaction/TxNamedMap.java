@@ -66,9 +66,9 @@ public class TxNamedMap {
         this.mapGrower = mapGrower;
     }
 
-    private final MapBackedKeyedFPIndexGrower grower = new MapBackedKeyedFPIndexGrower(1);
+    private final MapBackedKeyedFPIndexGrower grower = new MapBackedKeyedFPIndexGrower();
 
-    public <R> R readWriteAutoGrow(final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction) throws IOException {
+    public <R> R readWriteAutoGrow(final byte[] mapName, int additionalCapacity, final ChunkTransaction<MapContext, R> mapTransaction) throws IOException {
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP)) {
                 long fp = chunkStore.newChunk(null, skyHookIndexCreator);
@@ -79,7 +79,7 @@ public class TxNamedMap {
 
             int chunkPower = FilerIO.chunkPower(mapName.length, 0);
             return monkey.readWriteAutoGrow(chunkStore, chunkPower, 1, skyHookCog.creators[chunkPower], skyHookCog.opener, grower,
-                (monkey1, filer1, lock1) -> monkey1.readWriteAutoGrow(chunkStore, mapName, 1, mapCreator, mapOpener, mapGrower, mapTransaction));
+                (monkey1, filer1, lock1) -> monkey1.readWriteAutoGrow(chunkStore, mapName, additionalCapacity, mapCreator, mapOpener, mapGrower, mapTransaction));
 
         });
     }

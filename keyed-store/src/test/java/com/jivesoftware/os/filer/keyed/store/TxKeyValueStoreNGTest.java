@@ -38,6 +38,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
@@ -164,6 +165,45 @@ public class TxKeyValueStoreNGTest {
                 assertFalse(contains[i]);
             }
         }
+    }
+
+    @Test
+    public void testMultiExecute() throws IOException {
+        int numKeys = 16;
+        List<Long> keys = new ArrayList<>();
+        for (int i = 0; i < numKeys; i++) {
+            keys.add((long) i);
+        }
+
+        int[] checked = new int[1];
+        store1.multiExecute(keys.toArray(new Long[keys.size()]), (keyValueContext, index) -> {
+            Long got = keyValueContext.get();
+            Assert.assertNull(got);
+            Assert.assertTrue(index >= 0 && index < numKeys);
+            checked[0]++;
+        });
+        assertEquals(checked[0], numKeys);
+
+        store1.multiExecute(keys.toArray(new Long[keys.size()]), (keyValueContext, index) -> {
+            long v = (long) index;
+            Long got = keyValueContext.get();
+            Assert.assertNull(got);
+            keyValueContext.set(v);
+            got = keyValueContext.get();
+            Assert.assertNotNull(got);
+            keyValueContext.remove();
+            got = keyValueContext.get();
+            Assert.assertNull(got);
+            keyValueContext.set(v);
+        });
+
+        checked[0] = 0;
+        store1.multiExecute(keys.toArray(new Long[keys.size()]), (keyValueContext, index) -> {
+            Long got = keyValueContext.get();
+            Assert.assertEquals(got, (Long) (long) index);
+            checked[0]++;
+        });
+        assertEquals(checked[0], numKeys);
     }
 
     @Test

@@ -12,6 +12,8 @@ public interface KeyValueStore<K, V> {
 
     boolean[] contains(List<K> keys) throws IOException;
 
+    void multiExecute(K[] keys, IndexAlignedKeyValueTransaction<V> indexAlignedKeyValueTransaction) throws IOException;
+
     <R> R execute(K key, boolean createIfAbsent, KeyValueTransaction<V, R> keyValueTransaction) throws IOException;
 
     boolean stream(EntryStream<K, V> stream) throws IOException;

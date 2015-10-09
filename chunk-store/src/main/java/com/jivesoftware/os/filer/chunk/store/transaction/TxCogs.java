@@ -47,7 +47,7 @@ public class TxCogs {
     public TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> getSkyhookCog(int seed) {
         MapBackedKeyedFPIndexCreator[] creators = new MapBackedKeyedFPIndexCreator[NUM_POWERS];
         MapBackedKeyedFPIndexOpener opener = new MapBackedKeyedFPIndexOpener(seed, skyHookPowerLocks, skyHookPowerSemaphores, skyHookFpCacheFactory);
-        MapBackedKeyedFPIndexGrower grower = new MapBackedKeyedFPIndexGrower(1);
+        MapBackedKeyedFPIndexGrower grower = new MapBackedKeyedFPIndexGrower();
         for (int i = 0; i < creators.length; i++) {
             creators[i] = new MapBackedKeyedFPIndexCreator(seed, 2, (int) FilerIO.chunkLength(i), true, 8, false,
                 opener, skyHookPowerLocks, skyHookPowerSemaphores, skyHookFpCacheFactory);
@@ -58,7 +58,7 @@ public class TxCogs {
     public TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> getPowerCog(int seed) {
         MapBackedKeyedFPIndexCreator[] creators = new MapBackedKeyedFPIndexCreator[NUM_POWERS];
         MapBackedKeyedFPIndexOpener opener = new MapBackedKeyedFPIndexOpener(seed, powerLocks, powerSemaphores, namedPowerFpCacheFactory);
-        MapBackedKeyedFPIndexGrower grower = new MapBackedKeyedFPIndexGrower(1);
+        MapBackedKeyedFPIndexGrower grower = new MapBackedKeyedFPIndexGrower();
         for (int i = 0; i < creators.length; i++) {
             creators[i] = new MapBackedKeyedFPIndexCreator(seed, 2, (int) FilerIO.chunkLength(i), true, 8, false,
                 opener, powerLocks, powerSemaphores, namedPowerFpCacheFactory);
@@ -69,7 +69,7 @@ public class TxCogs {
     public TxCog<Integer, SkipListMapBackedKeyedFPIndex, ChunkFiler> getSkipListPowerCog(int seed) {
         SkipListMapBackedKeyedFPIndexCreator[] creators = new SkipListMapBackedKeyedFPIndexCreator[NUM_POWERS];
         SkipListMapBackedKeyedFPIndexOpener opener = new SkipListMapBackedKeyedFPIndexOpener(seed, powerLocks, powerSemaphores, slNamedPowerCacheFactory);
-        SkipListMapBackedKeyedFPIndexGrower grower = new SkipListMapBackedKeyedFPIndexGrower(1);
+        SkipListMapBackedKeyedFPIndexGrower grower = new SkipListMapBackedKeyedFPIndexGrower();
         for (int i = 0; i < creators.length; i++) {
             creators[i] = new SkipListMapBackedKeyedFPIndexCreator(seed, 2, (int) FilerIO.chunkLength(i), true, 8,
                 opener, powerLocks, powerSemaphores, slNamedPowerCacheFactory);

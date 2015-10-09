@@ -45,12 +45,13 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         sizeHint -> new GrowFiler<Long, Void, ChunkFiler>() {
 
             @Override
-            public Long acquire(Void monkey, ChunkFiler filer, Object lock) throws IOException {
+            public Long acquire(Long sizeHint, Void monkey, ChunkFiler filer, Object lock) throws IOException {
                 return filer.length() < sizeHint ? sizeHint : null;
             }
 
             @Override
-            public void growAndAcquire(Void currentMonkey,
+            public void growAndAcquire(Long sizeHint,
+                Void currentMonkey,
                 ChunkFiler currentFiler,
                 Void newMonkey,
                 ChunkFiler newFiler,
@@ -67,7 +68,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
             }
 
             @Override
-            public void release(Void monkey, Object lock) {
+            public void release(Long sizeHint, Void monkey, Object lock) {
             }
         };
 
@@ -81,12 +82,13 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
             return new GrowFiler<Long, Void, ChunkFiler>() {
 
                 @Override
-                public Long acquire(Void monkey, ChunkFiler filer, Object lock) throws IOException {
+                public Long acquire(Long sizeHint, Void monkey, ChunkFiler filer, Object lock) throws IOException {
                     return sizeHint;
                 }
 
                 @Override
-                public void growAndAcquire(Void currentMonkey,
+                public void growAndAcquire(Long sizeHint,
+                    Void currentMonkey,
                     ChunkFiler currentFiler,
                     Void newMonkey,
                     ChunkFiler newFiler,
@@ -96,7 +98,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                 }
 
                 @Override
-                public void release(Void monkey, Object lock) {
+                public void release(Long sizeHint, Void monkey, Object lock) {
                 }
             };
         }
