@@ -20,7 +20,6 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 /**
- *
  * @author jonathan.colt
  */
 public class AutoGrowingByteBufferBackedFiler implements Filer {
@@ -117,8 +116,8 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         if (position > MAX_POSITION) {
             throw new IllegalStateException("Encountered a likely runaway file position! position=" + position);
         }
-        int f = (int) (position >> fShift); // (int) (position / maxBufferSegmentSize); // TODO can/should convert to bitshifts?
-        long fseek = position & fseekMask; // position % maxBufferSegmentSize; // TODO can/should  convert to bitshifts?
+        int f = (int) (position >> fShift);
+        long fseek = position & fseekMask;
         if (f >= filers.length) {
             int lastFilerIndex = filers.length - 1;
             if (lastFilerIndex > -1 && filers[lastFilerIndex].length() < maxBufferSegmentSize) {
