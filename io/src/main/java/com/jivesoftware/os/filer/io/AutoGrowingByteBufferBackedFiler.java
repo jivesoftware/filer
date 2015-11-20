@@ -281,4 +281,26 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         }
     }
 
+    public boolean canLeak(long startOfFP, long endOfFP) {
+        int startF = (int) (startOfFP >> fShift);
+        int endF = (int) (endOfFP >> fShift);
+        return (endF != startF);
+    }
+
+    public ByteBuffer leak(long startOfFP, long endOfFP) throws IOException {
+        int startF = (int) (startOfFP >> fShift);
+        int endF = (int) (endOfFP >> fShift);
+        if (endF != startF) {
+            return null;
+        }
+
+        long startFseek = startOfFP & fseekMask;
+        long endFseek = endOfFP & fseekMask;
+
+        ByteBuffer buf = filers[startF].buffer;
+        buf.position((int) startFseek);
+        buf.limit((int) endFseek);
+
+        return buf.slice();
+    }
 }

@@ -1,7 +1,9 @@
 package com.jivesoftware.os.filer.io.chunk;
 
+import com.jivesoftware.os.filer.io.AutoGrowingByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.Filer;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /*
  This class segments a single Filer into segment filers where
@@ -14,12 +16,12 @@ import java.io.IOException;
 public class ChunkFiler implements Filer {
 
     private final ChunkStore chunkStore;
-    private final Filer filer;
+    private final AutoGrowingByteBufferBackedFiler filer;
     private final long chunkFP;
     private final long startOfFP;
     private final long endOfFP;
 
-    ChunkFiler(ChunkStore chunkStore, Filer filer, long chunkFP, long startOfFP, long endOfFP) {
+    ChunkFiler(ChunkStore chunkStore, AutoGrowingByteBufferBackedFiler filer, long chunkFP, long startOfFP, long endOfFP) {
         this.chunkStore = chunkStore;
         this.filer = filer;
         this.chunkFP = chunkFP;
@@ -151,6 +153,23 @@ public class ChunkFiler implements Filer {
     @Override
     final public void flush() throws IOException {
         filer.flush();
+    }
+
+    /**
+     *
+     * @return whether or not this chunk filer can leak an unsafe view of its backing byte buffer.
+     */
+    public boolean canLeakUnsafeByteBuffer() {
+        return filer.canLeak(startOfFP, endOfFP);
+    }
+
+    /**
+     *
+     * @return an unsafe view of this chunk filer's backing byte buffer, or null if no byte buffer can be leaked.
+     * @throws IOException
+     */
+    public ByteBuffer leakUnsafeByteBuffer() throws IOException {
+        return filer.leak(startOfFP, endOfFP);
     }
 
 }
