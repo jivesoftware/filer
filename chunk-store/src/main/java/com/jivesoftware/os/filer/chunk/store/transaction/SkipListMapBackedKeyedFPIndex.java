@@ -77,9 +77,9 @@ public class SkipListMapBackedKeyedFPIndex implements FPIndex<byte[], SkipListMa
     }
 
     @Override
-    public void copyTo(Filer currentFiler, FPIndex<byte[], SkipListMapBackedKeyedFPIndex> newMonkey, Filer newFiler) throws IOException {
+    public void copyTo(Filer currentFiler, FPIndex<byte[], SkipListMapBackedKeyedFPIndex> newMonkey, Filer newFiler, byte[] primitiveBuffer) throws IOException {
         // TODO rework generics to elimnate this cast
-        SkipListMapStore.INSTANCE.copyTo(currentFiler, context, newFiler, ((SkipListMapBackedKeyedFPIndex) newMonkey).context, null);
+        SkipListMapStore.INSTANCE.copyTo(currentFiler, context, newFiler, ((SkipListMapBackedKeyedFPIndex) newMonkey).context, null, primitiveBuffer);
     }
 
     @Override
@@ -88,7 +88,7 @@ public class SkipListMapBackedKeyedFPIndex implements FPIndex<byte[], SkipListMa
     }
 
     @Override
-    public long get(final byte[] key) throws IOException {
+    public long get(final byte[] key, byte[] primitiveBuffer) throws IOException {
         Long got = null;
         IBA ibaKey = null;
         if (keyToFpCache != null) {
@@ -96,15 +96,15 @@ public class SkipListMapBackedKeyedFPIndex implements FPIndex<byte[], SkipListMa
             got = keyToFpCache.get(ibaKey);
         }
         if (got == null) {
-            got = backingChunkStore.execute(backingFP, opener, (monkey, filer, lock) -> {
+            got = backingChunkStore.execute(backingFP, opener, (monkey, filer, _primitiveBuffer, lock) -> {
                 synchronized (lock) {
-                    byte[] got1 = SkipListMapStore.INSTANCE.getExistingPayload(filer, monkey.context, key);
+                    byte[] got1 = SkipListMapStore.INSTANCE.getExistingPayload(filer, monkey.context, key, _primitiveBuffer);
                     if (got1 == null) {
                         return -1L;
                     }
                     return FilerIO.bytesLong(got1);
                 }
-            });
+            }, primitiveBuffer);
             if (keyToFpCache != null) {
                 keyToFpCache.put(ibaKey, got);
             }
@@ -113,73 +113,74 @@ public class SkipListMapBackedKeyedFPIndex implements FPIndex<byte[], SkipListMa
     }
 
     @Override
-    public void set(final byte[] key, final long fp) throws IOException {
+    public void set(final byte[] key, final long fp, byte[] primitiveBuffer) throws IOException {
         if (keyToFpCache != null) {
             keyToFpCache.put(new IBA(key), fp);
         }
-        backingChunkStore.execute(backingFP, opener, (monkey, filer, lock) -> {
+        backingChunkStore.execute(backingFP, opener, (monkey, filer, _primitiveBuffer, lock) -> {
             synchronized (lock) {
-                SkipListMapStore.INSTANCE.add(filer, context, key, FilerIO.longBytes(fp));
+                SkipListMapStore.INSTANCE.add(filer, context, key, FilerIO.longBytes(fp), _primitiveBuffer);
             }
             return null;
-        });
+        }, primitiveBuffer);
     }
 
     @Override
-    public long getAndSet(final byte[] key, final long fp) throws IOException {
+    public long getAndSet(final byte[] key, final long fp, byte[] primitiveBuffer) throws IOException {
         if (keyToFpCache != null) {
             keyToFpCache.put(new IBA(key), fp);
         }
-        return backingChunkStore.execute(backingFP, opener, (monkey, filer, lock) -> {
+        return backingChunkStore.execute(backingFP, opener, (monkey, filer, _primitiveBuffer, lock) -> {
             synchronized (lock) {
-                byte[] payload = SkipListMapStore.INSTANCE.getExistingPayload(filer, monkey.context, key);
+                byte[] payload = SkipListMapStore.INSTANCE.getExistingPayload(filer, monkey.context, key, _primitiveBuffer);
                 long got = -1L;
                 if (payload != null) {
                     got = FilerIO.bytesLong(payload);
                 }
-                SkipListMapStore.INSTANCE.add(filer, context, key, FilerIO.longBytes(fp));
+                SkipListMapStore.INSTANCE.add(filer, context, key, FilerIO.longBytes(fp), _primitiveBuffer);
                 return got;
             }
-        });
+        }, primitiveBuffer);
     }
 
     @Override
     public <H, M, R> R read(ChunkStore chunkStore, byte[] key,
-        OpenFiler<M, ChunkFiler> opener, ChunkTransaction<M, R> filerTransaction) throws IOException {
+        OpenFiler<M, ChunkFiler> opener, ChunkTransaction<M, R> filerTransaction,
+        byte[] primitiveBuffer) throws IOException {
         Object keyLock = keyLocks.lock(key, seed);
         return KeyedFPIndexUtil.INSTANCE.read(this, keySemaphores.semaphore(key, seed), keySemaphores.getNumPermits(), chunkStore, keyLock,
-            key, opener, filerTransaction);
+            key, opener, filerTransaction, primitiveBuffer);
     }
 
     @Override
     public <H, M, R> R writeNewReplace(ChunkStore chunkStore, byte[] key, H hint,
         CreateFiler<H, M, ChunkFiler> creator, OpenFiler<M, ChunkFiler> opener, GrowFiler<H, M, ChunkFiler> growFiler,
-        ChunkTransaction<M, R> filerTransaction) throws IOException {
+        ChunkTransaction<M, R> filerTransaction, byte[] primitiveBuffer) throws IOException {
         Object keyLock = keyLocks.lock(key, seed);
         return KeyedFPIndexUtil.INSTANCE.writeNewReplace(this, keySemaphores.semaphore(key, seed), keySemaphores.getNumPermits(), chunkStore, keyLock,
-            key, hint, creator, opener, growFiler, filerTransaction);
+            key, hint, creator, opener, growFiler, filerTransaction, primitiveBuffer);
     }
 
     @Override
     public <H, M, R> R readWriteAutoGrow(ChunkStore chunkStore, byte[] key, H hint,
         CreateFiler<H, M, ChunkFiler> creator, OpenFiler<M, ChunkFiler> opener, GrowFiler<H, M, ChunkFiler> growFiler,
-        ChunkTransaction<M, R> filerTransaction) throws IOException {
+        ChunkTransaction<M, R> filerTransaction, byte[] primitiveBuffer) throws IOException {
         Object keyLock = keyLocks.lock(key, seed);
         return KeyedFPIndexUtil.INSTANCE.readWriteAutoGrowIfNeeded(this, keySemaphores.semaphore(key, seed), keySemaphores.getNumPermits(),
-            chunkStore, keyLock, key, hint, creator, opener, growFiler, filerTransaction);
+            chunkStore, keyLock, key, hint, creator, opener, growFiler, filerTransaction, primitiveBuffer);
     }
 
     @Override
-    public boolean stream(final List<KeyRange> ranges, final KeysStream<byte[]> keysStream) throws IOException {
+    public boolean stream(final List<KeyRange> ranges, final KeysStream<byte[]> keysStream, byte[] primitiveBuffer) throws IOException {
         final MapStore.KeyStream mapKeyStream = keysStream::stream;
 
         return backingChunkStore.execute(backingFP, null, new ChunkTransaction<SkipListMapBackedKeyedFPIndex, Boolean>() {
 
             @Override
-            public Boolean commit(SkipListMapBackedKeyedFPIndex monkey, ChunkFiler filer, Object lock) throws IOException {
-                return SkipListMapStore.INSTANCE.streamKeys(filer, monkey.context, lock, ranges, mapKeyStream);
+            public Boolean commit(SkipListMapBackedKeyedFPIndex monkey, ChunkFiler filer, byte[] primitiveBuffer, Object lock) throws IOException {
+                return SkipListMapStore.INSTANCE.streamKeys(filer, monkey.context, lock, ranges, mapKeyStream, primitiveBuffer);
             }
-        });
+        }, primitiveBuffer);
     }
 
 }

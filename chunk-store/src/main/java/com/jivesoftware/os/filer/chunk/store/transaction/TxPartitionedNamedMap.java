@@ -36,7 +36,7 @@ public class TxPartitionedNamedMap {
         this.partitionFunction = partitionFunction;
     }
 
-    public boolean[] contains(byte[][] keysBytes, byte[] mapName) throws IOException {
+    public boolean[] contains(byte[][] keysBytes, byte[] mapName, byte[] primitiveBuffer) throws IOException {
         byte[][][] partitionedKeysBytes = new byte[namedMaps.length][keysBytes.length][];
         boolean[][] partitionedContains = new boolean[namedMaps.length][keysBytes.length];
         for (int i = 0; i < keysBytes.length; i++) {
@@ -47,17 +47,17 @@ public class TxPartitionedNamedMap {
         for (int p = 0; p < namedMaps.length; p++) {
             final byte[][] currentKeysBytes = partitionedKeysBytes[p];
             final boolean[] currentContains = partitionedContains[p];
-            namedMaps[p].read(mapName, (context, filer, lock) -> {
+            namedMaps[p].read(mapName, (context, filer, primitiveBuffer1, lock) -> {
                 if (filer != null) {
                     synchronized (lock) {
                         for (int i = 0; i < currentKeysBytes.length; i++) {
                             byte[] keyBytes = currentKeysBytes[i];
-                            currentContains[i] = (keyBytes != null && MapStore.INSTANCE.contains(filer, context, keyBytes));
+                            currentContains[i] = (keyBytes != null && MapStore.INSTANCE.contains(filer, context, keyBytes, primitiveBuffer1));
                         }
                     }
                 }
                 return null;
-            });
+            }, primitiveBuffer);
         }
 
         boolean[] result = new boolean[keysBytes.length];
@@ -69,15 +69,17 @@ public class TxPartitionedNamedMap {
         return result;
     }
 
-    public <R> R readWriteAutoGrow(byte[] partitionKey, final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction) throws IOException {
+    public <R> R readWriteAutoGrow(byte[] partitionKey, final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction, byte[] primitiveBuffer)
+        throws IOException {
         int i = partitionFunction.partition(namedMaps.length, partitionKey);
         final TxNamedMap namedMap = namedMaps[i];
-        return namedMap.readWriteAutoGrow(mapName, 1, mapTransaction);
+        return namedMap.readWriteAutoGrow(mapName, 1, mapTransaction, primitiveBuffer);
     }
 
     public void multiReadWriteAutoGrow(byte[][] keysBytes,
         final byte[] mapName,
-        final IndexAlignedChunkTransaction<MapContext> indexAlignedChunkTransaction) throws IOException {
+        final IndexAlignedChunkTransaction<MapContext> indexAlignedChunkTransaction,
+        byte[] primitiveBuffer) throws IOException {
 
         byte[][][] partitionedKeysBytes = new byte[namedMaps.length][keysBytes.length][];
         int[] additionalCapacity = new int[namedMaps.length];
@@ -89,7 +91,7 @@ public class TxPartitionedNamedMap {
 
         for (int p = 0; p < namedMaps.length; p++) {
             final byte[][] currentKeysBytes = partitionedKeysBytes[p];
-            namedMaps[p].readWriteAutoGrow(mapName, additionalCapacity[p], (context, filer, lock) -> {
+            namedMaps[p].readWriteAutoGrow(mapName, additionalCapacity[p], (context, filer, primitiveBuffer1, lock) -> {
                 if (filer != null) {
                     synchronized (lock) {
                         for (int i = 0; i < currentKeysBytes.length; i++) {
@@ -101,19 +103,20 @@ public class TxPartitionedNamedMap {
                     }
                 }
                 return null;
-            });
+            }, primitiveBuffer);
         }
     }
 
-    public <R> R read(byte[] partitionKey, final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction) throws IOException {
+    public <R> R read(byte[] partitionKey, final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction, byte[] primitiveBuffer) throws
+        IOException {
         int i = partitionFunction.partition(namedMaps.length, partitionKey);
         final TxNamedMap namedMap = namedMaps[i];
-        return namedMap.read(mapName, mapTransaction);
+        return namedMap.read(mapName, mapTransaction, primitiveBuffer);
     }
 
-    public Boolean stream(final byte[] mapName, final TxStream<byte[], MapContext, ChunkFiler> stream) throws IOException {
+    public Boolean stream(final byte[] mapName, final TxStream<byte[], MapContext, ChunkFiler> stream, byte[] primitiveBuffer) throws IOException {
         for (TxNamedMap namedMap : namedMaps) {
-            boolean result = namedMap.stream(mapName, stream);
+            boolean result = namedMap.stream(mapName, stream, primitiveBuffer);
             if (!result) {
                 return false;
             }

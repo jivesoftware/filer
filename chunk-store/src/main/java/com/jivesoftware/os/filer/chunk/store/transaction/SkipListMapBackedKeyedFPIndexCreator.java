@@ -63,7 +63,7 @@ public class SkipListMapBackedKeyedFPIndexCreator implements CreateFiler<Integer
     }
 
     @Override
-    public SkipListMapBackedKeyedFPIndex create(Integer hint, ChunkFiler filer) throws IOException {
+    public SkipListMapBackedKeyedFPIndex create(Integer hint, ChunkFiler filer,byte[] primitiveBuffer) throws IOException {
         hint += initialCapacity;
         hint = hint < 2 ? 2 : hint;
         byte[] headKey = new byte[keySize];
@@ -72,7 +72,9 @@ public class SkipListMapBackedKeyedFPIndexCreator implements CreateFiler<Integer
             headKey,
             keySize, variableKeySize, payloadSize,
             (byte) 9,
-            LexSkipListComparator.cSingleton, filer);
+            LexSkipListComparator.cSingleton, 
+            filer,
+            primitiveBuffer);
         Map<IBA, Long> keyFPCache = null;
         if (cacheFactory != null) {
             keyFPCache = cacheFactory.createCache();

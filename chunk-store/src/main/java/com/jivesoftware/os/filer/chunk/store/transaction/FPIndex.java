@@ -34,27 +34,28 @@ import java.util.List;
  */
 public interface FPIndex<K, I extends FPIndex<K, I>> {
 
-    long get(K key) throws IOException;
+    long get(K key, byte[] primitiveBuffer) throws IOException;
 
-    void set(K key, long fp) throws IOException;
+    void set(K key, long fp, byte[] primitiveBuffer) throws IOException;
 
-    long getAndSet(K key, long fp) throws IOException;
+    long getAndSet(K key, long fp, byte[] primitiveBuffer) throws IOException;
 
     boolean acquire(int alwaysRoomForNMoreKeys);
 
     int nextGrowSize(int alwaysRoomForNMoreKeys) throws IOException;
 
-    void copyTo(Filer curentFiler, FPIndex<K, I> newMonkey, Filer newFiler) throws IOException;
+    void copyTo(Filer curentFiler, FPIndex<K, I> newMonkey, Filer newFiler, byte[] primitiveBuffer) throws IOException;
 
     void release(int alwayRoomForNMoreKeys);
 
-    boolean stream(List<KeyRange> ranges, KeysStream<K> stream) throws IOException;
+    boolean stream(List<KeyRange> ranges, KeysStream<K> stream, byte[] primitiveBuffer) throws IOException;
 
     <H, M, R> R read(
         ChunkStore chunkStore,
         K key,
         OpenFiler<M, ChunkFiler> opener,
-        ChunkTransaction<M, R> filerTransaction) throws IOException;
+        ChunkTransaction<M, R> filerTransaction,
+        byte[] primitiveBuffer) throws IOException;
 
     <H, M, R> R writeNewReplace(
         ChunkStore chunkStore,
@@ -63,7 +64,8 @@ public interface FPIndex<K, I extends FPIndex<K, I>> {
         CreateFiler<H, M, ChunkFiler> creator,
         OpenFiler<M, ChunkFiler> opener,
         GrowFiler<H, M, ChunkFiler> growFiler,
-        ChunkTransaction<M, R> filerTransaction) throws IOException;
+        ChunkTransaction<M, R> filerTransaction,
+        byte[] primitiveBuffer) throws IOException;
 
     <H, M, R> R readWriteAutoGrow(
         ChunkStore chunkStore,
@@ -72,6 +74,7 @@ public interface FPIndex<K, I extends FPIndex<K, I>> {
         CreateFiler<H, M, ChunkFiler> creator,
         OpenFiler<M, ChunkFiler> opener,
         GrowFiler<H, M, ChunkFiler> growFiler,
-        ChunkTransaction<M, R> filerTransaction) throws IOException;
+        ChunkTransaction<M, R> filerTransaction,
+        byte[] primitiveBuffer) throws IOException;
 
 }

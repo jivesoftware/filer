@@ -39,9 +39,9 @@ public class KeyedFPIndexOpener implements OpenFiler<PowerKeyedFPIndex, ChunkFil
     }
 
     @Override
-    public PowerKeyedFPIndex open(ChunkFiler filer) throws IOException {
+    public PowerKeyedFPIndex open(ChunkFiler filer, byte[] primitiveBuffer) throws IOException {
         filer.seek(0);
-        long magicNumber = FilerIO.readLong(filer, "magicHeader");
+        long magicNumber = FilerIO.readLong(filer, "magicHeader", primitiveBuffer);
         if (magicNumber != magicHeader) {
             throw new IllegalStateException("Expected magicHeader:" + magicHeader + " but found:" + magicNumber);
         }

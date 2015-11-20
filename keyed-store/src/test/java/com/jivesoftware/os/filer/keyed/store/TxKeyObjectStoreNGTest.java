@@ -46,16 +46,17 @@ public class TxKeyObjectStoreNGTest {
 
     @BeforeTest
     public void init() throws Exception {
+        byte[] primitiveBuffer = new byte[8];
         TxCogs cogs = new TxCogs(256, 64, null, null, null);
         TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog = cogs.getSkyhookCog(0);
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, 500, 5_000);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 500, 5_000);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
 
         store = new TxPartitionedKeyObjectStore<>(
             (partitionCount, key) -> Math.abs(key.hashCode() % partitionCount),
-            (TxKeyObjectStore<Long, Long>[]) new TxKeyObjectStore[] {
+            (TxKeyObjectStore<Long, Long>[]) new TxKeyObjectStore[]{
                 new TxKeyObjectStore<>(skyhookCog, cogs.getSkyHookKeySemaphores(), 0, chunkStore1, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false),
                 new TxKeyObjectStore<>(skyhookCog, cogs.getSkyHookKeySemaphores(), 0, chunkStore2, new LongKeyMarshaller(), "booya".getBytes(), 2, 8, false)
             });
@@ -63,6 +64,7 @@ public class TxKeyObjectStoreNGTest {
 
     @Test
     public void testExecute() throws IOException {
+        byte[] primitiveBuffer = new byte[8];
         int numKeys = 16;
         List<Long> keys = new ArrayList<>();
         for (int i = 0; i < numKeys; i++) {
@@ -74,7 +76,7 @@ public class TxKeyObjectStoreNGTest {
                 Long got = context.get();
                 Assert.assertNull(got);
                 return null;
-            });
+            }, primitiveBuffer);
 
             store.execute(k, true, context -> {
                 Long got = context.get();
@@ -87,20 +89,20 @@ public class TxKeyObjectStoreNGTest {
                 Assert.assertNull(got);
                 context.set(v);
                 return null;
-            });
+            }, primitiveBuffer);
 
             store.execute(k, false, context -> {
                 Long got = context.get();
                 Assert.assertEquals(got, (Long) v);
                 return null;
-            });
+            }, primitiveBuffer);
         }
 
         for (int i = numKeys; i < numKeys * 2; i++) {
             keys.add((long) i);
         }
 
-        boolean[] contains = store.contains(keys);
+        boolean[] contains = store.contains(keys, primitiveBuffer);
         for (int i = 0; i < numKeys * 2; i++) {
             if (i < numKeys) {
                 assertTrue(contains[i]);
@@ -112,6 +114,7 @@ public class TxKeyObjectStoreNGTest {
 
     @Test
     public void testStream() throws Exception {
+        byte[] primitiveBuffer = new byte[8];
 
         final Map<Long, Long> truth = new ConcurrentHashMap<>();
         for (int i = 0; i < 16; i++) {
@@ -121,7 +124,7 @@ public class TxKeyObjectStoreNGTest {
                 context.set(v);
                 truth.put(k, v);
                 return null;
-            });
+            }, primitiveBuffer);
         }
 
         store.stream((key, value) -> {
@@ -130,13 +133,14 @@ public class TxKeyObjectStoreNGTest {
             Long t = truth.remove(key);
             Assert.assertEquals(value, t);
             return true;
-        });
+        }, primitiveBuffer);
 
         Assert.assertTrue(truth.isEmpty());
     }
 
     @Test
     public void testStreamKeys() throws Exception {
+        byte[] primitiveBuffer = new byte[8];
 
         final Map<Long, Long> truth = new ConcurrentHashMap<>();
         for (int i = 0; i < 16; i++) {
@@ -146,14 +150,14 @@ public class TxKeyObjectStoreNGTest {
                 context.set(v);
                 truth.put(k, v);
                 return null;
-            });
+            }, primitiveBuffer);
         }
 
         store.streamKeys(key -> {
             Assert.assertTrue(truth.containsKey(key));
             truth.remove(key);
             return true;
-        });
+        }, primitiveBuffer);
 
         Assert.assertTrue(truth.isEmpty());
     }

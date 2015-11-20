@@ -8,12 +8,11 @@ import java.io.IOException;
  */
 public class NoOpCreateFiler<F extends Filer> implements CreateFiler<Long, Void, F> {
 
-
     public NoOpCreateFiler() {
     }
 
     @Override
-    public Void create(Long hint, F filer) {
+    public Void create(Long hint, F filer, byte[] primitiveBuffer) {
         return null;
     }
 

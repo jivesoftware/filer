@@ -43,23 +43,28 @@ public class TxPartitionedNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         byte[] mapName,
         byte[] filerKey,
         H sizeHint,
-        ChunkTransaction<M, R> filerTransaction) throws IOException {
-        return stores[partitionFunction.partition(stores.length, partitionKey)].readWriteAutoGrow(mapName, filerKey, sizeHint, filerTransaction);
+        ChunkTransaction<M, R> filerTransaction,
+        byte[] primitiveBuffer) throws IOException {
+        return stores[partitionFunction.partition(stores.length, partitionKey)]
+            .readWriteAutoGrow(mapName, filerKey, sizeHint, filerTransaction, primitiveBuffer);
     }
 
     public <R> R writeNewReplace(byte[] partitionKey,
         byte[] mapName,
         byte[] filerKey,
         H sizeHint,
-        ChunkTransaction<M, R> chunkTransaction) throws IOException {
-        return stores[partitionFunction.partition(stores.length, partitionKey)].writeNewReplace(mapName, filerKey, sizeHint, chunkTransaction);
+        ChunkTransaction<M, R> chunkTransaction,
+        byte[] primitiveBuffer) throws IOException {
+        return stores[partitionFunction.partition(stores.length, partitionKey)].writeNewReplace(mapName, filerKey, sizeHint, chunkTransaction, primitiveBuffer);
     }
 
-    public <R> R read(byte[] partitionKey, final byte[] mapName, final byte[] filerKey, final ChunkTransaction<M, R> filerTransaction) throws IOException {
-        return stores[partitionFunction.partition(stores.length, partitionKey)].read(mapName, filerKey, filerTransaction);
+    public <R> R read(byte[] partitionKey, final byte[] mapName, final byte[] filerKey, final ChunkTransaction<M, R> filerTransaction, byte[] primitiveBuffer)
+        throws IOException {
+        return stores[partitionFunction.partition(stores.length, partitionKey)].read(mapName, filerKey, filerTransaction, primitiveBuffer);
     }
 
-    public <R> List<R> readEach(byte[][] partitionKeys, byte[] mapName, byte[][] filerKeys, ChunkTransaction<M, R> filerTransaction) throws IOException {
+    public <R> List<R> readEach(byte[][] partitionKeys, byte[] mapName, byte[][] filerKeys, ChunkTransaction<M, R> filerTransaction, byte[] primitiveBuffer)
+        throws IOException {
         byte[][][] partitionedFilerKeys = new byte[stores.length][][];
         for (int i = 0; i < partitionKeys.length; i++) {
             byte[] partitionKey = partitionKeys[i];
@@ -75,24 +80,25 @@ public class TxPartitionedNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         List<R> result = Lists.newArrayList();
         for (int p = 0; p < stores.length; p++) {
             if (partitionedFilerKeys[p] != null) {
-                result.addAll(stores[p].readEach(mapName, partitionedFilerKeys[p], filerTransaction));
+                result.addAll(stores[p].readEach(mapName, partitionedFilerKeys[p], filerTransaction, primitiveBuffer));
             }
         }
         return result;
     }
 
-    public Boolean stream(final byte[] mapName, final List<KeyRange> ranges, final TxStream<byte[], M, ChunkFiler> stream) throws IOException {
+    public Boolean stream(final byte[] mapName, final List<KeyRange> ranges, final TxStream<byte[], M, ChunkFiler> stream, byte[] primitiveBuffer) throws
+        IOException {
         for (final TxNamedMapOfFiler<N, H, M> store : stores) {
-            if (!store.stream(mapName, ranges, stream)) {
+            if (!store.stream(mapName, ranges, stream, primitiveBuffer)) {
                 return false;
             }
         }
         return true;
     }
 
-    public Boolean streamKeys(final byte[] mapName, final List<KeyRange> ranges, final TxStreamKeys<byte[]> stream) throws IOException {
+    public Boolean streamKeys(final byte[] mapName, final List<KeyRange> ranges, final TxStreamKeys<byte[]> stream, byte[] primitiveBuffer) throws IOException {
         for (final TxNamedMapOfFiler<N, H, M> store : stores) {
-            if (!store.streamKeys(mapName, ranges, stream)) {
+            if (!store.streamKeys(mapName, ranges, stream, primitiveBuffer)) {
                 return false;
             }
         }

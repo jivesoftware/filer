@@ -12,6 +12,6 @@ public interface CreateFiler<H, M, F extends Filer> {
 
     long sizeInBytes(H hint) throws IOException;
 
-    M create(H hint, F filer) throws IOException;
+    M create(H hint, F filer, byte[] primitiveBuffer) throws IOException;
 
 }

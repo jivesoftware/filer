@@ -17,6 +17,7 @@ public class MappedByteBufferTest {
 
     @Test(enabled = false, description = "Tests whether stale buffers are still accurate, and that maps to the same file don't use extra FDs")
     public void testRemappedBuffers() throws Exception {
+        byte[] primitiveBuffer = new byte[8];
         File baseDir = Files.createTempDirectory("maps").toFile();
         FileBackedMemMappedByteBufferFactory factory = new FileBackedMemMappedByteBufferFactory("f", 0, baseDir);
 
@@ -26,12 +27,12 @@ public class MappedByteBufferTest {
 
         filer1.seek(0);
         for (int i = 0; i < 10; i++) {
-            FilerIO.writeLong(filer1, i, "i");
+            FilerIO.writeLong(filer1, i, "i", primitiveBuffer);
         }
 
         filer1.seek(0);
         for (int i = 0; i < 10; i++) {
-            assertEquals(FilerIO.readLong(filer1, "i"), i);
+            assertEquals(FilerIO.readLong(filer1, "i", primitiveBuffer), i);
         }
 
         ByteBuffer buf2 = factory.allocate("test".getBytes(), 2_000);
@@ -40,30 +41,30 @@ public class MappedByteBufferTest {
 
         filer2.seek(10 * 8);
         for (int i = 10; i < 20; i++) {
-            FilerIO.writeLong(filer2, i, "i");
+            FilerIO.writeLong(filer2, i, "i", primitiveBuffer);
         }
 
         filer1.seek(20 * 8);
         for (int i = 20; i < 30; i++) {
-            FilerIO.writeLong(filer1, i, "i");
+            FilerIO.writeLong(filer1, i, "i", primitiveBuffer);
         }
 
         filer1.seek(0);
         for (int i = 0; i < 30; i++) {
-            assertEquals(FilerIO.readLong(filer1, "i"), i);
+            assertEquals(FilerIO.readLong(filer1, "i", primitiveBuffer), i);
         }
 
         filer2.seek(0);
         for (int i = 0; i < 30; i++) {
-            assertEquals(FilerIO.readLong(filer2, "i"), i);
+            assertEquals(FilerIO.readLong(filer2, "i", primitiveBuffer), i);
         }
 
         for (int i = 0; i < 1_000_000; i++) {
             ByteBufferBackedFiler filerX = new ByteBufferBackedFiler(factory.allocate("test".getBytes(), 3_000));
             filerX.seek(0);
-            FilerIO.writeLong(filerX, i, "i");
+            FilerIO.writeLong(filerX, i, "i", primitiveBuffer);
             filerX.seek(0);
-            assertEquals(FilerIO.readLong(filerX, "i"), i);
+            assertEquals(FilerIO.readLong(filerX, "i", primitiveBuffer), i);
             Thread.sleep(10);
         }
 

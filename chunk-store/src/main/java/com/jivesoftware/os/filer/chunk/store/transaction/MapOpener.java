@@ -33,8 +33,8 @@ public class MapOpener implements OpenFiler<MapContext, ChunkFiler> {
     }
 
     @Override
-    public MapContext open(ChunkFiler filer) throws IOException {
-        return MapStore.INSTANCE.open(filer);
+    public MapContext open(ChunkFiler filer, byte[] primitiveBuffer) throws IOException {
+        return MapStore.INSTANCE.open(filer, primitiveBuffer);
     }
 
 }

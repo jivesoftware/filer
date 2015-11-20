@@ -21,15 +21,16 @@ public class ChunkStoreInitializer {
         long initialSize,
         ByteBufferFactory cacheByteBufferFactory,
         int initialCacheSize,
-        int maxNewCacheSize) throws Exception {
+        int maxNewCacheSize,
+        byte[] primitiveBuffer) throws Exception {
 
         FileBackedMemMappedByteBufferFactory factory = new FileBackedMemMappedByteBufferFactory(chunkName, directoryOffset, dirs);
         AutoGrowingByteBufferBackedFiler filer = new AutoGrowingByteBufferBackedFiler(factory, initialSize,
             AutoGrowingByteBufferBackedFiler.MAX_BUFFER_SEGMENT_SIZE);
         if (filer.exists()) {
-            return open(filer, cacheByteBufferFactory, initialCacheSize, maxNewCacheSize);
+            return open(filer, cacheByteBufferFactory, initialCacheSize, maxNewCacheSize, primitiveBuffer);
         } else {
-            return create(filer, cacheByteBufferFactory, initialCacheSize, maxNewCacheSize);
+            return create(filer, cacheByteBufferFactory, initialCacheSize, maxNewCacheSize, primitiveBuffer);
         }
     }
 
@@ -42,17 +43,20 @@ public class ChunkStoreInitializer {
         long segmentSize,
         ByteBufferFactory cacheByteBufferFactory,
         int initialCacheSize,
-        int maxNewCacheSize) throws Exception {
-        return open(new AutoGrowingByteBufferBackedFiler(filer, segmentSize, segmentSize), cacheByteBufferFactory, initialCacheSize, maxNewCacheSize);
+        int maxNewCacheSize,
+        byte[] primitiveBuffer) throws Exception {
+        return open(new AutoGrowingByteBufferBackedFiler(filer, segmentSize, segmentSize), cacheByteBufferFactory, initialCacheSize, maxNewCacheSize,
+            primitiveBuffer);
     }
 
     private ChunkStore open(AutoGrowingByteBufferBackedFiler filer,
         ByteBufferFactory cacheByteBufferFactory,
         int initialCacheSize,
-        int maxNewCacheSize) throws Exception {
-        StripedFiler stripedFiler = new StripedFiler(filer, new byte[] { 0 }, cacheByteBufferFactory, 128);
+        int maxNewCacheSize,
+        byte[] primitiveBuffer) throws Exception {
+        StripedFiler stripedFiler = new StripedFiler(filer, new byte[]{0}, cacheByteBufferFactory, 128);
         ChunkStore chunkStore = new ChunkStore(stripedFiler);
-        chunkStore.open();
+        chunkStore.open(primitiveBuffer);
         return chunkStore;
     }
 
@@ -60,18 +64,21 @@ public class ChunkStoreInitializer {
         long segmentSize,
         ByteBufferFactory cacheByteBufferFactory,
         int initialCacheSize,
-        int maxNewCacheSize) throws Exception {
-        return create(new AutoGrowingByteBufferBackedFiler(factory, segmentSize, segmentSize), cacheByteBufferFactory, initialCacheSize, maxNewCacheSize);
+        int maxNewCacheSize,
+        byte[] primitiveBuffer) throws Exception {
+        return create(new AutoGrowingByteBufferBackedFiler(factory, segmentSize, segmentSize), cacheByteBufferFactory, initialCacheSize, maxNewCacheSize,
+            primitiveBuffer);
     }
 
     private ChunkStore create(AutoGrowingByteBufferBackedFiler filer,
         ByteBufferFactory cacheByteBufferFactory,
         int initialCacheSize,
-        int maxNewCacheSize) throws Exception {
-        StripedFiler stripedFiler = new StripedFiler(filer, new byte[] { 0 }, cacheByteBufferFactory, 128);
+        int maxNewCacheSize,
+        byte[] primitiveBuffer) throws Exception {
+        StripedFiler stripedFiler = new StripedFiler(filer, new byte[]{0}, cacheByteBufferFactory, 128);
         ChunkStore chunkStore = new ChunkStore(stripedFiler);
         chunkStore.setup(referenceNumber);
-        chunkStore.createAndOpen(stripedFiler);
+        chunkStore.createAndOpen(stripedFiler, primitiveBuffer);
         return chunkStore;
     }
 

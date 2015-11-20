@@ -32,7 +32,7 @@ public class TwoPhasedChunkCache {
     private static final ChunkMetrics.ChunkMetric ROLLS_ALLOWED = ChunkMetrics.get("chunkCache", "rollsAllowed");
     private static final ChunkMetrics.ChunkMetric ROLLS_REFUSED = ChunkMetrics.get("chunkCache", "rollsRefused");
 
-    private static final byte[] name = new byte[] { 0 };
+    private static final byte[] name = new byte[]{0};
 
     private final ByteBufferFactory bufferFactory;
     private ChunkCache oldCache;
@@ -50,9 +50,9 @@ public class TwoPhasedChunkCache {
         this.maxNewCacheSize = maxNewCacheSize;
     }
 
-    public <M> void set(long chunkFP, Chunk<M> chunk) throws IOException {
+    public <M> void set(long chunkFP, Chunk<M> chunk, byte[] primitiveBuffer) throws IOException {
         synchronized (this) {
-            newCache.set(chunkFP, chunk, initialCacheSize);
+            newCache.set(chunkFP, chunk, initialCacheSize, primitiveBuffer);
         }
     }
 
@@ -69,7 +69,7 @@ public class TwoPhasedChunkCache {
         }
     }
 
-    public <M> Chunk<M> acquire(long chunkFP, final CacheOpener<M> opener) throws IOException {
+    public <M> Chunk<M> acquire(long chunkFP, final CacheOpener<M> opener, byte[] primitiveBuffer) throws IOException {
         boolean revived = false;
         try {
             synchronized (this) {
@@ -82,14 +82,14 @@ public class TwoPhasedChunkCache {
                     }
                 }
 
-                Chunk<M> chunk = newCache.acquireIfPresent(chunkFP);
+                Chunk<M> chunk = newCache.acquireIfPresent(chunkFP, primitiveBuffer);
                 if (chunk == null) {
-                    chunk = oldCache.remove(chunkFP);
+                    chunk = oldCache.remove(chunkFP, primitiveBuffer);
                     if (chunk != null) {
-                        chunk = newCache.promoteAndAcquire(chunkFP, chunk, initialCacheSize);
+                        chunk = newCache.promoteAndAcquire(chunkFP, chunk, initialCacheSize, primitiveBuffer);
                         revived = true;
                     } else {
-                        chunk = newCache.promoteAndAcquire(chunkFP, opener.open(chunkFP), initialCacheSize);
+                        chunk = newCache.promoteAndAcquire(chunkFP, opener.open(chunkFP), initialCacheSize, primitiveBuffer);
                     }
                 }
                 return chunk;
@@ -111,27 +111,27 @@ public class TwoPhasedChunkCache {
         newCache = new ChunkCache(name, bufferFactory);
     }
 
-    public boolean contains(long chunkFP) throws IOException {
+    public boolean contains(long chunkFP, byte[] primitiveBuffer) throws IOException {
         synchronized (this) {
-            return newCache.contains(chunkFP) || oldCache.contains(chunkFP);
+            return newCache.contains(chunkFP, primitiveBuffer) || oldCache.contains(chunkFP, primitiveBuffer);
         }
     }
 
-    public void release(long chunkFP) throws IOException {
+    public void release(long chunkFP, byte[] primitiveBuffer) throws IOException {
         synchronized (this) {
-            if (!newCache.release(chunkFP)) {
-                if (!oldCache.release(chunkFP)) {
+            if (!newCache.release(chunkFP, primitiveBuffer)) {
+                if (!oldCache.release(chunkFP, primitiveBuffer)) {
                     throw new IllegalStateException("Attempted to release nonexistent chunkFP: " + chunkFP);
                 }
             }
         }
     }
 
-    public void remove(long chunkFP) throws IOException {
+    public void remove(long chunkFP, byte[] primitiveBuffer) throws IOException {
         synchronized (this) {
-            Chunk<Object> chunk = newCache.remove(chunkFP);
+            Chunk<Object> chunk = newCache.remove(chunkFP, primitiveBuffer);
             if (chunk == null) {
-                chunk = oldCache.remove(chunkFP);
+                chunk = oldCache.remove(chunkFP, primitiveBuffer);
                 if (chunk == null) {
                     // probably rolled
                     return;

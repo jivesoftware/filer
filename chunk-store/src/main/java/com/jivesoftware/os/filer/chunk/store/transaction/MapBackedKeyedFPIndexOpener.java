@@ -42,8 +42,8 @@ public class MapBackedKeyedFPIndexOpener implements OpenFiler<MapBackedKeyedFPIn
     }
 
     @Override
-    public MapBackedKeyedFPIndex open(ChunkFiler filer) throws IOException {
-        MapContext mapContext = MapStore.INSTANCE.open(filer);
+    public MapBackedKeyedFPIndex open(ChunkFiler filer, byte[] primitiveBuffer) throws IOException {
+        MapContext mapContext = MapStore.INSTANCE.open(filer, primitiveBuffer);
         Map<IBA, Long> keyFPCache = null;
         if (cacheFactory != null) {
             keyFPCache = cacheFactory.createCache();

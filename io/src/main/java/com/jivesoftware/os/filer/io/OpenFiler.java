@@ -9,5 +9,5 @@ import java.io.IOException;
  */
 public interface OpenFiler<M, F extends Filer> {
 
-    M open(F filer) throws IOException;
+    M open(F filer, byte[] primitiveBuffer) throws IOException;
 }

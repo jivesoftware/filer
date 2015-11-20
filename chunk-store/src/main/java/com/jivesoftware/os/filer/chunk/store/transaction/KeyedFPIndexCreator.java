@@ -43,11 +43,11 @@ public class KeyedFPIndexCreator implements CreateFiler<Void, PowerKeyedFPIndex,
     }
 
     @Override
-    public PowerKeyedFPIndex create(Void hint, ChunkFiler filer) throws IOException {
+    public PowerKeyedFPIndex create(Void hint, ChunkFiler filer, byte[] primitiveBuffer) throws IOException {
         filer.seek(0);
-        FilerIO.writeLong(filer, magicHeader, "magicHeader");
+        FilerIO.writeLong(filer, magicHeader, "magicHeader", primitiveBuffer);
         for (int i = 0; i < skyHookMaxKeySizePower; i++) {
-            FilerIO.writeLong(filer, -1, "powerFP");
+            FilerIO.writeLong(filer, -1, "powerFP", primitiveBuffer);
         }
         long[] fps = new long[skyHookMaxKeySizePower];
         Arrays.fill(fps, -1L);

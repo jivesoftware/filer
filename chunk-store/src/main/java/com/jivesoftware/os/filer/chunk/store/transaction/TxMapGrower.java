@@ -17,39 +17,40 @@ public class TxMapGrower {
     public static final TxNamedMapOfFilerRewriteGrowerProvider<Integer, MapContext> MAP_REWRITE_GROWER =
         new TxNamedMapOfFilerRewriteGrowerProvider<Integer, MapContext>() {
 
-            @Override
-            public <R> GrowFiler<Integer, MapContext, ChunkFiler> create(final Integer hint,
-                final ChunkTransaction<MapContext, R> chunkTransaction,
-                final AtomicReference<R> result) {
+        @Override
+        public <R> GrowFiler<Integer, MapContext, ChunkFiler> create(final Integer hint,
+            final ChunkTransaction<MapContext, R> chunkTransaction,
+            final AtomicReference<R> result) {
 
-                final MapGrower<MapContext> mapGrower = new MapGrower<>();
-                return new GrowFiler<Integer, MapContext, ChunkFiler>() {
+            final MapGrower<MapContext> mapGrower = new MapGrower<>();
+            return new GrowFiler<Integer, MapContext, ChunkFiler>() {
 
-                    @Override
-                    public Integer acquire(Integer hint, MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
-                        return mapGrower.acquire(hint, monkey, filer, lock);
-                    }
+                @Override
+                public Integer acquire(Integer hint, MapContext monkey, ChunkFiler filer, Object lock) throws IOException {
+                    return mapGrower.acquire(hint, monkey, filer, lock);
+                }
 
-                    @Override
-                    public void growAndAcquire(Integer hint,
-                        MapContext currentMonkey,
-                        ChunkFiler currentFiler,
-                        MapContext newMonkey,
-                        ChunkFiler newFiler,
-                        Object currentLock,
-                        Object newLock) throws IOException {
+                @Override
+                public void growAndAcquire(Integer hint,
+                    MapContext currentMonkey,
+                    ChunkFiler currentFiler,
+                    MapContext newMonkey,
+                    ChunkFiler newFiler,
+                    Object currentLock,
+                    Object newLock,
+                    byte[] primitiveBuffer) throws IOException {
 
-                        mapGrower.growAndAcquire(hint, currentMonkey, currentFiler, newMonkey, newFiler, currentLock, newLock);
+                    mapGrower.growAndAcquire(hint, currentMonkey, currentFiler, newMonkey, newFiler, currentLock, newLock, primitiveBuffer);
 
-                        result.set(chunkTransaction.commit(newMonkey, newFiler, newLock));
-                    }
+                    result.set(chunkTransaction.commit(newMonkey, newFiler, primitiveBuffer, newLock));
+                }
 
-                    @Override
-                    public void release(Integer hint, MapContext monkey, Object lock) {
-                        mapGrower.release(hint, monkey, lock);
-                    }
-                };
-            }
-        };
+                @Override
+                public void release(Integer hint, MapContext monkey, Object lock) {
+                    mapGrower.release(hint, monkey, lock);
+                }
+            };
+        }
+    };
 
 }

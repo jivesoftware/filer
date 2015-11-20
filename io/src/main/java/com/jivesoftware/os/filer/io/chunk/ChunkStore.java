@@ -101,14 +101,14 @@ public class ChunkStore implements Copyable<ChunkStore> {
         return filer.length();
     }
 
-    public void createAndOpen(StripedFiler filer) throws Exception {
+    public void createAndOpen(StripedFiler filer, byte[] primitiveBuffer) throws Exception {
         this.filer = filer;
         this.filer.rootTx(-1L, (fp, chunkCache, txFiler) -> {
             txFiler.seek(0);
-            FilerIO.writeLong(txFiler, lengthOfFile, "lengthOfFile");
-            FilerIO.writeLong(txFiler, referenceNumber, "referenceNumber");
+            FilerIO.writeLong(txFiler, lengthOfFile, "lengthOfFile", primitiveBuffer);
+            FilerIO.writeLong(txFiler, referenceNumber, "referenceNumber", primitiveBuffer);
             for (int i = cMinPower; i < 65; i++) {
-                FilerIO.writeLong(txFiler, -1, "free");
+                FilerIO.writeLong(txFiler, -1, "free", primitiveBuffer);
             }
             txFiler.flush();
             return null;
@@ -116,11 +116,11 @@ public class ChunkStore implements Copyable<ChunkStore> {
 
     }
 
-    public void open() throws IOException {
+    public void open(byte[] primitiveBuffer) throws IOException {
         this.filer.rootTx(-1L, (fp, chunkCache, filer) -> {
             filer.seek(0);
-            lengthOfFile = FilerIO.readLong(filer, "lengthOfFile");
-            referenceNumber = FilerIO.readLong(filer, "referenceNumber");
+            lengthOfFile = FilerIO.readLong(filer, "lengthOfFile", primitiveBuffer);
+            referenceNumber = FilerIO.readLong(filer, "referenceNumber", primitiveBuffer);
             filer.seek(lengthOfFile);
             return null;
         });
@@ -131,7 +131,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
     }
 
     @Override
-    public void copyTo(final ChunkStore to) throws IOException {
+    public void copyTo(final ChunkStore to, byte[] buffer) throws IOException {
         this.filer.rootTx(-1L, (fp, chunkCache, fromFiler) -> {
             to.filer.rootTx(-1L,
                 (fp1, chunkCache1, toFiler) -> {
@@ -139,7 +139,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
                     toFiler.seek(0);
                     //TODO if these filers are both byte buffer backed then it's much faster to do an NIO ByteBuffer.put()
                     FilerIO.copy(fromFiler, toFiler, lengthOfFile, -1);
-                    to.open();
+                    to.open(buffer);
                     return null;
                 });
             return null;
@@ -162,7 +162,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
      * @return
      * @throws IOException
      */
-    public <M, H> long newChunk(final H hint, final CreateFiler<H, M, ChunkFiler> createFiler) throws IOException {
+    public <M, H> long newChunk(final H hint, final CreateFiler<H, M, ChunkFiler> createFiler, byte[] primitiveBuffer) throws IOException {
         long _capacity = createFiler.sizeInBytes(hint);
         final int chunkPower = FilerIO.chunkPower(_capacity, cMinPower);
         final long chunkLength = FilerIO.chunkLength(chunkPower)
@@ -175,21 +175,21 @@ public class ChunkStore implements Copyable<ChunkStore> {
         final AtomicLong chunkFP = new AtomicLong(-1);
 
         this.filer.rootTx(-1L, (fp, chunkCache, filer) -> {
-            long reuseFp = reuseChunk(filer, chunkPosition);
+            long reuseFp = reuseChunk(filer, chunkPosition, primitiveBuffer);
 
             if (reuseFp == -1) {
                 long newChunkFP = lengthOfFile;
                 filer.seek(newChunkFP + chunkLength - 1); // last byte in chunk
                 filer.write(0); // cause file backed ChunkStore to grow file on disk. Use setLength()?
                 filer.seek(newChunkFP);
-                FilerIO.writeLong(filer, cMagicNumber, "magicNumber");
-                FilerIO.writeLong(filer, chunkPower, "chunkPower");
-                FilerIO.writeLong(filer, -1, "chunkNexFreeChunkFP");
-                FilerIO.writeLong(filer, chunkLength, "chunkLength");
+                FilerIO.writeLong(filer, cMagicNumber, "magicNumber", primitiveBuffer);
+                FilerIO.writeLong(filer, chunkPower, "chunkPower", primitiveBuffer);
+                FilerIO.writeLong(filer, -1, "chunkNexFreeChunkFP", primitiveBuffer);
+                FilerIO.writeLong(filer, chunkLength, "chunkLength", primitiveBuffer);
                 lengthOfFile += chunkLength;
                 filer.seek(lengthOfFile); //  force allocation of space
                 filer.seek(0);
-                FilerIO.writeLong(filer, lengthOfFile, "lengthOfFile");
+                FilerIO.writeLong(filer, lengthOfFile, "lengthOfFile", primitiveBuffer);
                 filer.flush();
                 reuseFp = newChunkFP;
                 reused.set(true);
@@ -206,19 +206,19 @@ public class ChunkStore implements Copyable<ChunkStore> {
 
         filer.tx(chunkFP.get(), (fp, chunkCache, filer) -> {
             filer.seek(fp);
-            long magicNumber = FilerIO.readLong(filer, "magicNumber");
+            long magicNumber = FilerIO.readLong(filer, "magicNumber", primitiveBuffer);
             if (magicNumber != cMagicNumber) {
                 throw new CorruptionException("Invalid chunkFP " + fp);
             }
-            int chunkPower1 = (int) FilerIO.readLong(filer, "chunkPower");
-            FilerIO.readLong(filer, "chunkNexFreeChunkFP");
-            FilerIO.readLong(filer, "chunkLength");
+            int chunkPower1 = (int) FilerIO.readLong(filer, "chunkPower", primitiveBuffer);
+            FilerIO.readLong(filer, "chunkNexFreeChunkFP", primitiveBuffer);
+            FilerIO.readLong(filer, "chunkLength", primitiveBuffer);
             long startOfFP = filer.getFilePointer();
             long endOfFP = startOfFP + FilerIO.chunkLength(chunkPower1);
             ChunkFiler chunkFiler = new ChunkFiler(ChunkStore.this, filer.duplicate(startOfFP, endOfFP), fp, startOfFP, endOfFP);
             chunkFiler.seek(0);
-            M monkey = createFiler.create(hint, chunkFiler);
-            chunkCache.set(fp, new Chunk<>(monkey, fp, startOfFP, endOfFP), 2);
+            M monkey = createFiler.create(hint, chunkFiler, primitiveBuffer);
+            chunkCache.set(fp, new Chunk<>(monkey, fp, startOfFP, endOfFP), 2, primitiveBuffer);
             return null;
         });
         return chunkFP.get();
@@ -227,36 +227,36 @@ public class ChunkStore implements Copyable<ChunkStore> {
     /**
      * Synchronize externally on filer.lock()
      */
-    private long reuseChunk(Filer filer, long position) throws IOException {
+    private long reuseChunk(Filer filer, long position, byte[] primitiveBuffer) throws IOException {
         filer.seek(position);
-        long reuseFP = FilerIO.readLong(filer, "free");
+        long reuseFP = FilerIO.readLong(filer, "free", primitiveBuffer);
         if (reuseFP == -1) {
             return reuseFP;
         }
-        long nextFree = readNextFree(filer, reuseFP);
+        long nextFree = readNextFree(filer, reuseFP, primitiveBuffer);
         filer.seek(position);
-        FilerIO.writeLong(filer, nextFree, "free");
+        FilerIO.writeLong(filer, nextFree, "free", primitiveBuffer);
         return reuseFP;
     }
 
     /**
      * Synchronize externally on filer.lock()
      */
-    private long readNextFree(Filer filer, long _chunkFP) throws IOException {
+    private long readNextFree(Filer filer, long _chunkFP, byte[] primitiveBuffer) throws IOException {
         filer.seek(_chunkFP);
-        FilerIO.readLong(filer, "magicNumber");
-        FilerIO.readLong(filer, "chunkPower");
-        return FilerIO.readLong(filer, "chunkNexFreeChunkFP");
+        FilerIO.readLong(filer, "magicNumber", primitiveBuffer);
+        FilerIO.readLong(filer, "chunkPower", primitiveBuffer);
+        return FilerIO.readLong(filer, "chunkNexFreeChunkFP", primitiveBuffer);
     }
 
     /**
      * Synchronize externally on filer.lock()
      */
-    private void writeNextFree(Filer filer, long _chunkFP, long _nextFreeFP) throws IOException {
+    private void writeNextFree(Filer filer, long _chunkFP, long _nextFreeFP, byte[] primitiveBuffer) throws IOException {
         filer.seek(_chunkFP);
-        FilerIO.readLong(filer, "magicNumber");
-        FilerIO.readLong(filer, "chunkPower");
-        FilerIO.writeLong(filer, _nextFreeFP, "chunkNexFreeChunkFP");
+        FilerIO.readLong(filer, "magicNumber", primitiveBuffer);
+        FilerIO.readLong(filer, "chunkPower", primitiveBuffer);
+        FilerIO.writeLong(filer, _nextFreeFP, "chunkNexFreeChunkFP", primitiveBuffer);
     }
 
     /**
@@ -268,28 +268,29 @@ public class ChunkStore implements Copyable<ChunkStore> {
      * @return
      * @throws IOException
      */
-    public <M, R> R execute(final long chunkFP, final OpenFiler<M, ChunkFiler> openFiler, final ChunkTransaction<M, R> chunkTransaction) throws IOException {
+    public <M, R> R execute(final long chunkFP, final OpenFiler<M, ChunkFiler> openFiler, final ChunkTransaction<M, R> chunkTransaction, byte[] primitiveBuffer)
+        throws IOException {
 
         final Chunky<M> chunky = filer.tx(chunkFP, (fp, chunkCache, filer) -> {
-            Chunk<M> chunk = chunkCache.acquireIfPresent(chunkFP);
+            Chunk<M> chunk = chunkCache.acquireIfPresent(chunkFP, primitiveBuffer);
             if (chunk == null) {
                 filer.seek(chunkFP);
-                long magicNumber = FilerIO.readLong(filer, "magicNumber");
+                long magicNumber = FilerIO.readLong(filer, "magicNumber", primitiveBuffer);
                 if (magicNumber != cMagicNumber) {
                     throw new CorruptionException("Invalid chunkFP " + chunkFP);
                 }
-                int chunkPower = (int) FilerIO.readLong(filer, "chunkPower");
-                FilerIO.readLong(filer, "chunkNexFreeChunkFP");
-                FilerIO.readLong(filer, "chunkLength");
+                int chunkPower = (int) FilerIO.readLong(filer, "chunkPower", primitiveBuffer);
+                FilerIO.readLong(filer, "chunkNexFreeChunkFP", primitiveBuffer);
+                FilerIO.readLong(filer, "chunkLength", primitiveBuffer);
                 long startOfFP = filer.getFilePointer();
 
                 long endOfFP = startOfFP + FilerIO.chunkLength(chunkPower);
                 ChunkFiler chunkFiler = new ChunkFiler(ChunkStore.this, filer.duplicate(startOfFP, endOfFP), chunkFP, startOfFP, endOfFP);
                 chunkFiler.seek(0);
 
-                M monkey = openFiler.open(chunkFiler);
+                M monkey = openFiler.open(chunkFiler, primitiveBuffer);
                 chunk = new Chunk<>(monkey, chunkFP, startOfFP, endOfFP);
-                chunkCache.promoteAndAcquire(chunkFP, chunk, 2);
+                chunkCache.promoteAndAcquire(chunkFP, chunk, 2, primitiveBuffer);
             }
 
             ChunkFiler chunkFiler = new ChunkFiler(ChunkStore.this, filer.duplicate(chunk.startOfFP, chunk.endOfFP), chunkFP, chunk.startOfFP,
@@ -299,11 +300,11 @@ public class ChunkStore implements Copyable<ChunkStore> {
         });
 
         try {
-            return chunkTransaction.commit(chunky.chunk.monkey, chunky.filer, chunky.chunk);
+            return chunkTransaction.commit(chunky.chunk.monkey, chunky.filer, primitiveBuffer, chunky.chunk);
         } finally {
 
             filer.tx(chunkFP, (fp, chunkCache, filer1) -> {
-                chunkCache.release(chunkFP);
+                chunkCache.release(chunkFP, primitiveBuffer);
                 return null;
             });
 
@@ -322,19 +323,19 @@ public class ChunkStore implements Copyable<ChunkStore> {
 
     }
 
-    public void remove(long chunkFP) throws IOException {
+    public void remove(long chunkFP, byte[] primitiveBuffer) throws IOException {
 
         final Integer chunkPower = filer.tx(chunkFP, (fp, chunkCache, filer) -> {
-            chunkCache.remove(fp);
+            chunkCache.remove(fp, primitiveBuffer);
 
             filer.seek(fp);
-            long magicNumber = FilerIO.readLong(filer, "magicNumber");
+            long magicNumber = FilerIO.readLong(filer, "magicNumber", primitiveBuffer);
             if (magicNumber != cMagicNumber) {
                 throw new CorruptionException("Invalid chunkFP " + fp);
             }
-            int chunkPower1 = (int) FilerIO.readLong(filer, "chunkPower");
-            FilerIO.readLong(filer, "chunkNexFreeChunkFP");
-            FilerIO.writeLong(filer, -1, "chunkLength");
+            int chunkPower1 = (int) FilerIO.readLong(filer, "chunkPower", primitiveBuffer);
+            FilerIO.readLong(filer, "chunkNexFreeChunkFP", primitiveBuffer);
+            FilerIO.writeLong(filer, -1, "chunkLength", primitiveBuffer);
             long chunkLength = FilerIO.chunkLength(chunkPower1); // bytes
             // fill with zeros
             while (chunkLength >= zerosMax.length) {
@@ -354,20 +355,18 @@ public class ChunkStore implements Copyable<ChunkStore> {
             // save as free chunk
             long position = freeSeek(chunkPower);
             filer.seek(position);
-            long freeFP = FilerIO.readLong(filer, "free");
+            long freeFP = FilerIO.readLong(filer, "free", primitiveBuffer);
             if (freeFP == -1) {
                 filer.seek(position);
-                FilerIO.writeLong(filer, fp, "free");
+                FilerIO.writeLong(filer, fp, "free", primitiveBuffer);
+            } else if (fp != freeFP) {
+                filer.seek(position);
+                FilerIO.writeLong(filer, fp, "free", primitiveBuffer);
             } else {
-                if (fp != freeFP) {
-                    filer.seek(position);
-                    FilerIO.writeLong(filer, fp, "free");
-                } else {
-                    System.err.println("WARNING: Some one is removing the same chunk more than once. chunkFP:" + fp);
-                    new RuntimeException().printStackTrace();
-                }
+                System.err.println("WARNING: Some one is removing the same chunk more than once. chunkFP:" + fp);
+                new RuntimeException().printStackTrace();
             }
-            writeNextFree(filer, fp, freeFP);
+            writeNextFree(filer, fp, freeFP, primitiveBuffer);
             filer.flush();
             return null;
         });
@@ -382,13 +381,13 @@ public class ChunkStore implements Copyable<ChunkStore> {
     private static final byte[] zerosMin = new byte[(int) Math.pow(2, cMinPower)]; // never too big
     private static final byte[] zerosMax = new byte[(int) Math.pow(2, 16)]; // 65536 max used until min needed
 
-    public boolean isValid(final long chunkFP) throws IOException {
+    public boolean isValid(final long chunkFP, byte[] primitiveBuffer) throws IOException {
         return filer.tx(chunkFP, (fp, chunkCache, filer) -> {
-            if (chunkCache.contains(fp)) {
+            if (chunkCache.contains(fp, primitiveBuffer)) {
                 return true;
             }
             filer.seek(fp);
-            long magicNumber = FilerIO.readLong(filer, "magicNumber");
+            long magicNumber = FilerIO.readLong(filer, "magicNumber", primitiveBuffer);
             return magicNumber == cMagicNumber;
         });
 

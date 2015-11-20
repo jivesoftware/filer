@@ -34,11 +34,11 @@ public class TxKeyedFilerStoreConcurrencyNGTest {
         TxCogs cogs = new TxCogs(256, 64, null, null, null);
 
         Random rand = new Random(1234);
-
+        byte[] primitiveBuffer = new byte[8];
         ByteBufferFactory bbf = new HeapByteBufferFactory();
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, byteBufferFactory, 500, 5_000);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, byteBufferFactory, 500, 5_000);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
         final ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         int numThread = 24;
@@ -62,6 +62,7 @@ public class TxKeyedFilerStoreConcurrencyNGTest {
         ConcurrentHashMap<Long, TxKeyedFilerStore> namedStores;
         ChunkStore[] chunkStores;
         AtomicBoolean stop;
+        byte[] primitiveBuffer = new byte[8];
 
         ConcurrencyRunnable(TxCogs cogs, Random rand, ConcurrentHashMap<Long, TxKeyedFilerStore> namedStores, ChunkStore[] chunkStores, AtomicBoolean stop) {
             this.cogs = cogs;
@@ -99,7 +100,7 @@ public class TxKeyedFilerStoreConcurrencyNGTest {
                     TxKeyedFilerStore store = get(rand.nextInt(2));
                     byte[] key = FilerIO.longBytes(rand.nextInt(256));
                     // read
-                    store.read(key, -1, (monkey, filer, lock) -> {
+                    store.read(key, -1, (monkey, filer, primitiveBuffer, lock) -> {
                         if (filer != null) {
                             synchronized (lock) {
                                 filer.seek(0);
@@ -109,11 +110,11 @@ public class TxKeyedFilerStoreConcurrencyNGTest {
                             }
                         }
                         return true;
-                    });
+                    }, primitiveBuffer);
 
                     // write
                     final long filerLength = 1 + rand.nextInt(1024);
-                    store.readWriteAutoGrow(key, filerLength, (monkey, filer, lock) -> {
+                    store.readWriteAutoGrow(key, filerLength, (monkey, filer, primitiveBuffer, lock) -> {
                         synchronized (lock) {
                             filer.seek(0);
                             Assert.assertFalse(filer.length() < filerLength, "Was:" + filer.length() + " expected: " + filerLength);
@@ -122,11 +123,11 @@ public class TxKeyedFilerStoreConcurrencyNGTest {
                             }
                             return true;
                         }
-                    });
+                    }, primitiveBuffer);
 
                     // rewrite
                     final long rewriteFilerLength = 1 + rand.nextInt(1024);
-                    store.writeNewReplace(key, rewriteFilerLength, (monkey, newFiler, newLock) -> {
+                    store.writeNewReplace(key, rewriteFilerLength, (monkey, newFiler, primitiveBuffer, newLock) -> {
                         synchronized (newLock) {
                             newFiler.seek(0);
                             for (int i = 0; i < rewriteFilerLength; i++) {
@@ -134,7 +135,7 @@ public class TxKeyedFilerStoreConcurrencyNGTest {
                             }
                             return true;
                         }
-                    });
+                    }, primitiveBuffer);
 
                 } catch (Exception x) {
                     x.printStackTrace();

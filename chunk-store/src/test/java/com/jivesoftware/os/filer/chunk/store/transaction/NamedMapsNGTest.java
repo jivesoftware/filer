@@ -40,21 +40,21 @@ public class NamedMapsNGTest {
 
     @Test
     public void testVariableMapNameSizesCommit() throws Exception {
-
+        byte[] primitiveBuffer = new byte[8];
         StripingLocksProvider<Long> locksProvider = new StripingLocksProvider<>(64);
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, 500, 5_000);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 500, 5_000);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
 
         TxCogs cogs = new TxCogs(256, 64, null, null, null);
         TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog = cogs.getSkyhookCog(0);
 
-        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[] {
+        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[]{
             new TxNamedMap(skyhookCog, 0, chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
-                cogs.getSkyHookKeySemaphores()),
+            cogs.getSkyHookKeySemaphores()),
             new TxNamedMap(skyhookCog, 0, chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
-                cogs.getSkyHookKeySemaphores())
+            cogs.getSkyHookKeySemaphores())
         });
 
         int tries = 128;
@@ -67,12 +67,12 @@ public class NamedMapsNGTest {
                 byte[] mapName = new byte[1 + rand.nextInt(1024)];
                 rand.nextBytes(mapName);
                 mapName[0] = (byte) i;
-                namedMap.read(mapName, mapName, (monkey, filer, lock) -> {
+                namedMap.read(mapName, mapName, (monkey, filer, primitiveBuffer1, lock) -> {
                     Assert.assertNull(monkey);
                     Assert.assertNull(filer);
                     nulls.addAndGet(1);
                     return null;
-                });
+                }, primitiveBuffer);
             }
             Assert.assertEquals(nulls.get(), tries);
         }
@@ -86,15 +86,15 @@ public class NamedMapsNGTest {
                 mapName[0] = (byte) i;
                 for (int a = 0; a < 10; a++) {
                     final int ai = a;
-                    namedMap.readWriteAutoGrow(mapName, mapName, (monkey, filer, lock) -> {
+                    namedMap.readWriteAutoGrow(mapName, mapName, (monkey, filer, primitiveBuffer1, lock) -> {
                         synchronized (lock) {
                             byte[] key = new byte[1 + rand.nextInt(3)];
                             rand.nextBytes(key);
                             key[0] = (byte) ai;
-                            MapStore.INSTANCE.add(filer, monkey, (byte) 1, key, FilerIO.longBytes(rand.nextLong()));
+                            MapStore.INSTANCE.add(filer, monkey, (byte) 1, key, FilerIO.longBytes(rand.nextLong()), primitiveBuffer1);
                             return null;
                         }
-                    });
+                    }, primitiveBuffer);
                 }
             }
         }
@@ -107,12 +107,12 @@ public class NamedMapsNGTest {
                 byte[] mapName = new byte[1 + rand.nextInt(1024)];
                 rand.nextBytes(mapName);
                 mapName[0] = (byte) i;
-                namedMap.read(mapName, mapName, (monkey, filer, lock) -> {
+                namedMap.read(mapName, mapName, (monkey, filer, primitiveBuffer1, lock) -> {
                     Assert.assertNull(monkey);
                     Assert.assertNull(filer);
                     nulls.addAndGet(1);
                     return null;
-                });
+                }, primitiveBuffer);
             }
             Assert.assertEquals(nulls.get(), tries);
         }
@@ -126,19 +126,19 @@ public class NamedMapsNGTest {
                 mapName[0] = (byte) i;
                 for (int a = 0; a < 10; a++) {
                     final int ai = a;
-                    namedMap.read(mapName, mapName, (monkey, filer, lock) -> {
+                    namedMap.read(mapName, mapName, (monkey, filer, primitiveBuffer1, lock) -> {
                         synchronized (lock) {
                             byte[] key = new byte[1 + rand.nextInt(3)];
                             rand.nextBytes(key);
                             key[0] = (byte) ai;
 
                             long expected = rand.nextLong();
-                            byte[] got = MapStore.INSTANCE.getPayload(filer, monkey, key);
+                            byte[] got = MapStore.INSTANCE.getPayload(filer, monkey, key, primitiveBuffer1);
                             Assert.assertNotNull(got);
                             Assert.assertEquals(FilerIO.bytesLong(got), expected);
                             return null;
                         }
-                    });
+                    }, primitiveBuffer);
                 }
             }
         }
@@ -147,10 +147,11 @@ public class NamedMapsNGTest {
 
     @Test
     public void testVariableNamedMapOfFilers() throws Exception {
+        byte[] primitiveBuffer = new byte[8];
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
         File dir = Files.createTempDirectory("testVariableNamedMapOfFilers").toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, 500, 5_000);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 500, 5_000);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
 
         TxCogs cogs = new TxCogs(256, 64, null, null, null);
         TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog = cogs.getSkyhookCog(0);
@@ -158,7 +159,7 @@ public class NamedMapsNGTest {
 
         TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(
             ByteArrayPartitionFunction.INSTANCE,
-            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[] {
+            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[]{
                 new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore1, 464,
                     powerCog.creators,
                     powerCog.opener,
@@ -196,12 +197,12 @@ public class NamedMapsNGTest {
                     rand.nextBytes(filerName);
                     filerName[0] = (byte) f;
 
-                    namedMapOfFilers.readWriteAutoGrow(mapName, mapName, filerName, 8L, (monkey, filer, lock) -> {
+                    namedMapOfFilers.readWriteAutoGrow(mapName, mapName, filerName, 8L, (monkey, filer, primitiveBuffer1, lock) -> {
                         synchronized (lock) {
-                            FilerIO.writeLong(filer, rand.nextLong(), "value");
+                            FilerIO.writeLong(filer, rand.nextLong(), "value", primitiveBuffer1);
                             return null;
                         }
-                    });
+                    }, primitiveBuffer);
                 }
 
             }
@@ -216,24 +217,25 @@ public class NamedMapsNGTest {
                 byte[] filerName = new byte[1 + readRandom.nextInt(1024)];
                 readRandom.nextBytes(filerName);
                 filerName[0] = (byte) f;
-                namedMapOfFilers.read(mapName, mapName, filerName, (monkey, filer, lock) -> {
+                namedMapOfFilers.read(mapName, mapName, filerName, (monkey, filer, primitiveBuffer1, lock) -> {
                     synchronized (lock) {
                         Assert.assertNotNull(filer);
                         long expected = readRandom.nextLong();
-                        Assert.assertEquals(FilerIO.readLong(filer, "value"), expected);
+                        Assert.assertEquals(FilerIO.readLong(filer, "value", primitiveBuffer1), expected);
                         return null;
                     }
-                });
+                }, primitiveBuffer);
             }
         }
     }
 
     @Test
     public void testCommit() throws Exception {
+        byte[] primitiveBuffer = new byte[8];
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
         File dir = Files.createTempDirectory("testCommit").toFile();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, 500, 5_000);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 500, 5_000);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
 
         TxCogs cogs = new TxCogs(256, 64, null, null, null);
         TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog = cogs.getSkyhookCog(0);
@@ -241,7 +243,7 @@ public class NamedMapsNGTest {
 
         TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(
             ByteArrayPartitionFunction.INSTANCE,
-            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[] {
+            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[]{
                 new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore1, 464,
                     powerCog.creators,
                     powerCog.opener,
@@ -264,11 +266,11 @@ public class NamedMapsNGTest {
                     TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER)
             });
 
-        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[] {
+        TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[]{
             new TxNamedMap(skyhookCog, 0, chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
-                cogs.getSkyHookKeySemaphores()),
+            cogs.getSkyHookKeySemaphores()),
             new TxNamedMap(skyhookCog, 0, chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
-                cogs.getSkyHookKeySemaphores())
+            cogs.getSkyHookKeySemaphores())
         });
 
         final int addCount = 16;
@@ -279,33 +281,33 @@ public class NamedMapsNGTest {
                 accum += i;
                 final int key = i;
 
-                namedMap.readWriteAutoGrow(FilerIO.intBytes(c), "map1".getBytes(), (monkey, filer, lock) -> {
+                namedMap.readWriteAutoGrow(FilerIO.intBytes(c), "map1".getBytes(), (monkey, filer, primitiveBuffer1, lock) -> {
                     synchronized (lock) {
                         MapStore.INSTANCE.add(filer, monkey, (byte) 1, String.valueOf(key)
-                            .getBytes(), FilerIO.longBytes(key));
+                            .getBytes(), FilerIO.longBytes(key), primitiveBuffer1);
                         return null;
                     }
-                });
+                }, primitiveBuffer);
 
                 namedMapOfFilers.readWriteAutoGrow(FilerIO.intBytes(c), "filer1".getBytes(), (c + "overwrite").getBytes(), 8L,
-                    (monkey, filer, lock) -> {
+                    (monkey, filer, primitiveBuffer1, lock) -> {
                         synchronized (lock) {
-                            FilerIO.writeLong(filer, key, "value");
+                            FilerIO.writeLong(filer, key, "value", primitiveBuffer1);
                             //System.out.println("Overwrite:" + key + " " + filer.getChunkFP());
                             return null;
                         }
-                    });
+                    }, primitiveBuffer);
 
                 namedMapOfFilers.writeNewReplace(FilerIO.intBytes(c), "filer2".getBytes(), (c + "rewrite").getBytes(), 8L,
-                    (newMonkey, newFiler, newLock) -> {
+                    (newMonkey, newFiler, primitiveBuffer1, newLock) -> {
 
                         synchronized (newLock) {
-                            FilerIO.writeLong(newFiler, key, "value");
+                            FilerIO.writeLong(newFiler, key, "value", primitiveBuffer1);
                             //System.out.println("Rewrite:" + (oldValue + key) + " " + newFiler.getChunkFP());
                             return null;
                         }
 
-                    });
+                    }, primitiveBuffer);
 
                 //System.out.println("Accum:" + accum);
             }
@@ -314,11 +316,11 @@ public class NamedMapsNGTest {
             for (int i = 0; i < addCount; i++) {
                 final int key = i;
 
-                namedMap.read(FilerIO.intBytes(c), "map1".getBytes(), (monkey, filer, lock) -> {
+                namedMap.read(FilerIO.intBytes(c), "map1".getBytes(), (monkey, filer, primitiveBuffer1, lock) -> {
                     synchronized (lock) {
                         long i1 = MapStore.INSTANCE.get(filer, monkey, String.valueOf(key)
-                            .getBytes());
-                        long value = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey, i1));
+                            .getBytes(), primitiveBuffer1);
+                        long value = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey, i1, primitiveBuffer1));
                         //System.out.println("expected:" + key + " got:" + value + " from " + context.filer.getChunkFP());
                         if (value != key) {
                             System.out.println("mapRead FAILED. " + value + " vs " + key);
@@ -326,11 +328,11 @@ public class NamedMapsNGTest {
                         }
                         return null;
                     }
-                });
+                }, primitiveBuffer);
 
-                namedMapOfFilers.read(FilerIO.intBytes(c), "filer1".getBytes(), (c + "overwrite").getBytes(), (monkey, filer, lock) -> {
+                namedMapOfFilers.read(FilerIO.intBytes(c), "filer1".getBytes(), (c + "overwrite").getBytes(), (monkey, filer, primitiveBuffer1, lock) -> {
                     synchronized (lock) {
-                        long v = FilerIO.readLong(filer, "value");
+                        long v = FilerIO.readLong(filer, "value", primitiveBuffer);
                         //System.out.println("OR:" + v);
                         if (v != addCount - 1) {
                             System.out.println("filerReadOverwrite FAILED. " + v + " vs " + (addCount - 1));
@@ -338,11 +340,11 @@ public class NamedMapsNGTest {
                         }
                         return null;
                     }
-                });
+                }, primitiveBuffer);
 
-                namedMapOfFilers.read(FilerIO.intBytes(c), "filer2".getBytes(), (c + "rewrite").getBytes(), (monkey, filer, lock) -> {
+                namedMapOfFilers.read(FilerIO.intBytes(c), "filer2".getBytes(), (c + "rewrite").getBytes(), (monkey, filer, primitiveBuffer1, lock) -> {
                     synchronized (lock) {
-                        long v = FilerIO.readLong(filer, "value");
+                        long v = FilerIO.readLong(filer, "value", primitiveBuffer1);
                         //System.out.println("RR:" + v + " from " + filer.getChunkFP());
                         if (v != addCount - 1) {
                             System.out.println("filerReadRewrite FAILED. " + v + " vs " + (addCount - 1));
@@ -350,18 +352,18 @@ public class NamedMapsNGTest {
                         }
                         return null;
                     }
-                });
+                }, primitiveBuffer);
 
             }
             Assert.assertFalse(failed.get());
 
         }
 
-        chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, 500, 5_000);
-        chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 500, 5_000);
+        chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
+        chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
 
         namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE,
-            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[] {
+            (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[]{
                 new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore1, 464,
                     powerCog.creators,
                     powerCog.opener,
@@ -384,40 +386,41 @@ public class NamedMapsNGTest {
                     TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER)
             });
 
-        namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[] {
+        namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[]{
             new TxNamedMap(skyhookCog, 0, chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
-                cogs.getSkyHookKeySemaphores()),
+            cogs.getSkyHookKeySemaphores()),
             new TxNamedMap(skyhookCog, 0, chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
-                cogs.getSkyHookKeySemaphores())
+            cogs.getSkyHookKeySemaphores())
         });
 
         for (int c = 0; c < 10; c++) {
 
-            doItAgain(addCount, namedMap, c, namedMapOfFilers);
+            doItAgain(addCount, namedMap, c, namedMapOfFilers, primitiveBuffer);
 
         }
 
         namedMapOfFilers.stream("filer2".getBytes(), null, (key, monkey, filer, lock) -> {
             //System.out.println(new IBA(key) + " " + filer);
             return true;
-        });
+        }, primitiveBuffer);
 
         namedMapOfFilers.streamKeys("filer2".getBytes(), null, key -> {
             //System.out.println(new IBA(key));
             return true;
-        });
+        }, primitiveBuffer);
 
         namedMap.stream("map1".getBytes(), (key, monkey, filer, lock) -> {
             MapStore.INSTANCE.streamKeys(filer, monkey, lock, key1 -> {
                 //System.out.println(new IBA(key));
                 return true;
-            });
+            }, primitiveBuffer);
             return true;
-        });
+        }, primitiveBuffer);
     }
 
     private void doItAgain(final int addCount, TxPartitionedNamedMap namedMap, int c,
-        TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock> namedMapOfFilers) throws IOException {
+        TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock> namedMapOfFilers,
+        byte[] primitiveBuffer) throws IOException {
         int accum = 0;
         for (int i = 0; i < addCount; i++) {
             accum += i;
@@ -425,11 +428,11 @@ public class NamedMapsNGTest {
         final AtomicBoolean failed = new AtomicBoolean();
         for (int i = 0; i < addCount; i++) {
             final int key = i;
-            namedMap.read(FilerIO.intBytes(c), "map1".getBytes(), (monkey, filer, lock) -> {
+            namedMap.read(FilerIO.intBytes(c), "map1".getBytes(), (monkey, filer, primitiveBuffer1, lock) -> {
                 synchronized (lock) {
                     long i1 = MapStore.INSTANCE.get(filer, monkey, String.valueOf(key)
-                        .getBytes());
-                    long value = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey, i1));
+                        .getBytes(), primitiveBuffer1);
+                    long value = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey, i1, primitiveBuffer1));
                     //System.out.println("expected:" + key + " got:" + value + " from " + context.filer.getChunkFP());
                     if (value != key) {
                         //System.out.println("on re-open mapRead FAILED. " + value + " vs " + key);
@@ -437,11 +440,11 @@ public class NamedMapsNGTest {
                     }
                     return null;
                 }
-            });
+            }, primitiveBuffer);
 
-            namedMapOfFilers.read(FilerIO.intBytes(c), "filer1".getBytes(), (c + "overwrite").getBytes(), (monkey, filer, lock) -> {
+            namedMapOfFilers.read(FilerIO.intBytes(c), "filer1".getBytes(), (c + "overwrite").getBytes(), (monkey, filer, primitiveBuffer1, lock) -> {
                 synchronized (lock) {
-                    long v = FilerIO.readLong(filer, "value");
+                    long v = FilerIO.readLong(filer, "value", primitiveBuffer1);
                     //System.out.println("OR:" + v);
                     if (v != addCount - 1) {
                         //System.out.println("filerReadOverwrite FAILED. " + v + " vs " + (addCount - 1));
@@ -449,11 +452,11 @@ public class NamedMapsNGTest {
                     }
                     return null;
                 }
-            });
+            }, primitiveBuffer);
 
-            namedMapOfFilers.read(FilerIO.intBytes(c), "filer2".getBytes(), (c + "rewrite").getBytes(), (monkey, filer, lock) -> {
+            namedMapOfFilers.read(FilerIO.intBytes(c), "filer2".getBytes(), (c + "rewrite").getBytes(), (monkey, filer, primitiveBuffer1, lock) -> {
                 synchronized (lock) {
-                    long v = FilerIO.readLong(filer, "value");
+                    long v = FilerIO.readLong(filer, "value", primitiveBuffer1);
                     //System.out.println("RR:" + v + " from " + filer.getChunkFP());
                     if (v != addCount - 1) {
                         System.out.println("filerReadRewrite FAILED. " + v + " vs " + (addCount - 1));
@@ -461,7 +464,7 @@ public class NamedMapsNGTest {
                     }
                     return null;
                 }
-            });
+            }, primitiveBuffer);
         }
         Assert.assertFalse(failed.get());
     }

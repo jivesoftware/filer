@@ -50,23 +50,23 @@ public class ChunkCache {
         return MapStore.INSTANCE.getApproxCount(mapContext);
     }
 
-    <M> void set(long chunkFP, Chunk<M> chunk, int initialCapacity) throws IOException {
-        ensureCapacity(initialCapacity);
-        long ai = MapStore.INSTANCE.add(mapFiler, mapContext, (byte) 1, FilerIO.longBytes(chunkFP), EMPTY_PAYLOAD);
+    <M> void set(long chunkFP, Chunk<M> chunk, int initialCapacity, byte[] primitiveBuffer) throws IOException {
+        ensureCapacity(initialCapacity, primitiveBuffer);
+        long ai = MapStore.INSTANCE.add(mapFiler, mapContext, (byte) 1, FilerIO.longBytes(chunkFP), EMPTY_PAYLOAD, primitiveBuffer);
         chunks[(int) ai] = chunk;
     }
 
-    public boolean contains(long chunkFP) throws IOException {
+    public boolean contains(long chunkFP, byte[] primitiveBuffer) throws IOException {
         if (mapContext != null) {
-            long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
+            long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP), primitiveBuffer);
             return ai > -1;
         }
         return false;
     }
 
-    public <M> Chunk<M> acquireIfPresent(long chunkFP) throws IOException {
+    public <M> Chunk<M> acquireIfPresent(long chunkFP, byte[] primitiveBuffer) throws IOException {
         if (mapContext != null) {
-            long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
+            long ai = MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP), primitiveBuffer);
             if (ai > -1) {
                 Chunk<M> chunk = (Chunk<M>) chunks[(int) ai];
                 chunk.acquisitions++;
@@ -78,14 +78,14 @@ public class ChunkCache {
 
     }
 
-    public boolean release(long chunkFP) throws IOException {
+    public boolean release(long chunkFP, byte[] primitiveBuffer) throws IOException {
         if (mapContext != null) {
-            int ai = (int) MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
+            int ai = (int) MapStore.INSTANCE.get(mapFiler, mapContext, FilerIO.longBytes(chunkFP), primitiveBuffer);
             if (ai > -1) {
                 chunks[ai].acquisitions--;
                 acquisitions--;
                 if (chunks[ai].acquisitions == 0 && chunks[ai].monkey == null) {
-                    remove(chunkFP);
+                    remove(chunkFP, primitiveBuffer);
                 }
                 return true;
             } else {
@@ -95,9 +95,9 @@ public class ChunkCache {
         return true;
     }
 
-    public <M> Chunk<M> remove(long chunkFP) throws IOException {
+    public <M> Chunk<M> remove(long chunkFP, byte[] primitiveBuffer) throws IOException {
         if (mapContext != null) {
-            int ai = (int) MapStore.INSTANCE.remove(mapFiler, mapContext, FilerIO.longBytes(chunkFP));
+            int ai = (int) MapStore.INSTANCE.remove(mapFiler, mapContext, FilerIO.longBytes(chunkFP), primitiveBuffer);
             if (ai > -1) {
                 Chunk<M> chunk = (Chunk<M>) chunks[ai];
                 acquisitions -= chunk.acquisitions;
@@ -108,9 +108,9 @@ public class ChunkCache {
         return null;
     }
 
-    <M> Chunk<M> promoteAndAcquire(long chunkFP, Chunk<M> chunk, int initialCapacity) throws IOException {
-        ensureCapacity(initialCapacity);
-        long ai = MapStore.INSTANCE.add(mapFiler, mapContext, (byte) 1, FilerIO.longBytes(chunkFP), EMPTY_PAYLOAD);
+    <M> Chunk<M> promoteAndAcquire(long chunkFP, Chunk<M> chunk, int initialCapacity, byte[] primitiveBuffer) throws IOException {
+        ensureCapacity(initialCapacity, primitiveBuffer);
+        long ai = MapStore.INSTANCE.add(mapFiler, mapContext, (byte) 1, FilerIO.longBytes(chunkFP), EMPTY_PAYLOAD, primitiveBuffer);
         if (ai == -1) {
             throw new IllegalStateException("Context has no room");
         }
@@ -124,26 +124,24 @@ public class ChunkCache {
         return acquisitions == 0;
     }
 
-    void ensureCapacity(int initialCapacity) throws IOException {
+    void ensureCapacity(int initialCapacity, byte[] primitiveBuffer) throws IOException {
         if (mapContext == null) {
             int size = MapStore.INSTANCE.computeFilerSize(initialCapacity, 8, false, 0, false);
             mapFiler = new ByteBufferBackedFiler(bufferFactory.allocate(name, size));
-            mapContext = MapStore.INSTANCE.create(initialCapacity, 8, false, 0, false, mapFiler);
+            mapContext = MapStore.INSTANCE.create(initialCapacity, 8, false, 0, false, mapFiler, primitiveBuffer);
             chunks = new Chunk[mapContext.capacity];
-        } else {
-            if (MapStore.INSTANCE.isFull(mapContext)) {
-                int nextGrowSize = MapStore.INSTANCE.nextGrowSize(mapContext);
-                int newSize = MapStore.INSTANCE.computeFilerSize(nextGrowSize, 8, false, 0, false);
-                ByteBufferBackedFiler newMapFiler = new ByteBufferBackedFiler(bufferFactory.allocate(name, newSize));
-                MapContext newMapContext = MapStore.INSTANCE.create(nextGrowSize, 8, false, 0, false, newMapFiler);
-                final Chunk<?>[] newChunks = new Chunk[newMapContext.capacity];
-                MapStore.INSTANCE.copyTo(mapFiler, mapContext, newMapFiler, newMapContext,
-                    (fromIndex, toIndex) -> newChunks[(int) toIndex] = chunks[(int) fromIndex]);
-                mapFiler = newMapFiler;
-                mapContext = newMapContext;
-                chunks = newChunks;
+        } else if (MapStore.INSTANCE.isFull(mapContext)) {
+            int nextGrowSize = MapStore.INSTANCE.nextGrowSize(mapContext);
+            int newSize = MapStore.INSTANCE.computeFilerSize(nextGrowSize, 8, false, 0, false);
+            ByteBufferBackedFiler newMapFiler = new ByteBufferBackedFiler(bufferFactory.allocate(name, newSize));
+            MapContext newMapContext = MapStore.INSTANCE.create(nextGrowSize, 8, false, 0, false, newMapFiler, primitiveBuffer);
+            final Chunk<?>[] newChunks = new Chunk[newMapContext.capacity];
+            MapStore.INSTANCE.copyTo(mapFiler, mapContext, newMapFiler, newMapContext,
+                (fromIndex, toIndex) -> newChunks[(int) toIndex] = chunks[(int) fromIndex], primitiveBuffer);
+            mapFiler = newMapFiler;
+            mapContext = newMapContext;
+            chunks = newChunks;
 
-            }
         }
     }
 

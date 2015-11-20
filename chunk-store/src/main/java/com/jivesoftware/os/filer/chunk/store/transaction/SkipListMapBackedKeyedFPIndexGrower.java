@@ -44,12 +44,13 @@ public class SkipListMapBackedKeyedFPIndexGrower implements GrowFiler<Integer, S
         SkipListMapBackedKeyedFPIndex newMonkey,
         ChunkFiler newFiler,
         Object currentLock,
-        Object newLock) throws IOException {
+        Object newLock,
+        byte[] primitiveBuffer) throws IOException {
 
         synchronized (currentLock) {
             synchronized (newLock) {
                 if (newMonkey.acquire(sizeHint)) {
-                    currentMonkey.copyTo(currentFiler, newMonkey, newFiler);
+                    currentMonkey.copyTo(currentFiler, newMonkey, newFiler, primitiveBuffer);
                 } else {
                     throw new RuntimeException("Newly allocated MapBackedKeyedFPIndexGrower context does not have necessary capacity!");
                 }

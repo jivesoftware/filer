@@ -64,10 +64,10 @@ public class MapBackedKeyedFPIndexCreator implements CreateFiler<Integer, MapBac
     }
 
     @Override
-    public MapBackedKeyedFPIndex create(Integer hint, ChunkFiler filer) throws IOException {
+    public MapBackedKeyedFPIndex create(Integer hint, ChunkFiler filer, byte[] primitiveBuffer) throws IOException {
         hint += initialCapacity;
         hint = hint < 2 ? 2 : hint;
-        MapContext mapContext = MapStore.INSTANCE.create(hint, keySize, variableKeySize, payloadSize, variablePayloadSize, filer);
+        MapContext mapContext = MapStore.INSTANCE.create(hint, keySize, variableKeySize, payloadSize, variablePayloadSize, filer, primitiveBuffer);
         Map<IBA, Long> keyToFPcache = null;
         if (cacheFactory != null) {
             keyToFPcache = cacheFactory.createCache();

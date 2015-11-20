@@ -49,11 +49,11 @@ public class SkipListMapBackedKeyedFPIndexOpener implements OpenFiler<SkipListMa
     }
 
     @Override
-    public SkipListMapBackedKeyedFPIndex open(ChunkFiler filer) throws IOException {
-        MapContext mapContext = MapStore.INSTANCE.open(filer);
+    public SkipListMapBackedKeyedFPIndex open(ChunkFiler filer, byte[] primitiveBuffer) throws IOException {
+        MapContext mapContext = MapStore.INSTANCE.open(filer, primitiveBuffer);
         byte[] headKey = new byte[mapContext.keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
-        SkipListMapContext skipListMapContext = SkipListMapStore.INSTANCE.open(headKey, LexSkipListComparator.cSingleton, filer);
+        SkipListMapContext skipListMapContext = SkipListMapStore.INSTANCE.open(headKey, LexSkipListComparator.cSingleton, filer, primitiveBuffer);
         Map<IBA, Long> keyFPCache = null;
         if (cacheFactory != null) {
             keyFPCache = cacheFactory.createCache();

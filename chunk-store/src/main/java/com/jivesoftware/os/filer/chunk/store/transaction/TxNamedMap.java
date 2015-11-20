@@ -68,70 +68,73 @@ public class TxNamedMap {
 
     private final MapBackedKeyedFPIndexGrower grower = new MapBackedKeyedFPIndexGrower();
 
-    public <R> R readWriteAutoGrow(final byte[] mapName, int additionalCapacity, final ChunkTransaction<MapContext, R> mapTransaction) throws IOException {
+    public <R> R readWriteAutoGrow(final byte[] mapName, int additionalCapacity, final ChunkTransaction<MapContext, R> mapTransaction,
+        byte[] primitiveBuffer) throws IOException {
         synchronized (chunkStore) {
-            if (!chunkStore.isValid(constantFP)) {
-                long fp = chunkStore.newChunk(null, skyHookIndexCreator);
+            if (!chunkStore.isValid(constantFP, primitiveBuffer)) {
+                long fp = chunkStore.newChunk(null, skyHookIndexCreator, primitiveBuffer);
                 checkState(fp == constantFP, "Must initialize to constantFP");
             }
         }
-        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, lock) -> {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, primitiveBuffer1, lock) -> {
 
             int chunkPower = FilerIO.chunkPower(mapName.length, 0);
             return monkey.readWriteAutoGrow(chunkStore, chunkPower, 1, skyHookCog.creators[chunkPower], skyHookCog.opener, grower,
-                (monkey1, filer1, lock1) -> monkey1.readWriteAutoGrow(chunkStore, mapName, additionalCapacity, mapCreator, mapOpener, mapGrower, mapTransaction));
+                (monkey1, filer1, primitiveBuffer2, lock1) -> monkey1.readWriteAutoGrow(chunkStore, mapName, additionalCapacity, mapCreator, mapOpener,
+                    mapGrower, mapTransaction,
+                    primitiveBuffer2), primitiveBuffer1);
 
-        });
+        }, primitiveBuffer);
     }
 
-    public <R> R read(final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction) throws IOException {
+    public <R> R read(final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction, byte[] primitiveBuffer) throws IOException {
         synchronized (chunkStore) {
-            if (!chunkStore.isValid(constantFP)) {
-                return mapTransaction.commit(null, null, null);
+            if (!chunkStore.isValid(constantFP, primitiveBuffer)) {
+                return mapTransaction.commit(null, null, primitiveBuffer, null);
             }
         }
-        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, lock) -> {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, primitiveBuffer1, lock) -> {
             if (monkey == null || filer == null) {
-                return mapTransaction.commit(null, null, null);
+                return mapTransaction.commit(null, null, primitiveBuffer1, null);
             }
 
             int chunkPower = FilerIO.chunkPower(mapName.length, 0);
             return monkey.read(chunkStore, chunkPower, skyHookCog.opener,
-                (monkey1, filer1, lock1) -> {
+                (monkey1, filer1, primitiveBuffer2, lock1) -> {
                     if (monkey1 != null && filer1 != null) {
-                        return monkey1.read(chunkStore, mapName, mapOpener, mapTransaction);
+                        return monkey1.read(chunkStore, mapName, mapOpener, mapTransaction, primitiveBuffer2);
                     } else {
-                        return mapTransaction.commit(null, null, null);
+                        return mapTransaction.commit(null, null, primitiveBuffer2, null);
                     }
-                });
+                }, primitiveBuffer1);
 
-        });
+        }, primitiveBuffer);
     }
 
-    public Boolean stream(final byte[] mapName, final TxStream<byte[], MapContext, ChunkFiler> stream) throws IOException {
+    public Boolean stream(final byte[] mapName, final TxStream<byte[], MapContext, ChunkFiler> stream, byte[] primitiveBuffer) throws IOException {
         synchronized (chunkStore) {
-            if (!chunkStore.isValid(constantFP)) {
+            if (!chunkStore.isValid(constantFP, primitiveBuffer)) {
                 return true;
             }
         }
-        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, lock) -> {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, primitiveBuffer1, lock) -> {
             if (monkey == null || filer == null) {
                 return true;
             }
 
             int chunkPower = FilerIO.chunkPower(mapName.length, 0);
             return monkey.read(chunkStore, chunkPower, skyHookCog.opener,
-                (skyHookMonkey, skyHookFiler, skyHookLock) -> {
+                (skyHookMonkey, skyHookFiler, primitiveBuffer2, skyHookLock) -> {
                     if (skyHookMonkey == null || skyHookFiler == null) {
                         return true;
                     }
-                    return skyHookMonkey.read(chunkStore, mapName, mapOpener, (mapMonkey, mapFiler, mapLock) -> {
+                    return skyHookMonkey.read(chunkStore, mapName, mapOpener, (mapMonkey, mapFiler, primitiveBuffer3, mapLock) -> {
                         if (mapMonkey == null || mapFiler == null) {
                             return true;
                         }
                         return stream.stream(mapName, mapMonkey, mapFiler, mapLock);
-                    });
-                });
-        });
+                    }, primitiveBuffer2);
+                }, primitiveBuffer1);
+        }, primitiveBuffer);
     }
 }

@@ -8,5 +8,5 @@ import java.io.IOException;
  */
 public interface Copyable<V> {
 
-    void copyTo(V to) throws IOException;
+    void copyTo(V to, byte[] buffer) throws IOException;
 }

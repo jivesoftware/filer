@@ -42,10 +42,10 @@ public class MapCreator implements CreateFiler<Integer, MapContext, ChunkFiler> 
     }
 
     @Override
-    public MapContext create(Integer hint, ChunkFiler filer) throws IOException {
+    public MapContext create(Integer hint, ChunkFiler filer, byte[] primitiveBuffer) throws IOException {
         hint += initialCapacity;
         hint = hint < 2 ? 2 : hint;
-        return MapStore.INSTANCE.create(hint, keySize, variableKeySize, payloadSize, variablePayloadSize, filer);
+        return MapStore.INSTANCE.create(hint, keySize, variableKeySize, payloadSize, variablePayloadSize, filer, primitiveBuffer);
     }
 
     @Override

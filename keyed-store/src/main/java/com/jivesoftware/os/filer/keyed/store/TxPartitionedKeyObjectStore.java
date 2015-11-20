@@ -41,7 +41,7 @@ public class TxPartitionedKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public boolean[] contains(List<K> keys) throws IOException {
+    public boolean[] contains(List<K> keys, byte[] primitiveBuffer) throws IOException {
         List[] partitionedKeys = new List[stores.length];
         for (int p = 0; p < stores.length; p++) {
             partitionedKeys[p] = new ArrayList();
@@ -56,7 +56,7 @@ public class TxPartitionedKeyObjectStore<K, V> implements KeyValueStore<K, V> {
         }
         boolean[][] partitionedContains = new boolean[stores.length][];
         for (int p = 0; p < stores.length; p++) {
-            partitionedContains[p] = stores[p].contains((List<K>) partitionedKeys[p]);
+            partitionedContains[p] = stores[p].contains((List<K>) partitionedKeys[p], primitiveBuffer);
         }
 
         boolean[] result = new boolean[keys.size()];
@@ -69,21 +69,22 @@ public class TxPartitionedKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public void multiExecute(K[] keys, IndexAlignedKeyValueTransaction<V> indexAlignedKeyValueTransaction) throws IOException {
+    public void multiExecute(K[] keys, IndexAlignedKeyValueTransaction<V> indexAlignedKeyValueTransaction, byte[] primitiveBuffer) throws IOException {
         throw new UnsupportedOperationException("TODO");
     }
 
     @Override
     public <R> R execute(K key,
         boolean createIfAbsent,
-        KeyValueTransaction<V, R> keyValueTransaction) throws IOException {
-        return stores[partitionFunction.partition(stores.length, key)].execute(key, createIfAbsent, keyValueTransaction);
+        KeyValueTransaction<V, R> keyValueTransaction,
+        byte[] primitiveBuffer) throws IOException {
+        return stores[partitionFunction.partition(stores.length, key)].execute(key, createIfAbsent, keyValueTransaction, primitiveBuffer);
     }
 
     @Override
-    public boolean stream(final EntryStream<K, V> stream) throws IOException {
+    public boolean stream(final EntryStream<K, V> stream, byte[] primitiveBuffer) throws IOException {
         for (TxKeyObjectStore<K, V> store : stores) {
-            if (!store.stream(stream)) {
+            if (!store.stream(stream, primitiveBuffer)) {
                 return false;
             }
         }
@@ -92,9 +93,9 @@ public class TxPartitionedKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public boolean streamKeys(final KeyStream<K> stream) throws IOException {
+    public boolean streamKeys(final KeyStream<K> stream, byte[] primitiveBuffer) throws IOException {
         for (TxKeyObjectStore<K, V> store : stores) {
-            if (!store.streamKeys(stream)) {
+            if (!store.streamKeys(stream, primitiveBuffer)) {
                 return false;
             }
         }

@@ -28,6 +28,7 @@ public class AutoGrowingByteBufferBackedFilerNGTest {
 
     @Test
     public void writeALongTest() throws Exception {
+        byte[] primitiveBuffer = new byte[8];
         for (int i = 1; i < 10; i++) {
             Path createTempDirectory = Files.createTempDirectory("writeALongTest");
 
@@ -40,9 +41,9 @@ public class AutoGrowingByteBufferBackedFilerNGTest {
 
                 System.out.println("i:" + i);
                 AutoGrowingByteBufferBackedFiler filer = new AutoGrowingByteBufferBackedFiler(bf, i, i);
-                FilerIO.writeLong(filer, Long.MAX_VALUE, "a long");
+                FilerIO.writeLong(filer, Long.MAX_VALUE, "a long", primitiveBuffer);
                 filer.seek(0);
-                Assert.assertEquals(FilerIO.readLong(filer, "a long"), Long.MAX_VALUE, "Booya");
+                Assert.assertEquals(FilerIO.readLong(filer, "a long", primitiveBuffer), Long.MAX_VALUE, "Booya");
             }
         }
     }
@@ -73,6 +74,7 @@ public class AutoGrowingByteBufferBackedFilerNGTest {
 
     @Test
     public void writeIntsTest() throws Exception {
+        byte[] primitiveBuffer = new byte[8];
         for (int b = 1; b < 10; b++) {
             System.out.println("b:" + b);
             Path createTempDirectory = Files.createTempDirectory("writeIntsTest");
@@ -87,9 +89,9 @@ public class AutoGrowingByteBufferBackedFilerNGTest {
                 AutoGrowingByteBufferBackedFiler filer = new AutoGrowingByteBufferBackedFiler(bf, b, b);
                 for (int i = 0; i < b * 4; i++) {
                     System.out.println(b + " " + i + " " + bf);
-                    FilerIO.writeInt(filer, i, "");
+                    FilerIO.writeInt(filer, i, "", primitiveBuffer);
                     filer.seek(i * 4);
-                    Assert.assertEquals(FilerIO.readInt(filer, ""), i, "Boo " + i + " at " + b + " " + bf);
+                    Assert.assertEquals(FilerIO.readInt(filer, "", primitiveBuffer), i, "Boo " + i + " at " + b + " " + bf);
                 }
             }
         }
@@ -97,6 +99,7 @@ public class AutoGrowingByteBufferBackedFilerNGTest {
 
     @Test
     public void writeIntsFileBackedTest() throws Exception {
+        byte[] primitiveBuffer = new byte[8];
         for (int b = 4; b < 10; b++) {
             System.out.println("b:" + b);
             Path createTempDirectory = Files.createTempDirectory("writeIntsTest");
@@ -106,9 +109,9 @@ public class AutoGrowingByteBufferBackedFilerNGTest {
             AutoGrowingByteBufferBackedFiler filer = new AutoGrowingByteBufferBackedFiler(bf, 1, b);
             for (int i = 0; i < b * 4; i++) {
                 System.out.println(b + " " + i + " " + bf);
-                FilerIO.writeInt(filer, i, "");
+                FilerIO.writeInt(filer, i, "", primitiveBuffer);
                 filer.seek(i * 4);
-                Assert.assertEquals(FilerIO.readInt(filer, ""), i, "Boo " + i + " at " + b + " " + bf);
+                Assert.assertEquals(FilerIO.readInt(filer, "", primitiveBuffer), i, "Boo " + i + " at " + b + " " + bf);
             }
 
         }

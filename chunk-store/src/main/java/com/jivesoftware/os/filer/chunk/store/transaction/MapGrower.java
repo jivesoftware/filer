@@ -30,12 +30,13 @@ public class MapGrower<M extends MapContext> implements GrowFiler<Integer, M, Ch
         M newMonkey,
         ChunkFiler newFiler,
         Object currentLock,
-        Object newLock) throws IOException {
+        Object newLock,
+        byte[] primitiveBuffer) throws IOException {
 
         synchronized (currentLock) {
             synchronized (newLock) {
                 if (MapStore.INSTANCE.acquire(newMonkey, sizeHint)) {
-                    MapStore.INSTANCE.copyTo(currentFiler, currentMonkey, newFiler, newMonkey, null);
+                    MapStore.INSTANCE.copyTo(currentFiler, currentMonkey, newFiler, newMonkey, null, primitiveBuffer);
                 } else {
                     throw new RuntimeException("Newly allocated MapGrower context does not have necessary capacity!");
                 }

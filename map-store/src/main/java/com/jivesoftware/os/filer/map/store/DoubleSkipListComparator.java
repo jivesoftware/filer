@@ -28,17 +28,17 @@ public class DoubleSkipListComparator implements SkipListComparator {
 
     static final public DoubleSkipListComparator cSingleton = new DoubleSkipListComparator();
 
-    public int compare(Filer a, int astart, Filer b, int bstart, int length) throws IOException {
+    public int compare(Filer a, int astart, Filer b, int bstart, int length, byte[] primitiveBuffer) throws IOException {
         a.seek(astart);
-        double ad = FilerIO.readDouble(a, "a");
+        double ad = FilerIO.readDouble(a, "a", primitiveBuffer);
         b.seek(bstart);
-        double bd = FilerIO.readDouble(b, "b");
+        double bd = FilerIO.readDouble(b, "b", primitiveBuffer);
         return Double.compare(ad, bd);
     }
 
     @Override
     public int compare(byte[] a, byte[] b) throws IOException {
-       return Double.compare(FilerIO.byteDouble(a), FilerIO.byteDouble(b));
+        return Double.compare(FilerIO.byteDouble(a), FilerIO.byteDouble(b));
     }
 
 }

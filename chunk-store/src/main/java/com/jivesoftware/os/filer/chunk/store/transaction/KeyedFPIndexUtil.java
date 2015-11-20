@@ -44,7 +44,8 @@ public class KeyedFPIndexUtil {
         Object keyLock,
         K key,
         OpenFiler<M, ChunkFiler> opener,
-        ChunkTransaction<M, R> filerTransaction) throws IOException {
+        ChunkTransaction<M, R> filerTransaction,
+        byte[] primitiveBuffer) throws IOException {
 
         try {
             semaphore.acquire();
@@ -55,13 +56,13 @@ public class KeyedFPIndexUtil {
         try {
             long fp;
             synchronized (keyLock) {
-                fp = backingFPIndex.get(key);
+                fp = backingFPIndex.get(key, primitiveBuffer);
                 if (fp < 0) {
-                    return filerTransaction.commit(null, null, null);
+                    return filerTransaction.commit(null, null, primitiveBuffer, null);
                 }
             }
 
-            return chunkStore.execute(fp, opener, filerTransaction);
+            return chunkStore.execute(fp, opener, filerTransaction, primitiveBuffer);
         } finally {
             semaphore.release();
         }
@@ -77,7 +78,8 @@ public class KeyedFPIndexUtil {
         final CreateFiler<H, M, ChunkFiler> creator,
         final OpenFiler<M, ChunkFiler> opener,
         final GrowFiler<H, M, ChunkFiler> growFiler,
-        final ChunkTransaction<M, R> filerTransaction) throws IOException {
+        final ChunkTransaction<M, R> filerTransaction,
+        byte[] primitiveBuffer) throws IOException {
 
         try {
             semaphore.acquire();
@@ -88,20 +90,20 @@ public class KeyedFPIndexUtil {
         final AtomicInteger releasablePermits = new AtomicInteger(1);
         try {
 
-            final long grownFP = chunkStore.newChunk(hint, creator);
+            final long grownFP = chunkStore.newChunk(hint, creator, primitiveBuffer);
             R result;
             final AtomicLong currentFP = new AtomicLong(-1);
-            result = chunkStore.execute(grownFP, opener, (newMonkey, newFiler, newLock) -> {
-                growFiler.growAndAcquire(hint, null, null, newMonkey, newFiler, newLock, newLock);
+            result = chunkStore.execute(grownFP, opener, (newMonkey, newFiler, _primitiveBuffer, newLock) -> {
+                growFiler.growAndAcquire(hint, null, null, newMonkey, newFiler, newLock, newLock, _primitiveBuffer);
                 try {
                     synchronized (keyLock) {
-                        currentFP.set(backingFPIndex.getAndSet(key, grownFP));
+                        currentFP.set(backingFPIndex.getAndSet(key, grownFP, _primitiveBuffer));
                     }
-                    return filerTransaction.commit(newMonkey, newFiler, newLock);
+                    return filerTransaction.commit(newMonkey, newFiler, _primitiveBuffer, newLock);
                 } finally {
                     growFiler.release(hint, newMonkey, newLock);
                 }
-            });
+            }, primitiveBuffer);
 
             if (currentFP.get() > -1) {
                 semaphore.release();
@@ -116,7 +118,7 @@ public class KeyedFPIndexUtil {
                 }
                 releasablePermits.set(numPermits);
                 try {
-                    chunkStore.remove(currentFP.get());
+                    chunkStore.remove(currentFP.get(), primitiveBuffer);
                 } finally {
                     semaphore.release(numPermits - 1);
                     releasablePermits.set(1);
@@ -139,7 +141,8 @@ public class KeyedFPIndexUtil {
         final CreateFiler<H, M, ChunkFiler> creator,
         final OpenFiler<M, ChunkFiler> opener,
         final GrowFiler<H, M, ChunkFiler> growFiler,
-        final ChunkTransaction<M, R> filerTransaction) throws IOException {
+        final ChunkTransaction<M, R> filerTransaction,
+        byte[] primitiveBuffer) throws IOException {
 
         long fp;
 
@@ -151,32 +154,32 @@ public class KeyedFPIndexUtil {
 
         try {
             synchronized (keyLock) {
-                fp = backingFPIndex.get(key);
+                fp = backingFPIndex.get(key, primitiveBuffer);
                 if (fp < 0) {
                     if (creator == null) {
-                        return filerTransaction.commit(null, null, null);
+                        return filerTransaction.commit(null, null, primitiveBuffer, null);
                     }
-                    final long newFp = chunkStore.newChunk(hint, creator);
-                    backingFPIndex.set(key, newFp);
+                    final long newFp = chunkStore.newChunk(hint, creator, primitiveBuffer);
+                    backingFPIndex.set(key, newFp, primitiveBuffer);
                     fp = newFp;
                 }
             }
 
-            Bag<R> bag = chunkStore.execute(fp, opener, (monkey, filer, lock) -> {
+            Bag<R> bag = chunkStore.execute(fp, opener, (monkey, filer, _primitiveBuffer, lock) -> {
                 if (growFiler != null) {
                     H hint1 = growFiler.acquire(hint, monkey, filer, lock);
                     try {
                         if (hint1 != null) {
                             return null;
                         }
-                        return new Bag<>(filerTransaction.commit(monkey, filer, lock));
+                        return new Bag<>(filerTransaction.commit(monkey, filer, _primitiveBuffer, lock));
                     } finally {
                         growFiler.release(hint, monkey, lock);
                     }
                 } else {
-                    return new Bag<>(filerTransaction.commit(monkey, filer, lock));
+                    return new Bag<>(filerTransaction.commit(monkey, filer, _primitiveBuffer, lock));
                 }
-            });
+            }, primitiveBuffer);
             if (bag != null) {
                 return bag.result;
             }
@@ -194,44 +197,44 @@ public class KeyedFPIndexUtil {
         }
         final AtomicInteger releasablePermits = new AtomicInteger(numPermits);
         try {
-            fp = backingFPIndex.get(key);
+            fp = backingFPIndex.get(key, primitiveBuffer);
             if (fp < 0) {
                 throw new RuntimeException("Chunk disappeared!");
             }
             final AtomicLong removeFP = new AtomicLong(-1);
             try {
-                return chunkStore.execute(fp, opener, (monkey, filer, lock) -> {
+                return chunkStore.execute(fp, opener, (monkey, filer, primitiveBuffer1, lock) -> {
                     H hint1 = growFiler.acquire(hint, monkey, filer, lock);
                     try {
                         if (hint1 != null) {
-                            final long grownFP = chunkStore.newChunk(hint1, creator);
-                            return chunkStore.execute(grownFP, opener, (newMonkey, newFiler, newLock) -> {
-                                growFiler.growAndAcquire(hint, monkey, filer, newMonkey, newFiler, lock, newLock);
+                            final long grownFP = chunkStore.newChunk(hint1, creator, primitiveBuffer1);
+                            return chunkStore.execute(grownFP, opener, (newMonkey, newFiler, primitiveBuffer2, newLock) -> {
+                                growFiler.growAndAcquire(hint, monkey, filer, newMonkey, newFiler, lock, newLock, primitiveBuffer2);
                                 try {
-                                    backingFPIndex.set(key, grownFP);
+                                    backingFPIndex.set(key, grownFP, primitiveBuffer2);
                                     removeFP.set(filer.getChunkFP());
 
                                     semaphore.release(numPermits - 1);
                                     releasablePermits.set(1);
-                                    return filerTransaction.commit(newMonkey, newFiler, newLock);
+                                    return filerTransaction.commit(newMonkey, newFiler, primitiveBuffer2, newLock);
                                 } finally {
                                     growFiler.release(hint, newMonkey, newLock);
                                 }
-                            });
+                            }, primitiveBuffer1);
 
                         } else {
                             semaphore.release(numPermits - 1);
                             releasablePermits.set(1);
 
-                            return filerTransaction.commit(monkey, filer, lock);
+                            return filerTransaction.commit(monkey, filer, primitiveBuffer1, lock);
                         }
                     } finally {
                         growFiler.release(hint, monkey, lock);
                     }
-                });
+                }, primitiveBuffer);
             } finally {
                 if (removeFP.get() >= 0) {
-                    chunkStore.remove(removeFP.get());
+                    chunkStore.remove(removeFP.get(), primitiveBuffer);
                 }
             }
 
