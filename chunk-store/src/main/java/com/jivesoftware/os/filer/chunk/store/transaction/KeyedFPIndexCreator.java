@@ -17,6 +17,7 @@ package com.jivesoftware.os.filer.chunk.store.transaction;
 
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import java.io.IOException;
 import java.util.Arrays;
@@ -43,11 +44,11 @@ public class KeyedFPIndexCreator implements CreateFiler<Void, PowerKeyedFPIndex,
     }
 
     @Override
-    public PowerKeyedFPIndex create(Void hint, ChunkFiler filer, byte[] primitiveBuffer) throws IOException {
+    public PowerKeyedFPIndex create(Void hint, ChunkFiler filer, StackBuffer stackBuffer) throws IOException {
         filer.seek(0);
-        FilerIO.writeLong(filer, magicHeader, "magicHeader", primitiveBuffer);
+        FilerIO.writeLong(filer, magicHeader, "magicHeader", stackBuffer);
         for (int i = 0; i < skyHookMaxKeySizePower; i++) {
-            FilerIO.writeLong(filer, -1, "powerFP", primitiveBuffer);
+            FilerIO.writeLong(filer, -1, "powerFP", stackBuffer);
         }
         long[] fps = new long[skyHookMaxKeySizePower];
         Arrays.fill(fps, -1L);

@@ -1,6 +1,7 @@
 package com.jivesoftware.os.filer.io.map;
 
 import com.jivesoftware.os.filer.io.Filer;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import java.io.IOException;
 import java.util.Arrays;
 
@@ -80,18 +81,18 @@ public class MapStore {
         return cost(maxCount, keyLengthSize + keySize, payloadLengthSize + payloadSize);
     }
 
-    public MapContext open(Filer filer, byte[] primitiveBuffer) throws IOException {
-        int keySize = getKeySize(filer, primitiveBuffer);
+    public MapContext open(Filer filer, StackBuffer stackBuffer) throws IOException {
+        int keySize = getKeySize(filer, stackBuffer);
         byte keyLengthSize = getKeyLengthSize(filer);
-        int payloadSize = getPayloadSize(filer, primitiveBuffer);
+        int payloadSize = getPayloadSize(filer, stackBuffer);
         byte payloadLengthSize = getPayloadLengthSize(filer);
-        long count = getCount(filer, primitiveBuffer);
+        long count = getCount(filer, stackBuffer);
         return new MapContext(keySize,
             keyLengthSize,
             payloadSize,
             payloadLengthSize,
-            getCapacity(filer, primitiveBuffer),
-            getMaxCount(filer, primitiveBuffer),
+            getCapacity(filer, stackBuffer),
+            getMaxCount(filer, stackBuffer),
             keyLengthSize + keySize + payloadLengthSize + payloadSize,
             count);
     }
@@ -100,14 +101,14 @@ public class MapStore {
         int maxCount,
         MapContext mapContext,
         Filer filer,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
         return create(maxCount,
             mapContext.keySize,
             mapContext.keyLengthSize > 0,
             mapContext.payloadSize,
             mapContext.payloadLengthSize > 0,
             filer,
-            primitiveBuffer);
+            stackBuffer);
     }
 
     public MapContext create(
@@ -117,7 +118,7 @@ public class MapStore {
         int payloadSize,
         boolean variablePayloadSizes,
         Filer filer,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
 
         int maxCapacity = calculateCapacity(maxCount);
 
@@ -126,12 +127,12 @@ public class MapStore {
 
         setMapVersion(filer, cMapVersion);
 
-        setMaxCount(filer, maxCount, primitiveBuffer);
-        setCapacity(filer, maxCapacity, primitiveBuffer); // good to use prime
+        setMaxCount(filer, maxCount, stackBuffer);
+        setCapacity(filer, maxCapacity, stackBuffer); // good to use prime
 
-        setKeySize(filer, keySize, primitiveBuffer);
+        setKeySize(filer, keySize, stackBuffer);
         setKeyLengthSize(filer, keyLengthSize);
-        setPayloadSize(filer, payloadSize, primitiveBuffer);
+        setPayloadSize(filer, payloadSize, stackBuffer);
         setPayloadLengthSize(filer, payloadLengthSize);
 
         MapContext context = new MapContext(keySize,
@@ -142,7 +143,7 @@ public class MapStore {
             maxCount,
             keyLengthSize + keySize + payloadLengthSize + payloadSize,
             0);
-        setCount(context, filer, 0, primitiveBuffer);
+        setCount(context, filer, 0, stackBuffer);
         return context;
     }
 
@@ -166,8 +167,8 @@ public class MapStore {
         write(filer, cMapVersionOffset, family);
     }
 
-    public long getCount(Filer filer, byte[] primitiveBuffer) throws IOException {
-        return readInt(filer, cCountOffset, primitiveBuffer);
+    public long getCount(Filer filer, StackBuffer stackBuffer) throws IOException {
+        return readInt(filer, cCountOffset, stackBuffer);
     }
 
     public long getApproxCount(MapContext context) throws IOException {
@@ -201,33 +202,33 @@ public class MapStore {
         context.requested -= n;
     }
 
-    private void setCount(MapContext context, Filer filer, long count, byte[] primitiveBuffer) throws IOException {
+    private void setCount(MapContext context, Filer filer, long count, StackBuffer stackBuffer) throws IOException {
         context.count = count;
-        writeInt(filer, cCountOffset, (int) count, primitiveBuffer);
+        writeInt(filer, cCountOffset, (int) count, stackBuffer);
     }
 
-    public int getMaxCount(Filer filer, byte[] primitiveBuffer) throws IOException {
-        return readInt(filer, cMaxCountOffset, primitiveBuffer);
+    public int getMaxCount(Filer filer, StackBuffer stackBuffer) throws IOException {
+        return readInt(filer, cMaxCountOffset, stackBuffer);
     }
 
-    private void setMaxCount(Filer filer, int v, byte[] primitiveBuffer) throws IOException {
-        writeInt(filer, cMaxCountOffset, v, primitiveBuffer);
+    private void setMaxCount(Filer filer, int v, StackBuffer stackBuffer) throws IOException {
+        writeInt(filer, cMaxCountOffset, v, stackBuffer);
     }
 
-    public int getCapacity(Filer filer, byte[] primitiveBuffer) throws IOException {
-        return readInt(filer, cCapacityOffset, primitiveBuffer);
+    public int getCapacity(Filer filer, StackBuffer stackBuffer) throws IOException {
+        return readInt(filer, cCapacityOffset, stackBuffer);
     }
 
-    private void setCapacity(Filer filer, int v, byte[] primitiveBuffer) throws IOException {
-        writeInt(filer, cCapacityOffset, v, primitiveBuffer);
+    private void setCapacity(Filer filer, int v, StackBuffer stackBuffer) throws IOException {
+        writeInt(filer, cCapacityOffset, v, stackBuffer);
     }
 
-    public int getKeySize(Filer filer, byte[] primitiveBuffer) throws IOException {
-        return readInt(filer, cKeySizeOffset, primitiveBuffer);
+    public int getKeySize(Filer filer, StackBuffer stackBuffer) throws IOException {
+        return readInt(filer, cKeySizeOffset, stackBuffer);
     }
 
-    private void setKeySize(Filer filer, int v, byte[] primitiveBuffer) throws IOException {
-        writeInt(filer, cKeySizeOffset, v, primitiveBuffer);
+    private void setKeySize(Filer filer, int v, StackBuffer stackBuffer) throws IOException {
+        writeInt(filer, cKeySizeOffset, v, stackBuffer);
     }
 
     public byte getKeyLengthSize(Filer filer) throws IOException {
@@ -238,12 +239,12 @@ public class MapStore {
         write(filer, cKeySizeVariableOffset, v);
     }
 
-    public int getPayloadSize(Filer filer, byte[] primitiveBuffer) throws IOException {
-        return readInt(filer, cPayloadSizeOffset, primitiveBuffer);
+    public int getPayloadSize(Filer filer, StackBuffer stackBuffer) throws IOException {
+        return readInt(filer, cPayloadSizeOffset, stackBuffer);
     }
 
-    private void setPayloadSize(Filer filer, int v, byte[] primitiveBuffer) throws IOException {
-        writeInt(filer, cPayloadSizeOffset, v, primitiveBuffer);
+    private void setPayloadSize(Filer filer, int v, StackBuffer stackBuffer) throws IOException {
+        writeInt(filer, cPayloadSizeOffset, v, stackBuffer);
     }
 
     public byte getPayloadLengthSize(Filer filer) throws IOException {
@@ -258,21 +259,21 @@ public class MapStore {
         return cHeaderSize + (1 + entrySize) * _arrayIndex;
     }
 
-    public long add(Filer filer, MapContext context, byte mode, byte[] key, byte[] payload, byte[] primitiveBuffer) throws IOException {
-        return add(filer, context, mode, key, 0, payload, 0, primitiveBuffer);
+    public long add(Filer filer, MapContext context, byte mode, byte[] key, byte[] payload, StackBuffer stackBuffer) throws IOException {
+        return add(filer, context, mode, key, 0, payload, 0, stackBuffer);
     }
 
-    public long add(Filer filer, MapContext context, byte mode, long keyHash, byte[] key, byte[] payload, byte[] primitiveBuffer) throws IOException {
-        return add(filer, context, mode, keyHash, key, 0, payload, 0, primitiveBuffer);
+    public long add(Filer filer, MapContext context, byte mode, long keyHash, byte[] key, byte[] payload, StackBuffer stackBuffer) throws IOException {
+        return add(filer, context, mode, keyHash, key, 0, payload, 0, stackBuffer);
     }
 
-    public long add(Filer filer, MapContext context, byte mode, byte[] key, int keyOffset, byte[] payload, int _payloadOffset, byte[] primitiveBuffer) throws
+    public long add(Filer filer, MapContext context, byte mode, byte[] key, int keyOffset, byte[] payload, int _payloadOffset, StackBuffer stackBuffer) throws
         IOException {
-        return add(filer, context, mode, hash(key, keyOffset, key.length), key, keyOffset, payload, _payloadOffset, primitiveBuffer);
+        return add(filer, context, mode, hash(key, keyOffset, key.length), key, keyOffset, payload, _payloadOffset, stackBuffer);
     }
 
     public long add(Filer filer, MapContext context, byte mode, long keyHash, byte[] key, int keyOffset, byte[] payload, int _payloadOffset,
-        byte[] primitiveBuffer)
+        StackBuffer stackBuffer)
         throws IOException {
         int capacity = context.capacity;
         int keySize = context.keySize;
@@ -288,31 +289,31 @@ public class MapStore {
                     throw new OverCapacityException(context.count + " > " + context.maxCount + " ? " + context.requested);
                 }
                 write(filer, (int) ai, mode);
-                write(filer, (int) (ai + 1), 0, context.keyLengthSize, key, keySize, keyOffset, primitiveBuffer);
+                write(filer, (int) (ai + 1), 0, context.keyLengthSize, key, keySize, keyOffset, stackBuffer);
                 write(filer, (int) (ai + 1 + context.keyLengthSize + keySize), 0, context.payloadLengthSize, payload, payloadSize, _payloadOffset,
-                    primitiveBuffer);
-                setCount(context, filer, context.count + 1, primitiveBuffer);
+                    stackBuffer);
+                setCount(context, filer, context.count + 1, stackBuffer);
                 return i;
             }
-            if (equals(filer, ai, context.keyLengthSize, key.length, key, keyOffset, primitiveBuffer)) {
+            if (equals(filer, ai, context.keyLengthSize, key.length, key, keyOffset, stackBuffer)) {
                 write(filer, (int) ai, mode);
                 write(filer, (int) (ai + 1 + context.keyLengthSize + keySize), 0, context.payloadLengthSize, payload, payloadSize, _payloadOffset,
-                    primitiveBuffer);
+                    stackBuffer);
                 return i;
             }
         }
         return -1;
     }
 
-    private void write(Filer filer, int offset, int destOffset, int length, byte[] key, int size, int keyOffset, byte[] primitiveBuffer) throws IOException {
+    private void write(Filer filer, int offset, int destOffset, int length, byte[] key, int size, int keyOffset, StackBuffer stackBuffer) throws IOException {
 
         if (length == 0) {
         } else if (length == 1) {
             write(filer, offset + destOffset, (byte) key.length);
         } else if (length == 2) {
-            writeUnsignedShort(filer, offset + destOffset, key.length, primitiveBuffer);
+            writeUnsignedShort(filer, offset + destOffset, key.length, stackBuffer);
         } else if (length == 4) {
-            writeInt(filer, offset + destOffset, key.length, primitiveBuffer);
+            writeInt(filer, offset + destOffset, key.length, stackBuffer);
         } else {
             throw new RuntimeException("Unsupported length. 0,1,2,4 valid but encounterd:" + length);
         }
@@ -324,21 +325,21 @@ public class MapStore {
         }
     }
 
-    public boolean contains(Filer filer, MapContext context, byte[] _key, byte[] primitiveBuffer) throws IOException {
-        return get(filer, context, _key, primitiveBuffer) != -1;
+    public boolean contains(Filer filer, MapContext context, byte[] _key, StackBuffer stackBuffer) throws IOException {
+        return get(filer, context, _key, stackBuffer) != -1;
     }
 
     public int startOfKey(long setIndex, int entrySize) {
         return (int) (index(setIndex, entrySize) + 1); //  +1 to skip mode
     }
 
-    public byte[] getKeyAtIndex(Filer filer, MapContext context, long i, byte[] primitiveBuffer) throws IOException {
+    public byte[] getKeyAtIndex(Filer filer, MapContext context, long i, StackBuffer stackBuffer) throws IOException {
         long ai = index(i, context.entrySize);
         byte mode = read(filer, (int) ai);
         if (mode == cSkip || mode == cNull) {
             return null;
         }
-        return getKey(filer, context, i, primitiveBuffer);
+        return getKey(filer, context, i, stackBuffer);
     }
 
     public long startOfPayload(long setIndex, int entrySize, int keyLength, int keySize) {
@@ -346,22 +347,22 @@ public class MapStore {
         return (ai + 1 + keyLength + keySize);
     }
 
-    public byte[] getPayloadAtIndex(Filer filer, MapContext context, int i, byte[] primitiveBuffer) throws IOException {
+    public byte[] getPayloadAtIndex(Filer filer, MapContext context, int i, StackBuffer stackBuffer) throws IOException {
         if (i < 0 || i >= context.capacity) {
-            throw new RuntimeException("Requested index (" + i + ") is out of bounds (0->" + (getCapacity(filer, primitiveBuffer) - 1) + ")");
+            throw new RuntimeException("Requested index (" + i + ") is out of bounds (0->" + (getCapacity(filer, stackBuffer) - 1) + ")");
         }
         long ai = index(i, context.entrySize);
         byte mode = read(filer, (int) ai);
         if (mode == cSkip || mode == cNull) {
             return null;
         }
-        return getPayload(filer, context, i, primitiveBuffer);
+        return getPayload(filer, context, i, stackBuffer);
     }
 
-    public void setPayloadAtIndex(Filer filer, MapContext context, long i, int _destOffset, byte[] payload, int _poffset, int _plength, byte[] primitiveBuffer)
+    public void setPayloadAtIndex(Filer filer, MapContext context, long i, int _destOffset, byte[] payload, int _poffset, int _plength, StackBuffer stackBuffer)
         throws IOException {
         if (i < 0 || i >= context.capacity) {
-            throw new RuntimeException("Requested index (" + i + ") is out of bounds (0->" + (getCapacity(filer, primitiveBuffer) - 1) + ")");
+            throw new RuntimeException("Requested index (" + i + ") is out of bounds (0->" + (getCapacity(filer, stackBuffer) - 1) + ")");
         }
         long ai = index(i, context.entrySize);
         byte mode = read(filer, (int) ai);
@@ -369,32 +370,32 @@ public class MapStore {
             return;
         }
         int offset = (int) (ai + 1 + context.keyLengthSize + context.keySize);
-        write(filer, offset, _destOffset, context.payloadLengthSize, payload, context.payloadSize, _poffset, primitiveBuffer);
+        write(filer, offset, _destOffset, context.payloadLengthSize, payload, context.payloadSize, _poffset, stackBuffer);
     }
 
-    public byte[] getPayload(Filer filer, MapContext context, byte[] key, byte[] primitiveBuffer) throws IOException {
-        long i = get(filer, context, key, primitiveBuffer);
-        return (i == -1) ? null : getPayload(filer, context, i, primitiveBuffer);
+    public byte[] getPayload(Filer filer, MapContext context, byte[] key, StackBuffer stackBuffer) throws IOException {
+        long i = get(filer, context, key, stackBuffer);
+        return (i == -1) ? null : getPayload(filer, context, i, stackBuffer);
     }
 
-    public byte[] getPayload(Filer filer, MapContext context, long keyHash, byte[] key, byte[] primitiveBuffer) throws IOException {
-        long i = get(filer, context, keyHash, key, primitiveBuffer);
-        return (i == -1) ? null : getPayload(filer, context, i, primitiveBuffer);
+    public byte[] getPayload(Filer filer, MapContext context, long keyHash, byte[] key, StackBuffer stackBuffer) throws IOException {
+        long i = get(filer, context, keyHash, key, stackBuffer);
+        return (i == -1) ? null : getPayload(filer, context, i, stackBuffer);
     }
 
-    public long get(Filer filer, MapContext context, byte[] key, byte[] primitiveBuffer) throws IOException {
-        return get(filer, context, key, 0, primitiveBuffer);
+    public long get(Filer filer, MapContext context, byte[] key, StackBuffer stackBuffer) throws IOException {
+        return get(filer, context, key, 0, stackBuffer);
     }
 
-    public long get(Filer filer, MapContext context, long keyHash, byte[] key, byte[] primitiveBuffer) throws IOException {
-        return get(filer, context, keyHash, key, 0, primitiveBuffer);
+    public long get(Filer filer, MapContext context, long keyHash, byte[] key, StackBuffer stackBuffer) throws IOException {
+        return get(filer, context, keyHash, key, 0, stackBuffer);
     }
 
-    public long get(Filer filer, MapContext context, byte[] key, int keyOffset, byte[] primitiveBuffer) throws IOException {
-        return get(filer, context, hash(key, keyOffset, key.length), key, keyOffset, primitiveBuffer);
+    public long get(Filer filer, MapContext context, byte[] key, int keyOffset, StackBuffer stackBuffer) throws IOException {
+        return get(filer, context, hash(key, keyOffset, key.length), key, keyOffset, stackBuffer);
     }
 
-    public long get(Filer filer, MapContext context, long keyHash, byte[] key, int keyOffset, byte[] primitiveBuffer) throws IOException {
+    public long get(Filer filer, MapContext context, long keyHash, byte[] key, int keyOffset, StackBuffer stackBuffer) throws IOException {
         if (key == null || key.length == 0) {
             return -1;
         }
@@ -412,7 +413,7 @@ public class MapStore {
             if (mode == cNull) {
                 return -1;
             }
-            if (equals(filer, ai, context.keyLengthSize, key.length, key, keyOffset, primitiveBuffer)) {
+            if (equals(filer, ai, context.keyLengthSize, key.length, key, keyOffset, stackBuffer)) {
                 return i;
             }
         }
@@ -424,48 +425,48 @@ public class MapStore {
         return read(filer, ai);
     }
 
-    public byte[] getKey(Filer filer, MapContext context, long i, byte[] primitiveBuffer) throws IOException {
+    public byte[] getKey(Filer filer, MapContext context, long i, StackBuffer stackBuffer) throws IOException {
         long ai = index(i, context.entrySize);
-        int length = length(filer, context.keyLengthSize, context.keySize, ai + 1, primitiveBuffer);
+        int length = length(filer, context.keyLengthSize, context.keySize, ai + 1, stackBuffer);
         byte[] k = new byte[length];
         read(filer, (int) ai + 1 + context.keyLengthSize, k, 0, length);
         return k;
     }
 
-    private int length(Filer filer, byte lengthSize, int size, long i, byte[] primitiveBuffer) throws IOException {
+    private int length(Filer filer, byte lengthSize, int size, long i, StackBuffer stackBuffer) throws IOException {
         if (lengthSize == 0) {
             return size;
         } else if (lengthSize == 1) {
             return read(filer, i);
         } else if (lengthSize == 2) {
-            return readUnsignedShort(filer, i, primitiveBuffer);
+            return readUnsignedShort(filer, i, stackBuffer);
         } else {
-            return readInt(filer, i, primitiveBuffer);
+            return readInt(filer, i, stackBuffer);
         }
     }
 
-    public byte[] getPayload(Filer filer, MapContext context, long i, byte[] primitiveBuffer) throws IOException {
+    public byte[] getPayload(Filer filer, MapContext context, long i, StackBuffer stackBuffer) throws IOException {
         long ai = index(i, context.entrySize);
         long offest = ai + 1 + context.keyLengthSize + context.keySize;
-        int length = length(filer, context.payloadLengthSize, context.payloadSize, offest, primitiveBuffer);
+        int length = length(filer, context.payloadLengthSize, context.payloadSize, offest, stackBuffer);
         byte[] p = new byte[length];
         read(filer, (int) offest + context.payloadLengthSize, p, 0, length);
         return p;
     }
 
-    public long remove(Filer filer, MapContext context, byte[] key, byte[] primitiveBuffer) throws IOException {
-        return remove(filer, context, key, 0, primitiveBuffer);
+    public long remove(Filer filer, MapContext context, byte[] key, StackBuffer stackBuffer) throws IOException {
+        return remove(filer, context, key, 0, stackBuffer);
     }
 
-    public long remove(Filer filer, MapContext context, long keyHash, byte[] key, byte[] primitiveBuffer) throws IOException {
-        return remove(filer, context, keyHash, key, 0, primitiveBuffer);
+    public long remove(Filer filer, MapContext context, long keyHash, byte[] key, StackBuffer stackBuffer) throws IOException {
+        return remove(filer, context, keyHash, key, 0, stackBuffer);
     }
 
-    public long remove(Filer filer, MapContext context, byte[] key, int keyOffset, byte[] primitiveBuffer) throws IOException {
-        return remove(filer, context, hash(key, 0, key.length), key, keyOffset, primitiveBuffer);
+    public long remove(Filer filer, MapContext context, byte[] key, int keyOffset, StackBuffer stackBuffer) throws IOException {
+        return remove(filer, context, hash(key, 0, key.length), key, keyOffset, stackBuffer);
     }
 
-    public long remove(Filer filer, MapContext context, long keyHash, byte[] key, int keyOffset, byte[] primitiveBuffer) throws IOException {
+    public long remove(Filer filer, MapContext context, long keyHash, byte[] key, int keyOffset, StackBuffer stackBuffer) throws IOException {
         if (key == null || key.length == 0) {
             return -1;
         }
@@ -483,7 +484,7 @@ public class MapStore {
             if (mode == cNull) {
                 return -1;
             }
-            if (equals(filer, ai, context.keyLengthSize, key.length, key, keyOffset, primitiveBuffer)) {
+            if (equals(filer, ai, context.keyLengthSize, key.length, key, keyOffset, stackBuffer)) {
                 long next = (i + 1) % k;
                 if (read(filer, (int) index(next, entrySize)) == cNull) {
                     for (long z = i; z >= 0; z--) {
@@ -496,7 +497,7 @@ public class MapStore {
                 } else {
                     write(filer, (int) index(i, entrySize), cSkip);
                 }
-                setCount(context, filer, context.count - 1, primitiveBuffer);
+                setCount(context, filer, context.count - 1, stackBuffer);
                 return i;
             }
         }
@@ -533,7 +534,7 @@ public class MapStore {
         Filer toFiler,
         MapContext toContext,
         CopyToStream stream,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
 
         int fcapacity = fromContext.capacity;
         int fkeySize = fromContext.keySize;
@@ -543,7 +544,7 @@ public class MapStore {
         int tkeySize = toContext.keySize;
         int tpayloadSize = toContext.payloadSize;
         long tcount = toContext.count;
-        int tmaxCount = getMaxCount(toFiler, primitiveBuffer);
+        int tmaxCount = getMaxCount(toFiler, stackBuffer);
 
         if (fkeySize != tkeySize) {
             throw new RuntimeException("Miss matched keySizes " + fkeySize + " vs " + tkeySize);
@@ -565,9 +566,9 @@ public class MapStore {
                 continue;
             }
             fcount--;
-            byte[] key = getKey(fromFiler, fromContext, fromIndex, primitiveBuffer);
-            byte[] payload = getPayload(fromFiler, fromContext, fromIndex, primitiveBuffer);
-            long toIndex = add(toFiler, toContext, mode, key, payload, primitiveBuffer);
+            byte[] key = getKey(fromFiler, fromContext, fromIndex, stackBuffer);
+            byte[] payload = getPayload(fromFiler, fromContext, fromIndex, stackBuffer);
+            long toIndex = add(toFiler, toContext, mode, key, payload, stackBuffer);
 
             if (stream != null) {
                 stream.copied(fromIndex, toIndex);
@@ -584,7 +585,7 @@ public class MapStore {
         void copied(long fromIndex, long toIndex);
     }
 
-    public void toSysOut(Filer filer, MapContext context, byte[] primitiveBuffer) throws IOException {
+    public void toSysOut(Filer filer, MapContext context, StackBuffer stackBuffer) throws IOException {
         try {
             int capacity = context.capacity;
             for (int i = 0; i < capacity; i++) {
@@ -598,8 +599,8 @@ public class MapStore {
                     continue;
                 }
                 System.out.println("\t" + i + "): "
-                    + Arrays.toString(getKey(filer, context, i, primitiveBuffer)) + "->"
-                    + Arrays.toString(getPayload(filer, context, i, primitiveBuffer)));
+                    + Arrays.toString(getKey(filer, context, i, stackBuffer)) + "->"
+                    + Arrays.toString(getPayload(filer, context, i, stackBuffer)));
             }
         } catch (Exception x) {
         }
@@ -619,14 +620,14 @@ public class MapStore {
         return hash == Long.MIN_VALUE ? Long.MAX_VALUE : Math.abs(hash);
     }
 
-    public boolean stream(final Filer filer, final MapContext context, final Object lock, EntryStream stream, byte[] primitiveBuffer) throws IOException {
+    public boolean stream(final Filer filer, final MapContext context, final Object lock, EntryStream stream, StackBuffer stackBuffer) throws IOException {
         for (int index = 0; index < context.capacity; index++) {
             byte[] key;
             byte[] payload = null;
             synchronized (lock) {
-                key = getKeyAtIndex(filer, context, index, primitiveBuffer);
+                key = getKeyAtIndex(filer, context, index, stackBuffer);
                 if (key != null) {
-                    payload = getPayloadAtIndex(filer, context, index, primitiveBuffer);
+                    payload = getPayloadAtIndex(filer, context, index, stackBuffer);
                 }
             }
             if (payload != null) {
@@ -638,11 +639,11 @@ public class MapStore {
         return true;
     }
 
-    public boolean streamKeys(final Filer filer, final MapContext context, final Object lock, KeyStream stream, byte[] primitiveBuffer) throws IOException {
+    public boolean streamKeys(final Filer filer, final MapContext context, final Object lock, KeyStream stream, StackBuffer stackBuffer) throws IOException {
         for (int index = 0; index < context.capacity; index++) {
             byte[] key;
             synchronized (lock) {
-                key = getKeyAtIndex(filer, context, index, primitiveBuffer);
+                key = getKeyAtIndex(filer, context, index, stackBuffer);
             }
             if (key != null) {
                 if (!stream.stream(key)) {
@@ -676,7 +677,7 @@ public class MapStore {
         }
     }
 
-    private boolean equals(Filer filer, long start, int keyLength, int keySize, byte[] b, int boffset, byte[] primitiveBuffer) throws IOException {
+    private boolean equals(Filer filer, long start, int keyLength, int keySize, byte[] b, int boffset, StackBuffer stackBuffer) throws IOException {
         start++; // remove mode byte
         if (keyLength == 0) {
         } else if (keyLength == 1) {
@@ -685,12 +686,12 @@ public class MapStore {
             }
             start++;
         } else if (keyLength == 2) {
-            if (readUnsignedShort(filer, start, primitiveBuffer) != keySize) {
+            if (readUnsignedShort(filer, start, stackBuffer) != keySize) {
                 return false;
             }
             start += 2;
         } else if (keyLength == 4) {
-            if (readInt(filer, (int) (start), primitiveBuffer) != keySize) {
+            if (readInt(filer, (int) (start), stackBuffer) != keySize) {
                 return false;
             }
             start += 4;
@@ -718,7 +719,7 @@ public class MapStore {
         filer.write(v);
     }
 
-    int readShort(Filer filer, long start, byte[] primitiveBuffer) throws IOException {
+    int readShort(Filer filer, long start, StackBuffer stackBuffer) throws IOException {
         filer.seek(start);
         byte[] bytes = new byte[2];
         filer.read(bytes);
@@ -729,7 +730,7 @@ public class MapStore {
         return v;
     }
 
-    int readUnsignedShort(Filer filer, long start, byte[] primitiveBuffer) throws IOException {
+    int readUnsignedShort(Filer filer, long start, StackBuffer stackBuffer) throws IOException {
         filer.seek(start);
         byte[] bytes = new byte[2];
         filer.read(bytes);
@@ -740,93 +741,93 @@ public class MapStore {
         return v;
     }
 
-    int readInt(Filer filer, long start, byte[] primitiveBuffer) throws IOException {
+    int readInt(Filer filer, long start, StackBuffer stackBuffer) throws IOException {
         filer.seek(start);
-        filer.read(primitiveBuffer, 0, 4);
+        filer.read(stackBuffer.primativeBuffer, 0, 4);
         int v = 0;
-        v |= (primitiveBuffer[0] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[0] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[1] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[1] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[2] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[2] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[3] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[3] & 0xFF);
         return v;
     }
 
-    float readFloat(Filer filer, long start, byte[] primitiveBuffer) throws IOException {
+    float readFloat(Filer filer, long start, StackBuffer stackBuffer) throws IOException {
         filer.seek(start);
-        filer.read(primitiveBuffer, 0, 4);
+        filer.read(stackBuffer.primativeBuffer, 0, 4);
         int v = 0;
-        v |= (primitiveBuffer[0] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[0] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[1] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[1] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[2] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[2] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[3] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[3] & 0xFF);
         return Float.intBitsToFloat(v);
     }
 
-    long readLong(Filer filer, long start, byte[] primitiveBuffer) throws IOException {
+    long readLong(Filer filer, long start, StackBuffer stackBuffer) throws IOException {
         filer.seek(start);
-        filer.read(primitiveBuffer, 0, 8);
+        filer.read(stackBuffer.primativeBuffer, 0, 8);
         long v = 0;
-        v |= (primitiveBuffer[0] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[0] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[1] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[1] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[2] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[2] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[3] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[3] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[4] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[4] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[5] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[5] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[6] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[6] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[7] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[7] & 0xFF);
         return v;
     }
 
-    double readDouble(Filer filer, long start, byte[] primitiveBuffer) throws IOException {
+    double readDouble(Filer filer, long start, StackBuffer stackBuffer) throws IOException {
         filer.seek(start);
-        filer.read(primitiveBuffer, 0, 8);
+        filer.read(stackBuffer.primativeBuffer, 0, 8);
         long v = 0;
-        v |= (primitiveBuffer[0] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[0] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[1] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[1] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[2] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[2] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[3] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[3] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[4] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[4] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[5] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[5] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[6] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[6] & 0xFF);
         v <<= 8;
-        v |= (primitiveBuffer[7] & 0xFF);
+        v |= (stackBuffer.primativeBuffer[7] & 0xFF);
         return Double.longBitsToDouble(v);
     }
 
-    void writeUnsignedShort(Filer filer, long start, int v, byte[] primitiveBuffer) throws IOException {
+    void writeUnsignedShort(Filer filer, long start, int v, StackBuffer stackBuffer) throws IOException {
         filer.seek(start);
-        primitiveBuffer[0] = (byte) (v >>> 8);
-        primitiveBuffer[1] = (byte) (v);
-        filer.write(primitiveBuffer, 0, 2);
+        stackBuffer.primativeBuffer[0] = (byte) (v >>> 8);
+        stackBuffer.primativeBuffer[1] = (byte) (v);
+        filer.write(stackBuffer.primativeBuffer, 0, 2);
     }
 
-    void writeInt(Filer filer, long start, int v, byte[] primitiveBuffer) throws IOException {
+    void writeInt(Filer filer, long start, int v, StackBuffer stackBuffer) throws IOException {
         filer.seek(start);
-        primitiveBuffer[0] = (byte) (v >>> 24);
-        primitiveBuffer[1] = (byte) (v >>> 16);
-        primitiveBuffer[2] = (byte) (v >>> 8);
-        primitiveBuffer[3] = (byte) (v);
+        stackBuffer.primativeBuffer[0] = (byte) (v >>> 24);
+        stackBuffer.primativeBuffer[1] = (byte) (v >>> 16);
+        stackBuffer.primativeBuffer[2] = (byte) (v >>> 8);
+        stackBuffer.primativeBuffer[3] = (byte) (v);
 
-        filer.write(primitiveBuffer, 0, 4);
+        filer.write(stackBuffer.primativeBuffer, 0, 4);
     }
 
     void read(Filer filer, int start, byte[] read, int offset, int length) throws IOException {

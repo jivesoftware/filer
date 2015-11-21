@@ -26,12 +26,12 @@ import com.jivesoftware.os.filer.chunk.store.transaction.TxPartitionedNamedMapOf
 import com.jivesoftware.os.filer.io.ByteArrayPartitionFunction;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.Filer;
-import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
 import com.jivesoftware.os.filer.io.api.KeyRange;
 import com.jivesoftware.os.filer.io.api.KeyValueStore;
 import com.jivesoftware.os.filer.io.api.KeyedFilerStore;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import java.io.IOException;
@@ -124,43 +124,43 @@ public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
     }
 
     @Override
-    public <R> R read(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction, byte[] primitiveBuffer) throws IOException {
-        return namedMapOfFiler.read(keyBytes, name, keyBytes, transaction,primitiveBuffer);
+    public <R> R read(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction, StackBuffer stackBuffer) throws IOException {
+        return namedMapOfFiler.read(keyBytes, name, keyBytes, transaction,stackBuffer);
     }
 
     @Override
-    public <R> List<R> readEach(byte[][] eachKeyBytes, H newFilerInitialCapacity, ChunkTransaction<M, R> transaction, byte[] primitiveBuffer) throws IOException {
-        return namedMapOfFiler.readEach(eachKeyBytes, name, eachKeyBytes, transaction,primitiveBuffer);
+    public <R> List<R> readEach(byte[][] eachKeyBytes, H newFilerInitialCapacity, ChunkTransaction<M, R> transaction, StackBuffer stackBuffer) throws IOException {
+        return namedMapOfFiler.readEach(eachKeyBytes, name, eachKeyBytes, transaction,stackBuffer);
     }
 
     @Override
-    public <R> R readWriteAutoGrow(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction, byte[] primitiveBuffer) throws IOException {
-        return namedMapOfFiler.readWriteAutoGrow(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction,primitiveBuffer);
+    public <R> R readWriteAutoGrow(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction, StackBuffer stackBuffer) throws IOException {
+        return namedMapOfFiler.readWriteAutoGrow(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction,stackBuffer);
 
     }
 
     @Override
-    public <R> R writeNewReplace(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction, byte[] primitiveBuffer) throws IOException {
-        return namedMapOfFiler.writeNewReplace(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction,primitiveBuffer);
+    public <R> R writeNewReplace(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction, StackBuffer stackBuffer) throws IOException {
+        return namedMapOfFiler.writeNewReplace(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction,stackBuffer);
     }
 
     @Override
-    public boolean stream(List<KeyRange> ranges, final KeyValueStore.EntryStream<IBA, Filer> stream, byte[] primitiveBuffer) throws IOException {
+    public boolean stream(List<KeyRange> ranges, final KeyValueStore.EntryStream<byte[], Filer> stream, StackBuffer stackBuffer) throws IOException {
         return namedMapOfFiler.stream(name, ranges, (key, monkey, filer, lock) -> {
             synchronized (lock) {
-                return stream.stream(new IBA(key), filer);
+                return stream.stream(key, filer);
             }
-        },primitiveBuffer);
+        },stackBuffer);
     }
 
     @Override
-    public boolean streamKeys(List<KeyRange> ranges, final KeyValueStore.KeyStream<IBA> stream, byte[] primitiveBuffer) throws IOException {
+    public boolean streamKeys(List<KeyRange> ranges, final KeyValueStore.KeyStream<byte[]> stream, StackBuffer stackBuffer) throws IOException {
         return namedMapOfFiler.streamKeys(name, ranges, key -> {
             if (key != null) {
-                return stream.stream(new IBA(key));
+                return stream.stream(key);
             }
             return true;
-        },primitiveBuffer);
+        },stackBuffer);
     }
 
     @Override

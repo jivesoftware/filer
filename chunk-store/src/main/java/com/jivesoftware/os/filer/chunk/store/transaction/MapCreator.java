@@ -16,6 +16,7 @@
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
 import com.jivesoftware.os.filer.io.CreateFiler;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.map.MapContext;
 import com.jivesoftware.os.filer.io.map.MapStore;
@@ -42,10 +43,10 @@ public class MapCreator implements CreateFiler<Integer, MapContext, ChunkFiler> 
     }
 
     @Override
-    public MapContext create(Integer hint, ChunkFiler filer, byte[] primitiveBuffer) throws IOException {
+    public MapContext create(Integer hint, ChunkFiler filer, StackBuffer stackBuffer) throws IOException {
         hint += initialCapacity;
         hint = hint < 2 ? 2 : hint;
-        return MapStore.INSTANCE.create(hint, keySize, variableKeySize, payloadSize, variablePayloadSize, filer, primitiveBuffer);
+        return MapStore.INSTANCE.create(hint, keySize, variableKeySize, payloadSize, variablePayloadSize, filer, stackBuffer);
     }
 
     @Override

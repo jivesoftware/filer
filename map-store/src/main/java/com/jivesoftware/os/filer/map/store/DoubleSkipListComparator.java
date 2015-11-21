@@ -17,6 +17,7 @@ package com.jivesoftware.os.filer.map.store;
 
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.map.SkipListComparator;
 import java.io.IOException;
 
@@ -28,11 +29,11 @@ public class DoubleSkipListComparator implements SkipListComparator {
 
     static final public DoubleSkipListComparator cSingleton = new DoubleSkipListComparator();
 
-    public int compare(Filer a, int astart, Filer b, int bstart, int length, byte[] primitiveBuffer) throws IOException {
+    public int compare(Filer a, int astart, Filer b, int bstart, int length, StackBuffer stackBuffer) throws IOException {
         a.seek(astart);
-        double ad = FilerIO.readDouble(a, "a", primitiveBuffer);
+        double ad = FilerIO.readDouble(a, "a", stackBuffer);
         b.seek(bstart);
-        double bd = FilerIO.readDouble(b, "b", primitiveBuffer);
+        double bd = FilerIO.readDouble(b, "b", stackBuffer);
         return Double.compare(ad, bd);
     }
 

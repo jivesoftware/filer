@@ -24,6 +24,7 @@ import com.jivesoftware.os.filer.io.LocksProvider;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
 import com.jivesoftware.os.filer.io.api.KeyRange;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import com.jivesoftware.os.filer.io.map.MapContext;
@@ -76,9 +77,9 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
     }
 
     @Override
-    public void copyTo(Filer currentFiler, FPIndex<byte[], MapBackedKeyedFPIndex> newMonkey, Filer newFiler, byte[] primitiveBuffer) throws IOException {
+    public void copyTo(Filer currentFiler, FPIndex<byte[], MapBackedKeyedFPIndex> newMonkey, Filer newFiler, StackBuffer stackBuffer) throws IOException {
         // TODO rework generics to elimnate this cast
-        MapStore.INSTANCE.copyTo(currentFiler, mapContext, newFiler, ((MapBackedKeyedFPIndex) newMonkey).mapContext, null, primitiveBuffer);
+        MapStore.INSTANCE.copyTo(currentFiler, mapContext, newFiler, ((MapBackedKeyedFPIndex) newMonkey).mapContext, null, stackBuffer);
     }
 
     @Override
@@ -87,92 +88,90 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
     }
 
     @Override
-    public long get(final byte[] key, byte[] primitiveBuffer) throws IOException {
+    public long get(final byte[] key, StackBuffer stackBuffer) throws IOException {
         Long got = null;
-        IBA ibaKey = null;
         if (keyToFpCache != null) {
-            ibaKey = new IBA(key);
-            got = keyToFpCache.get(ibaKey);
+            got = keyToFpCache.get(stackBuffer.accessKey(key));
         }
         if (got == null) {
-            got = backingChunkStore.execute(backingFP, opener, (monkey, filer, primitiveBuffer1, lock) -> {
+            got = backingChunkStore.execute(backingFP, opener, (monkey, filer, stackBuffer1, lock) -> {
                 synchronized (lock) {
-                    long ai = MapStore.INSTANCE.get(filer, monkey.mapContext, key, primitiveBuffer1);
+                    long ai = MapStore.INSTANCE.get(filer, monkey.mapContext, key, stackBuffer1);
                     if (ai < 0) {
                         return -1L;
                     }
-                    return FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey.mapContext, ai, primitiveBuffer1));
+                    return FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey.mapContext, ai, stackBuffer1));
                 }
-            }, primitiveBuffer);
+            }, stackBuffer);
             if (keyToFpCache != null) {
-                keyToFpCache.put(ibaKey, got);
+                keyToFpCache.put(new IBA(key), got);
             }
         }
         return got;
     }
 
     @Override
-    public void set(final byte[] key, final long fp, byte[] primitiveBuffer) throws IOException {
+    public void set(final byte[] key, final long fp, StackBuffer stackBuffer) throws IOException {
         if (keyToFpCache != null) {
             keyToFpCache.put(new IBA(key), fp);
         }
-        backingChunkStore.execute(backingFP, opener, (monkey, filer, primitiveBuffer1, lock) -> {
+        backingChunkStore.execute(backingFP, opener, (monkey, filer, stackBuffer1, lock) -> {
             synchronized (lock) {
-                MapStore.INSTANCE.add(filer, monkey.mapContext, (byte) 1, key, FilerIO.longBytes(fp), primitiveBuffer1);
+                MapStore.INSTANCE.add(filer, monkey.mapContext, (byte) 1, key, FilerIO.longBytes(fp), stackBuffer1);
             }
             return null;
-        }, primitiveBuffer);
+        }, stackBuffer);
     }
 
     @Override
-    public long getAndSet(final byte[] key, final long fp, byte[] primitiveBuffer) throws IOException {
+    public long getAndSet(final byte[] key, final long fp, StackBuffer stackBuffer) throws IOException {
         if (keyToFpCache != null) {
             keyToFpCache.put(new IBA(key), fp);
         }
-        return backingChunkStore.execute(backingFP, opener, (monkey, filer, primitiveBuffer1, lock) -> {
+        return backingChunkStore.execute(backingFP, opener, (monkey, filer, stackBuffer1, lock) -> {
             synchronized (lock) {
-                long ai = MapStore.INSTANCE.get(filer, monkey.mapContext, key, primitiveBuffer1);
+                long ai = MapStore.INSTANCE.get(filer, monkey.mapContext, key, stackBuffer1);
                 long got = -1L;
                 if (ai > -1) {
-                    got = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey.mapContext, ai, primitiveBuffer1));
+                    got = FilerIO.bytesLong(MapStore.INSTANCE.getPayload(filer, monkey.mapContext, ai, stackBuffer1));
                 }
-                MapStore.INSTANCE.add(filer, monkey.mapContext, (byte) 1, key, FilerIO.longBytes(fp), primitiveBuffer1);
+                MapStore.INSTANCE.add(filer, monkey.mapContext, (byte) 1, key, FilerIO.longBytes(fp), stackBuffer1);
                 return got;
             }
-        }, primitiveBuffer);
+        }, stackBuffer);
     }
 
     @Override
     public <H, M, R> R read(ChunkStore chunkStore, byte[] key,
         OpenFiler<M, ChunkFiler> opener, ChunkTransaction<M, R> filerTransaction,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
         Object keyLock = keyLocks.lock(key, seed);
         return KeyedFPIndexUtil.INSTANCE.read(this, keySemaphores.semaphore(key, seed), keySemaphores.getNumPermits(), chunkStore, keyLock,
-            key, opener, filerTransaction, primitiveBuffer);
+            key, opener, filerTransaction, stackBuffer);
     }
 
     @Override
     public <H, M, R> R writeNewReplace(ChunkStore chunkStore, byte[] key, H hint,
         CreateFiler<H, M, ChunkFiler> creator, OpenFiler<M, ChunkFiler> opener, GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
         Object keyLock = keyLocks.lock(key, seed);
         return KeyedFPIndexUtil.INSTANCE.writeNewReplace(this, keySemaphores.semaphore(key, seed), keySemaphores.getNumPermits(), chunkStore, keyLock,
-            key, hint, creator, opener, growFiler, filerTransaction, primitiveBuffer);
+            key, hint, creator, opener, growFiler, filerTransaction, stackBuffer);
     }
 
     @Override
     public <H, M, R> R readWriteAutoGrow(ChunkStore chunkStore, byte[] key, H hint,
         CreateFiler<H, M, ChunkFiler> creator, OpenFiler<M, ChunkFiler> opener, GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
         Object keyLock = keyLocks.lock(key, seed);
         return KeyedFPIndexUtil.INSTANCE.readWriteAutoGrowIfNeeded(this, keySemaphores.semaphore(key, seed), keySemaphores.getNumPermits(),
-            chunkStore, keyLock, key, hint, creator, opener, growFiler, filerTransaction, primitiveBuffer);
+            chunkStore, keyLock, key, hint, creator, opener, growFiler, filerTransaction, stackBuffer);
     }
 
     @Override
-    public boolean stream(final List<KeyRange> ranges, final KeysStream<byte[]> keysStream, byte[] primitiveBuffer) throws IOException {
+    public boolean stream(final List<KeyRange> ranges, final KeysStream<byte[]> keysStream, StackBuffer stackBuffer) throws IOException {
         final MapStore.KeyStream mapKeyStream = key -> {
             if (ranges != null) {
                 for (KeyRange range : ranges) {
@@ -189,8 +188,8 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
         };
 
         return backingChunkStore.execute(backingFP, null,
-            (MapBackedKeyedFPIndex monkey, ChunkFiler filer, byte[] _primitiveBuffer, Object lock) -> MapStore.INSTANCE.streamKeys(filer,
-                monkey.mapContext, lock, mapKeyStream, _primitiveBuffer), primitiveBuffer);
+            (MapBackedKeyedFPIndex monkey, ChunkFiler filer, StackBuffer _stackBuffer, Object lock) -> MapStore.INSTANCE.streamKeys(filer,
+                monkey.mapContext, lock, mapKeyStream, _stackBuffer), stackBuffer);
     }
 
 }

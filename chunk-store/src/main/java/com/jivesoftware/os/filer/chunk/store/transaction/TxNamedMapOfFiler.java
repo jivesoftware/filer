@@ -24,6 +24,7 @@ import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
 import com.jivesoftware.os.filer.io.api.KeyRange;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import java.io.IOException;
@@ -57,7 +58,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
             ChunkFiler newFiler,
             Object currentLock,
             Object newLock,
-            byte[] primitiveBuffer
+            StackBuffer stackBuffer
         ) throws IOException {
             synchronized (currentLock) {
                 synchronized (newLock) {
@@ -95,8 +96,8 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                     ChunkFiler newFiler,
                     Object currentLock,
                     Object newLock,
-                    byte[] primitiveBuffer) throws IOException {
-                    result.set(chunkTransaction.commit(newMonkey, newFiler, primitiveBuffer, newLock));
+                    StackBuffer stackBuffer) throws IOException {
+                    result.set(chunkTransaction.commit(newMonkey, newFiler, stackBuffer, newLock));
                 }
 
                 @Override
@@ -163,110 +164,110 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         final byte[] filerKey,
         final H sizeHint,
         final ChunkTransaction<M, R> filerTransaction,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
 
         synchronized (chunkStore) {
-            if (!chunkStore.isValid(constantFP, primitiveBuffer)) {
-                chunkStore.newChunk(null, skyHookIndexCreator, primitiveBuffer);
+            if (!chunkStore.isValid(constantFP, stackBuffer)) {
+                chunkStore.newChunk(null, skyHookIndexCreator, stackBuffer);
             }
         }
-        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, primitiveBuffer1, lock) -> {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, stackBuffer1, lock) -> {
 
             int chunkPower = FilerIO.chunkPower(mapName.length, 0);
             return monkey.readWriteAutoGrow(chunkStore, chunkPower, 2, skyhookCog.creators[chunkPower], skyhookCog.opener, skyhookCog.grower,
-                (skyHookMonkey, skyHookFiler, primitiveBuffer2, skyHookLock) -> skyHookMonkey.readWriteAutoGrow(chunkStore,
+                (skyHookMonkey, skyHookFiler, stackBuffer2, skyHookLock) -> skyHookMonkey.readWriteAutoGrow(chunkStore,
                     mapName, null, namedIndexCreator, namedIndexOpener, null,
-                    (namedIndexMonkey, namedIndexFiler, primitiveBuffer3, namedIndexLock) -> {
+                    (namedIndexMonkey, namedIndexFiler, stackBuffer3, namedIndexLock) -> {
                         int chunkPower1 = FilerIO.chunkPower(filerKey.length, 0);
                         return namedIndexMonkey.readWriteAutoGrow(chunkStore, chunkPower1, 2, namedPowerCreator[chunkPower1], namedPowerOpener,
                             namedPowerGrower,
-                            (namedPowerMonkey, namedPowerFiler, primitiveBuffer4, namedPowerLock) -> {
+                            (namedPowerMonkey, namedPowerFiler, stackBuffer4, namedPowerLock) -> {
                                 // TODO consider using the provided filer in appropriate cases.
                                 GrowFiler<H, M, ChunkFiler> overwriteGrower = overwriteGrowerProvider.create(sizeHint);
                                 return namedPowerMonkey.readWriteAutoGrow(chunkStore, filerKey, sizeHint, filerCreator, filerOpener,
-                                    overwriteGrower, filerTransaction, primitiveBuffer4);
-                            }, primitiveBuffer3);
-                    }, primitiveBuffer2), primitiveBuffer1);
-        }, primitiveBuffer);
+                                    overwriteGrower, filerTransaction, stackBuffer4);
+                            }, stackBuffer3);
+                    }, stackBuffer2), stackBuffer1);
+        }, stackBuffer);
     }
 
     public <R> R writeNewReplace(final byte[] mapName,
         final byte[] filerKey,
         final H sizeHint,
         final ChunkTransaction<M, R> chunkTransaction,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
 
         synchronized (chunkStore) {
-            if (!chunkStore.isValid(constantFP, primitiveBuffer)) {
-                chunkStore.newChunk(null, skyHookIndexCreator, primitiveBuffer);
+            if (!chunkStore.isValid(constantFP, stackBuffer)) {
+                chunkStore.newChunk(null, skyHookIndexCreator, stackBuffer);
             }
         }
-        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, primitiveBuffer1, lock) -> {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, stackBuffer1, lock) -> {
 
             int chunkPower = FilerIO.chunkPower(mapName.length, 0);
             return monkey.readWriteAutoGrow(chunkStore, chunkPower, 2, skyhookCog.creators[chunkPower], skyhookCog.opener,
                 skyhookCog.grower,
-                (skyHookMonkey, skyHookFiler, primitiveBuffer2, skyHookLock) -> skyHookMonkey.readWriteAutoGrow(chunkStore,
+                (skyHookMonkey, skyHookFiler, stackBuffer2, skyHookLock) -> skyHookMonkey.readWriteAutoGrow(chunkStore,
                     mapName, null, namedIndexCreator, namedIndexOpener, null,
-                    (namedIndexMonkey, namedIndexFiler, primitiveBuffer3, namedIndexLock) -> {
+                    (namedIndexMonkey, namedIndexFiler, stackBuffer3, namedIndexLock) -> {
                         int chunkPower1 = FilerIO.chunkPower(filerKey.length, 0);
                         return namedIndexMonkey.readWriteAutoGrow(chunkStore, chunkPower1, 1, namedPowerCreator[chunkPower1], namedPowerOpener,
                             namedPowerGrower,
-                            (namedPowerMonkey, namedPowerFiler, primitiveBuffer4, namedPowerLock) -> {
+                            (namedPowerMonkey, namedPowerFiler, stackBuffer4, namedPowerLock) -> {
                                 // TODO consider using the provided filer in appropriate cases.
                                 final AtomicReference<R> result = new AtomicReference<>();
                                 GrowFiler<H, M, ChunkFiler> rewriteGrower = rewriteGrowerProvider.create(sizeHint,
                                     chunkTransaction, result);
                                 return namedPowerMonkey.writeNewReplace(chunkStore, filerKey, sizeHint, filerCreator, filerOpener,
                                     rewriteGrower,
-                                    (filerMonkey, filerFiler, primitiveBuffer5, filerLock) -> result.get(), primitiveBuffer4);
-                            }, primitiveBuffer3);
-                    }, primitiveBuffer2), primitiveBuffer1);
-        }, primitiveBuffer);
+                                    (filerMonkey, filerFiler, stackBuffer5, filerLock) -> result.get(), stackBuffer4);
+                            }, stackBuffer3);
+                    }, stackBuffer2), stackBuffer1);
+        }, stackBuffer);
     }
 
-    public <R> R read(final byte[] mapName, final byte[] filerKey, final ChunkTransaction<M, R> filerTransaction, byte[] primitiveBuffer) throws IOException {
+    public <R> R read(final byte[] mapName, final byte[] filerKey, final ChunkTransaction<M, R> filerTransaction, StackBuffer stackBuffer) throws IOException {
         synchronized (chunkStore) {
-            if (!chunkStore.isValid(constantFP, primitiveBuffer)) {
-                return filerTransaction.commit(null, null, primitiveBuffer, null);
+            if (!chunkStore.isValid(constantFP, stackBuffer)) {
+                return filerTransaction.commit(null, null, stackBuffer, null);
             }
         }
-        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, primitiveBuffer1, lock) -> {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, stackBuffer1, lock) -> {
             if (monkey == null || filer == null) {
-                return filerTransaction.commit(null, null, primitiveBuffer1, null);
+                return filerTransaction.commit(null, null, stackBuffer1, null);
             }
 
             int chunkPower = FilerIO.chunkPower(mapName.length, 0);
             return monkey.read(chunkStore, chunkPower, skyhookCog.opener,
-                (skyHookMonkey, skyHookFiler, primitiveBuffer2, skyHookLock) -> {
+                (skyHookMonkey, skyHookFiler, stackBuffer2, skyHookLock) -> {
                     if (skyHookMonkey == null || skyHookFiler == null) {
-                        return filerTransaction.commit(null, null, primitiveBuffer2, null);
+                        return filerTransaction.commit(null, null, stackBuffer2, null);
                     }
 
                     return skyHookMonkey.read(chunkStore, mapName, namedIndexOpener,
-                        (namedIndexMonkey, namedIndexFiler, primitiveBuffer3, namedIndexLock) -> {
+                        (namedIndexMonkey, namedIndexFiler, stackBuffer3, namedIndexLock) -> {
                             if (namedIndexMonkey == null || namedIndexFiler == null) {
-                                return filerTransaction.commit(null, null, primitiveBuffer3, null);
+                                return filerTransaction.commit(null, null, stackBuffer3, null);
                             }
 
                             int chunkPower1 = FilerIO.chunkPower(filerKey.length, 0);
                             return namedIndexMonkey.read(chunkStore, chunkPower1, namedPowerOpener,
-                                (namedPowerMonkey, namedPowerFiler, primitiveBuffer4, namedPowerLock) -> {
+                                (namedPowerMonkey, namedPowerFiler, stackBuffer4, namedPowerLock) -> {
                                     if (namedPowerMonkey == null || namedPowerFiler == null) {
-                                        return filerTransaction.commit(null, null, primitiveBuffer4, null);
+                                        return filerTransaction.commit(null, null, stackBuffer4, null);
                                     }
                                     // TODO consider using the provided filer in appropriate cases.
-                                    return namedPowerMonkey.read(chunkStore, filerKey, filerOpener, filerTransaction, primitiveBuffer4);
-                                }, primitiveBuffer3);
-                        }, primitiveBuffer2);
-                }, primitiveBuffer1);
-        }, primitiveBuffer);
+                                    return namedPowerMonkey.read(chunkStore, filerKey, filerOpener, filerTransaction, stackBuffer4);
+                                }, stackBuffer3);
+                        }, stackBuffer2);
+                }, stackBuffer1);
+        }, stackBuffer);
     }
 
     public <R> List<R> readEach(final byte[] mapName, final byte[][] filerKeys, final ChunkTransaction<M, R> filerTransaction,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
         synchronized (chunkStore) {
-            if (!chunkStore.isValid(constantFP, primitiveBuffer)) {
+            if (!chunkStore.isValid(constantFP, stackBuffer)) {
                 return Collections.emptyList();
             }
         }
@@ -284,20 +285,20 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         }
 
         final List<R> result = Lists.newArrayList();
-        chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, primitiveBuffer1, lock) -> {
+        chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, stackBuffer1, lock) -> {
             if (monkey == null || filer == null) {
                 return null;
             }
 
             int chunkPower = FilerIO.chunkPower(mapName.length, 0);
             return monkey.read(chunkStore, chunkPower, skyhookCog.opener,
-                (skyHookMonkey, skyHookFiler, primitiveBuffer2, skyHookLock) -> {
+                (skyHookMonkey, skyHookFiler, stackBuffer2, skyHookLock) -> {
                     if (skyHookMonkey == null || skyHookFiler == null) {
                         return null;
                     }
 
                     return skyHookMonkey.read(chunkStore, mapName, namedIndexOpener,
-                        (namedIndexMonkey, namedIndexFiler, primitiveBuffer3, namedIndexLock) -> {
+                        (namedIndexMonkey, namedIndexFiler, stackBuffer3, namedIndexLock) -> {
                             if (namedIndexMonkey == null || namedIndexFiler == null) {
                                 return null;
                             }
@@ -306,111 +307,111 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                                 final byte[][] keysForMonkey = powerFilerKeys[chunkPower1];
                                 if (keysForMonkey != null) {
                                     namedIndexMonkey.read(chunkStore, chunkPower1, namedPowerOpener,
-                                        (N namedPowerMonkey, ChunkFiler namedPowerFiler, byte[] primitiveBuffer4, Object namedPowerLock) -> {
+                                        (N namedPowerMonkey, ChunkFiler namedPowerFiler, StackBuffer stackBuffer4, Object namedPowerLock) -> {
                                             if (namedPowerMonkey == null || namedPowerFiler == null) {
                                                 return null;
                                             }
                                             // TODO consider using the provided filer in appropriate cases.
                                             for (byte[] filerKey : keysForMonkey) {
                                                 if (filerKey != null) {
-                                                    R got = namedPowerMonkey.read(chunkStore, filerKey, filerOpener, filerTransaction, primitiveBuffer4);
+                                                    R got = namedPowerMonkey.read(chunkStore, filerKey, filerOpener, filerTransaction, stackBuffer4);
                                                     if (got != null) {
                                                         result.add(got);
                                                     }
                                                 }
                                             }
                                             return null;
-                                        }, primitiveBuffer3);
+                                        }, stackBuffer3);
                                 }
                             }
                             return null;
-                        }, primitiveBuffer2);
-                }, primitiveBuffer1);
-        }, primitiveBuffer);
+                        }, stackBuffer2);
+                }, stackBuffer1);
+        }, stackBuffer);
         return result;
     }
 
-    public Boolean stream(final byte[] mapName, final List<KeyRange> ranges, final TxStream<byte[], M, ChunkFiler> stream, byte[] primitiveBuffer) throws
+    public Boolean stream(final byte[] mapName, final List<KeyRange> ranges, final TxStream<byte[], M, ChunkFiler> stream, StackBuffer stackBuffer) throws
         IOException {
         synchronized (chunkStore) {
-            if (!chunkStore.isValid(constantFP, primitiveBuffer)) {
+            if (!chunkStore.isValid(constantFP, stackBuffer)) {
                 return true;
             }
         }
-        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, primitiveBuffer1, lock) -> {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, stackBuffer1, lock) -> {
             if (monkey == null || filer == null) {
                 return true;
             }
 
             int chunkPower = FilerIO.chunkPower(mapName.length, 0);
             return monkey.read(chunkStore, chunkPower, skyhookCog.opener,
-                (skyHookMonkey, skyHookFiler, primitiveBuffer2, skyHookLock) -> {
+                (skyHookMonkey, skyHookFiler, stackBuffer2, skyHookLock) -> {
                     if (skyHookMonkey == null || skyHookFiler == null) {
                         return true;
                     }
 
                     return skyHookMonkey.read(chunkStore, mapName, namedIndexOpener,
-                        (namedIndexMonkey, namedIndexFiler, primitiveBuffer3, namedIndexLock) -> {
+                        (namedIndexMonkey, namedIndexFiler, stackBuffer3, namedIndexLock) -> {
                             if (namedIndexMonkey == null || namedIndexFiler == null) {
                                 return true;
                             }
                             return namedIndexMonkey.stream(null, namedIndexKey -> {
                                 Boolean namedIndexResult = namedIndexMonkey.read(chunkStore, namedIndexKey, namedPowerOpener,
-                                    (namedPowerMonkey, namedPowerFiler, primitiveBuffer4, namedPowerLock) -> {
+                                    (namedPowerMonkey, namedPowerFiler, stackBuffer4, namedPowerLock) -> {
                                         if (namedPowerMonkey == null || namedPowerFiler == null) {
                                             return true;
                                         }
                                         return namedPowerMonkey.stream(ranges, (byte[] filerKey) -> {
                                             Boolean filerResult = namedPowerMonkey.read(chunkStore, filerKey, filerOpener,
-                                                (M filerMonkey, ChunkFiler filerFiler, byte[] primitiveBuffer5, Object filerLock)
-                                                -> stream.stream(filerKey, filerMonkey, filerFiler, filerLock), primitiveBuffer4);
+                                                (M filerMonkey, ChunkFiler filerFiler, StackBuffer stackBuffer5, Object filerLock)
+                                                -> stream.stream(filerKey, filerMonkey, filerFiler, filerLock), stackBuffer4);
                                             return filerResult;
-                                        }, primitiveBuffer4);
-                                    }, primitiveBuffer3);
+                                        }, stackBuffer4);
+                                    }, stackBuffer3);
                                 return namedIndexResult;
-                            }, primitiveBuffer3);
-                        }, primitiveBuffer2);
-                }, primitiveBuffer1);
-        }, primitiveBuffer);
+                            }, stackBuffer3);
+                        }, stackBuffer2);
+                }, stackBuffer1);
+        }, stackBuffer);
     }
 
-    public Boolean streamKeys(final byte[] mapName, final List<KeyRange> ranges, final TxStreamKeys<byte[]> stream, byte[] primitiveBuffer) throws IOException {
+    public Boolean streamKeys(final byte[] mapName, final List<KeyRange> ranges, final TxStreamKeys<byte[]> stream, StackBuffer stackBuffer) throws IOException {
         synchronized (chunkStore) {
-            if (!chunkStore.isValid(constantFP, primitiveBuffer)) {
+            if (!chunkStore.isValid(constantFP, stackBuffer)) {
                 return true;
             }
         }
-        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, primitiveBuffer1, lock) -> {
+        return chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, stackBuffer1, lock) -> {
             if (monkey == null || filer == null) {
                 return true;
             }
 
             int chunkPower = FilerIO.chunkPower(mapName.length, 0);
             return monkey.read(chunkStore, chunkPower, skyhookCog.opener,
-                (skyHookMonkey, skyHookFiler, primitiveBuffer2, skyHookLock) -> {
+                (skyHookMonkey, skyHookFiler, stackBuffer2, skyHookLock) -> {
                     if (skyHookMonkey == null || skyHookFiler == null) {
                         return true;
                     }
 
                     return skyHookMonkey.read(chunkStore, mapName, namedIndexOpener,
-                        (namedIndexMonkey, namedIndexFiler, primitiveBuffer3, namedIndexLock) -> {
+                        (namedIndexMonkey, namedIndexFiler, stackBuffer3, namedIndexLock) -> {
                             if (namedIndexMonkey == null || namedIndexFiler == null) {
                                 return true;
                             }
                             return namedIndexMonkey.stream(null, key -> {
                                 Boolean namedIndexResult = namedIndexMonkey.read(chunkStore, key, namedPowerOpener,
-                                    (N namedPowerMonkey, ChunkFiler namedPowerFiler, byte[] primitiveBuffer4, Object namedPowerLock) -> {
+                                    (N namedPowerMonkey, ChunkFiler namedPowerFiler, StackBuffer stackBuffer4, Object namedPowerLock) -> {
                                         if (namedPowerMonkey == null || namedPowerFiler == null) {
                                             return true;
                                         }
-                                        Boolean filerResult = namedPowerMonkey.stream(ranges, stream::stream, primitiveBuffer4);
+                                        Boolean filerResult = namedPowerMonkey.stream(ranges, stream::stream, stackBuffer4);
                                         return filerResult;
-                                    }, primitiveBuffer3);
+                                    }, stackBuffer3);
                                 return namedIndexResult;
-                            }, primitiveBuffer3);
-                        }, primitiveBuffer2);
-                }, primitiveBuffer1);
-        }, primitiveBuffer);
+                            }, stackBuffer3);
+                        }, stackBuffer2);
+                }, stackBuffer1);
+        }, stackBuffer);
 
     }
 }

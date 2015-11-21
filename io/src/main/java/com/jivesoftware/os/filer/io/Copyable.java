@@ -1,5 +1,6 @@
 package com.jivesoftware.os.filer.io;
 
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import java.io.IOException;
 
 /**
@@ -8,5 +9,5 @@ import java.io.IOException;
  */
 public interface Copyable<V> {
 
-    void copyTo(V to, byte[] buffer) throws IOException;
+    void copyTo(V to, StackBuffer stackBuffer) throws IOException;
 }

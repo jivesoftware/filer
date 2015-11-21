@@ -10,5 +10,5 @@ import java.io.IOException;
  */
 public interface ChunkTransaction<M, R> {
 
-    R commit(M monkey, ChunkFiler filer, byte[] primitiveBuffer, Object lock) throws IOException;
+    R commit(M monkey, ChunkFiler filer, StackBuffer stackBuffer, Object lock) throws IOException;
 }

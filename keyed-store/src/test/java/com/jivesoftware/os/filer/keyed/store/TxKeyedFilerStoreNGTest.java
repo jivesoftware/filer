@@ -14,6 +14,7 @@ import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
 import com.jivesoftware.os.filer.io.api.KeyRange;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import java.io.File;
 import java.io.IOException;
@@ -45,11 +46,11 @@ public class TxKeyedFilerStoreNGTest {
     }
 
     private void assertKeyedStoreTest(boolean lexOrderKeys) throws Exception, IOException {
-        byte[] primitiveBuffer = new byte[8];
+        StackBuffer stackBuffer = new StackBuffer();
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000, stackBuffer);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000, stackBuffer);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(cogs,
@@ -65,22 +66,22 @@ public class TxKeyedFilerStoreNGTest {
         long newFilerInitialCapacity = 512;
 
         byte[] key = FilerIO.intBytes(1010);
-        store.readWriteAutoGrow(key, newFilerInitialCapacity, (monkey, filer, _primitiveBuffer, lock) -> {
+        store.readWriteAutoGrow(key, newFilerInitialCapacity, (monkey, filer, _stackBuffer, lock) -> {
             synchronized (lock) {
-                FilerIO.writeInt(filer, 10, "", _primitiveBuffer);
+                FilerIO.writeInt(filer, 10, "", _stackBuffer);
                 return null;
             }
-        }, primitiveBuffer);
+        }, stackBuffer);
 
-        store.readWriteAutoGrow(key, newFilerInitialCapacity, (monkey, filer, _primitiveBuffer, lock) -> {
+        store.readWriteAutoGrow(key, newFilerInitialCapacity, (monkey, filer, _stackBuffer, lock) -> {
             synchronized (lock) {
                 filer.seek(0);
-                int ten = FilerIO.readInt(filer, "", _primitiveBuffer);
+                int ten = FilerIO.readInt(filer, "", _stackBuffer);
                 System.out.println("ten:" + ten);
                 assertEquals(ten, 10);
                 return null;
             }
-        }, primitiveBuffer);
+        }, stackBuffer);
 
         List<KeyRange> ranges = new ArrayList<>();
         ranges.add(new KeyRange(FilerIO.intBytes(900), FilerIO.intBytes(1010)));
@@ -88,7 +89,7 @@ public class TxKeyedFilerStoreNGTest {
         store.streamKeys(ranges, key1 -> {
             count.incrementAndGet();
             return true;
-        }, primitiveBuffer);
+        }, stackBuffer);
 
         Assert.assertEquals(count.get(), 0);
 
@@ -96,7 +97,7 @@ public class TxKeyedFilerStoreNGTest {
         store.streamKeys(ranges, key1 -> {
             count.incrementAndGet();
             return true;
-        }, primitiveBuffer);
+        }, stackBuffer);
 
         Assert.assertEquals(count.get(), 0);
 
@@ -104,7 +105,7 @@ public class TxKeyedFilerStoreNGTest {
         store.streamKeys(ranges, key1 -> {
             count.incrementAndGet();
             return true;
-        }, primitiveBuffer);
+        }, stackBuffer);
 
         Assert.assertEquals(count.get(), 1);
     }
@@ -120,12 +121,12 @@ public class TxKeyedFilerStoreNGTest {
     }
 
     private void assertRewriteTest(boolean lexOrderKeys) throws IOException, Exception {
-        byte[] primitiveBuffer = new byte[8];
+        StackBuffer stackBuffer = new StackBuffer();
 
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000, stackBuffer);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000, stackBuffer);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(cogs,
@@ -141,20 +142,20 @@ public class TxKeyedFilerStoreNGTest {
         long newFilerInitialCapacity = 512;
 
         final byte[] key = FilerIO.intBytes(1020);
-        store.readWriteAutoGrow(key, newFilerInitialCapacity, (monkey, filer, _primitiveBuffer, lock) -> {
+        store.readWriteAutoGrow(key, newFilerInitialCapacity, (monkey, filer, _stackBuffer, lock) -> {
             synchronized (lock) {
                 filer.seek(0);
-                FilerIO.writeInt(filer, 10, "", _primitiveBuffer);
+                FilerIO.writeInt(filer, 10, "", _stackBuffer);
                 return null;
             }
-        }, primitiveBuffer);
-        store.writeNewReplace(key, newFilerInitialCapacity, (monkey, newFiler, _primitiveBuffer, newLock) -> {
+        }, stackBuffer);
+        store.writeNewReplace(key, newFilerInitialCapacity, (monkey, newFiler, _stackBuffer, newLock) -> {
             synchronized (newLock) {
                 newFiler.seek(0);
-                FilerIO.writeInt(newFiler, 20, "", _primitiveBuffer);
+                FilerIO.writeInt(newFiler, 20, "", _stackBuffer);
                 return null;
             }
-        }, primitiveBuffer);
+        }, stackBuffer);
 
         store = new TxKeyedFilerStore<>(cogs,
             0,
@@ -166,27 +167,27 @@ public class TxKeyedFilerStoreNGTest {
             TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
             TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER);
 
-        store.readWriteAutoGrow(key, newFilerInitialCapacity, (monkey, filer, _primitiveBuffer, lock) -> {
+        store.readWriteAutoGrow(key, newFilerInitialCapacity, (monkey, filer, _stackBuffer, lock) -> {
             synchronized (lock) {
                 filer.seek(0);
-                int twenty = FilerIO.readInt(filer, "", _primitiveBuffer);
+                int twenty = FilerIO.readInt(filer, "", _stackBuffer);
                 assertEquals(twenty, 20);
                 return null;
             }
-        }, primitiveBuffer);
+        }, stackBuffer);
 
         store.stream(null, (k, filer) -> {
-            assertEquals(k.getBytes(), key);
+            assertEquals(k, key);
             filer.seek(0);
-            int twenty = FilerIO.readInt(filer, "", primitiveBuffer);
+            int twenty = FilerIO.readInt(filer, "", stackBuffer);
             assertEquals(twenty, 20);
             return true;
-        }, primitiveBuffer);
+        }, stackBuffer);
 
         store.streamKeys(null, k -> {
-            assertEquals(k.getBytes(), key);
+            assertEquals(k, key);
             return true;
-        }, primitiveBuffer);
+        }, stackBuffer);
     }
 
     @Test
@@ -200,11 +201,11 @@ public class TxKeyedFilerStoreNGTest {
     }
 
     private void assertReadEachTest(boolean lexOrderKeys) throws Exception {
-        byte[] primitiveBuffer = new byte[8];
+        StackBuffer stackBuffer = new StackBuffer();
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000, primitiveBuffer);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000, stackBuffer);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000, stackBuffer);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(cogs,
@@ -222,13 +223,13 @@ public class TxKeyedFilerStoreNGTest {
         for (int i = 0; i < 20; i++) {
             final int value = i;
             final byte[] key = FilerIO.intBytes(i);
-            store.readWriteAutoGrow(key, newFilerInitialCapacity, (monkey, filer, _primitiveBuffer, lock) -> {
+            store.readWriteAutoGrow(key, newFilerInitialCapacity, (monkey, filer, _stackBuffer, lock) -> {
                 synchronized (lock) {
                     filer.seek(0);
-                    FilerIO.writeInt(filer, value, "", _primitiveBuffer);
+                    FilerIO.writeInt(filer, value, "", _stackBuffer);
                     return null;
                 }
-            }, primitiveBuffer);
+            }, stackBuffer);
         }
 
         byte[][] allKeys = new byte[20][];
@@ -236,12 +237,12 @@ public class TxKeyedFilerStoreNGTest {
             allKeys[i] = FilerIO.intBytes(i);
         }
 
-        List<Integer> values = store.readEach(allKeys, newFilerInitialCapacity, (monkey, filer, _primitiveBuffer, lock) -> {
+        List<Integer> values = store.readEach(allKeys, newFilerInitialCapacity, (monkey, filer, _stackBuffer, lock) -> {
             synchronized (lock) {
                 filer.seek(0);
-                return FilerIO.readInt(filer, "", _primitiveBuffer);
+                return FilerIO.readInt(filer, "", _stackBuffer);
             }
-        }, primitiveBuffer);
+        }, stackBuffer);
 
         Collections.sort(values);
         for (int i = 0; i < 20; i++) {

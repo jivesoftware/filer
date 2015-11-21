@@ -1,5 +1,6 @@
 package com.jivesoftware.os.filer.io;
 
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import java.io.IOException;
 
 /**
@@ -12,6 +13,6 @@ public interface CreateFiler<H, M, F extends Filer> {
 
     long sizeInBytes(H hint) throws IOException;
 
-    M create(H hint, F filer, byte[] primitiveBuffer) throws IOException;
+    M create(H hint, F filer, StackBuffer stackBuffer) throws IOException;
 
 }

@@ -18,6 +18,7 @@ package com.jivesoftware.os.filer.chunk.store.transaction;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.LocksProvider;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.map.SkipListMapContext;
 import com.jivesoftware.os.filer.io.map.SkipListMapStore;
@@ -63,7 +64,7 @@ public class SkipListMapBackedKeyedFPIndexCreator implements CreateFiler<Integer
     }
 
     @Override
-    public SkipListMapBackedKeyedFPIndex create(Integer hint, ChunkFiler filer,byte[] primitiveBuffer) throws IOException {
+    public SkipListMapBackedKeyedFPIndex create(Integer hint, ChunkFiler filer,StackBuffer stackBuffer) throws IOException {
         hint += initialCapacity;
         hint = hint < 2 ? 2 : hint;
         byte[] headKey = new byte[keySize];
@@ -74,7 +75,7 @@ public class SkipListMapBackedKeyedFPIndexCreator implements CreateFiler<Integer
             (byte) 9,
             LexSkipListComparator.cSingleton, 
             filer,
-            primitiveBuffer);
+            stackBuffer);
         Map<IBA, Long> keyFPCache = null;
         if (cacheFactory != null) {
             keyFPCache = cacheFactory.createCache();

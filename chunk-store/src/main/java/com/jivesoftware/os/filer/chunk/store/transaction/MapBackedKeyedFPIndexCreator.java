@@ -18,6 +18,7 @@ package com.jivesoftware.os.filer.chunk.store.transaction;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.LocksProvider;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.map.MapContext;
 import com.jivesoftware.os.filer.io.map.MapStore;
@@ -64,10 +65,10 @@ public class MapBackedKeyedFPIndexCreator implements CreateFiler<Integer, MapBac
     }
 
     @Override
-    public MapBackedKeyedFPIndex create(Integer hint, ChunkFiler filer, byte[] primitiveBuffer) throws IOException {
+    public MapBackedKeyedFPIndex create(Integer hint, ChunkFiler filer, StackBuffer stackBuffer) throws IOException {
         hint += initialCapacity;
         hint = hint < 2 ? 2 : hint;
-        MapContext mapContext = MapStore.INSTANCE.create(hint, keySize, variableKeySize, payloadSize, variablePayloadSize, filer, primitiveBuffer);
+        MapContext mapContext = MapStore.INSTANCE.create(hint, keySize, variableKeySize, payloadSize, variablePayloadSize, filer, stackBuffer);
         Map<IBA, Long> keyToFPcache = null;
         if (cacheFactory != null) {
             keyToFPcache = cacheFactory.createCache();

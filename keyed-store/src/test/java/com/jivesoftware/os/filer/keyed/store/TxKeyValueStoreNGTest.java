@@ -21,6 +21,7 @@ import com.jivesoftware.os.filer.chunk.store.transaction.TxCog;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxCogs;
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import com.jivesoftware.os.filer.io.primative.LongLongKeyValueMarshaller;
@@ -53,12 +54,12 @@ public class TxKeyValueStoreNGTest {
 
     @BeforeMethod
     public void init() throws Exception {
-        byte[] primitiveBuffer = new byte[8];
+        StackBuffer stackBuffer = new StackBuffer();
         TxCogs cogs = new TxCogs(256, 64, null, null, null);
         TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog = cogs.getSkyhookCog(0);
         ByteBufferFactory bbf = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, bbf, 500, 5_000, primitiveBuffer);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, bbf, 500, 5_000, primitiveBuffer);
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().create(bbf, 8, bbf, 500, 5_000, stackBuffer);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().create(bbf, 8, bbf, 500, 5_000, stackBuffer);
         ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
 
         store1 = new TxKeyValueStore<>(skyhookCog, cogs.getSkyHookKeySemaphores(),
@@ -98,18 +99,18 @@ public class TxKeyValueStoreNGTest {
 
         @Override
         public void run() {
-            byte[] primitiveBuffer = new byte[8];
+            StackBuffer stackBuffer = new StackBuffer();
 
             while (!stop.get()) {
                 try {
                     TxKeyValueStore<Long, Long> store = rand.nextBoolean() ? store1 : store2;
                     Long key = keys.get(rand.nextInt(keys.size()));
-                    Boolean got = store.execute(key, false, context -> context.get() != null, primitiveBuffer);
+                    Boolean got = store.execute(key, false, context -> context.get() != null, stackBuffer);
 
                     store.execute(key, true, context -> {
                         context.set(rand.nextLong());
                         return true;
-                    }, primitiveBuffer);
+                    }, stackBuffer);
                 } catch (IOException x) {
                     x.printStackTrace();
                 }
@@ -122,7 +123,7 @@ public class TxKeyValueStoreNGTest {
 
     @Test
     public void testExecute() throws IOException {
-        byte[] primitiveBuffer = new byte[8];
+        StackBuffer stackBuffer = new StackBuffer();
         int numKeys = 16;
         List<Long> keys = new ArrayList<>();
         for (int i = 0; i < numKeys; i++) {
@@ -135,7 +136,7 @@ public class TxKeyValueStoreNGTest {
                 Long got = context.get();
                 Assert.assertNull(got);
                 return null;
-            }, primitiveBuffer);
+            }, stackBuffer);
 
             store1.execute(k, true, context -> {
                 Long got = context.get();
@@ -148,19 +149,19 @@ public class TxKeyValueStoreNGTest {
                 Assert.assertNull(got);
                 context.set(v);
                 return null;
-            }, primitiveBuffer);
+            }, stackBuffer);
 
             store1.execute(k, false, context -> {
                 Long got = context.get();
                 Assert.assertEquals(got, (Long) v);
                 return null;
-            }, primitiveBuffer);
+            }, stackBuffer);
         }
         for (int i = numKeys; i < numKeys * 2; i++) {
             keys.add((long) i);
         }
 
-        boolean[] contains = store1.contains(keys, primitiveBuffer);
+        boolean[] contains = store1.contains(keys, stackBuffer);
         for (int i = 0; i < numKeys * 2; i++) {
             if (i < numKeys) {
                 assertTrue(contains[i]);
@@ -172,7 +173,7 @@ public class TxKeyValueStoreNGTest {
 
     @Test
     public void testMultiExecute() throws IOException {
-        byte[] primitiveBuffer = new byte[8];
+        StackBuffer stackBuffer = new StackBuffer();
         int numKeys = 16;
         List<Long> keys = new ArrayList<>();
         for (int i = 0; i < numKeys; i++) {
@@ -185,7 +186,7 @@ public class TxKeyValueStoreNGTest {
             Assert.assertNull(got);
             Assert.assertTrue(index >= 0 && index < numKeys);
             checked[0]++;
-        }, primitiveBuffer);
+        }, stackBuffer);
         assertEquals(checked[0], numKeys);
 
         store1.multiExecute(keys.toArray(new Long[keys.size()]), (keyValueContext, index) -> {
@@ -199,20 +200,20 @@ public class TxKeyValueStoreNGTest {
             got = keyValueContext.get();
             Assert.assertNull(got);
             keyValueContext.set(v);
-        }, primitiveBuffer);
+        }, stackBuffer);
 
         checked[0] = 0;
         store1.multiExecute(keys.toArray(new Long[keys.size()]), (keyValueContext, index) -> {
             Long got = keyValueContext.get();
             Assert.assertEquals(got, (Long) (long) index);
             checked[0]++;
-        }, primitiveBuffer);
+        }, stackBuffer);
         assertEquals(checked[0], numKeys);
     }
 
     @Test
     public void testStream() throws Exception {
-        byte[] primitiveBuffer = new byte[8];
+        StackBuffer stackBuffer = new StackBuffer();
 
         final Map<Long, Long> truth = new ConcurrentHashMap<>();
         for (int i = 0; i < 16; i++) {
@@ -222,7 +223,7 @@ public class TxKeyValueStoreNGTest {
                 context.set(v);
                 truth.put(k, v);
                 return null;
-            }, primitiveBuffer);
+            }, stackBuffer);
         }
 
         store1.stream((key, value) -> {
@@ -231,14 +232,14 @@ public class TxKeyValueStoreNGTest {
             Long t = truth.remove(key);
             Assert.assertEquals(value, t);
             return true;
-        }, primitiveBuffer);
+        }, stackBuffer);
 
         assertTrue(truth.isEmpty());
     }
 
     @Test
     public void testStreamKeys() throws Exception {
-        byte[] primitiveBuffer = new byte[8];
+        StackBuffer stackBuffer = new StackBuffer();
 
         final Map<Long, Long> truth = new ConcurrentHashMap<>();
         for (int i = 0; i < 16; i++) {
@@ -248,14 +249,14 @@ public class TxKeyValueStoreNGTest {
                 context.set(v);
                 truth.put(k, v);
                 return null;
-            }, primitiveBuffer);
+            }, stackBuffer);
         }
 
         store1.streamKeys(key -> {
             assertTrue(truth.containsKey(key));
             truth.remove(key);
             return true;
-        }, primitiveBuffer);
+        }, stackBuffer);
 
         assertTrue(truth.isEmpty());
     }

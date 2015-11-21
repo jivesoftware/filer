@@ -16,6 +16,7 @@
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
 import com.jivesoftware.os.filer.io.OpenFiler;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.map.MapContext;
 import com.jivesoftware.os.filer.io.map.MapStore;
@@ -33,8 +34,8 @@ public class MapOpener implements OpenFiler<MapContext, ChunkFiler> {
     }
 
     @Override
-    public MapContext open(ChunkFiler filer, byte[] primitiveBuffer) throws IOException {
-        return MapStore.INSTANCE.open(filer, primitiveBuffer);
+    public MapContext open(ChunkFiler filer, StackBuffer stackBuffer) throws IOException {
+        return MapStore.INSTANCE.open(filer, stackBuffer);
     }
 
 }

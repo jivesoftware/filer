@@ -1,5 +1,6 @@
 package com.jivesoftware.os.filer.io;
 
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import java.io.IOException;
 
 /**
@@ -9,5 +10,5 @@ import java.io.IOException;
  */
 public interface OpenFiler<M, F extends Filer> {
 
-    M open(F filer, byte[] primitiveBuffer) throws IOException;
+    M open(F filer, StackBuffer stackBuffer) throws IOException;
 }

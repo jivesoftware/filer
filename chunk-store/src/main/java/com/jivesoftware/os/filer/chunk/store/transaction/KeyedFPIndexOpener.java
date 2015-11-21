@@ -17,6 +17,7 @@ package com.jivesoftware.os.filer.chunk.store.transaction;
 
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.OpenFiler;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import java.io.IOException;
 
@@ -39,9 +40,9 @@ public class KeyedFPIndexOpener implements OpenFiler<PowerKeyedFPIndex, ChunkFil
     }
 
     @Override
-    public PowerKeyedFPIndex open(ChunkFiler filer, byte[] primitiveBuffer) throws IOException {
+    public PowerKeyedFPIndex open(ChunkFiler filer, StackBuffer stackBuffer) throws IOException {
         filer.seek(0);
-        long magicNumber = FilerIO.readLong(filer, "magicHeader", primitiveBuffer);
+        long magicNumber = FilerIO.readLong(filer, "magicHeader", stackBuffer);
         if (magicNumber != magicHeader) {
             throw new IllegalStateException("Expected magicHeader:" + magicHeader + " but found:" + magicNumber);
         }

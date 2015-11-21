@@ -27,6 +27,7 @@ import com.jivesoftware.os.filer.io.api.IndexAlignedKeyValueTransaction;
 import com.jivesoftware.os.filer.io.api.KeyValueContext;
 import com.jivesoftware.os.filer.io.api.KeyValueStore;
 import com.jivesoftware.os.filer.io.api.KeyValueTransaction;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import com.jivesoftware.os.filer.io.map.MapContext;
@@ -61,8 +62,8 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
         this.keyMarshaller = keyMarshaller;
         this.mapName = name;
 
-        OpenFiler<MapContext, ChunkFiler> opener = (filer, primitiveBuffer) -> {
-            MapContext mapContext = MapStore.INSTANCE.open(filer, primitiveBuffer);
+        OpenFiler<MapContext, ChunkFiler> opener = (filer, stackBuffer) -> {
+            MapContext mapContext = MapStore.INSTANCE.open(filer, stackBuffer);
             if (values == null) {
                 values = new Object[mapContext.capacity];
             }
@@ -71,10 +72,10 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
 
         CreateFiler<Integer, MapContext, ChunkFiler> creator = new CreateFiler<Integer, MapContext, ChunkFiler>() {
             @Override
-            public MapContext create(Integer hint, ChunkFiler filer, byte[] primitiveBuffer) throws IOException {
+            public MapContext create(Integer hint, ChunkFiler filer, StackBuffer stackBuffer) throws IOException {
                 hint += initialCapacity;
                 hint = hint < 2 ? 2 : hint;
-                MapContext mapContext = MapStore.INSTANCE.create(hint, keySize, variableKeySize, 0, false, filer, primitiveBuffer);
+                MapContext mapContext = MapStore.INSTANCE.create(hint, keySize, variableKeySize, 0, false, filer, stackBuffer);
                 values = new Object[mapContext.capacity];
                 return mapContext;
             }
@@ -107,13 +108,13 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
                 ChunkFiler newFiler,
                 Object currentLock,
                 Object newLock,
-                byte[] primitiveBuffer) throws IOException {
+                StackBuffer stackBuffer) throws IOException {
 
                 synchronized (currentLock) {
                     synchronized (newLock) {
                         final Object[] newValues = new Object[newMonkey.capacity];
                         MapStore.INSTANCE.copyTo(currentFiler, currentMonkey, newFiler, newMonkey,
-                            (fromIndex, toIndex) -> newValues[(int) toIndex] = values[(int) fromIndex], primitiveBuffer);
+                            (fromIndex, toIndex) -> newValues[(int) toIndex] = values[(int) fromIndex], stackBuffer);
                         values = newValues;
 
                     }
@@ -132,27 +133,27 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public boolean[] contains(List<K> keys, byte[] primitiveBuffer) throws IOException {
+    public boolean[] contains(List<K> keys, StackBuffer stackBuffer) throws IOException {
         final byte[][] keysBytes = new byte[keys.size()][];
         for (int i = 0; i < keysBytes.length; i++) {
             K key = keys.get(i);
             keysBytes[i] = key != null ? keyMarshaller.keyBytes(key) : null;
         }
-        return namedMap.read(mapName, (context, filer, _primitiveBuffer, lock) -> {
+        return namedMap.read(mapName, (context, filer, _stackBuffer, lock) -> {
             boolean[] result = new boolean[keysBytes.length];
             if (filer != null) {
                 synchronized (lock) {
                     for (int i = 0; i < keysBytes.length; i++) {
-                        result[i] = (keysBytes[i] != null && MapStore.INSTANCE.contains(filer, context, keysBytes[i], _primitiveBuffer));
+                        result[i] = (keysBytes[i] != null && MapStore.INSTANCE.contains(filer, context, keysBytes[i], _stackBuffer));
                     }
                 }
             }
             return result;
-        }, primitiveBuffer);
+        }, stackBuffer);
     }
 
     @Override
-    public void multiExecute(K[] keys, IndexAlignedKeyValueTransaction<V> indexAlignedKeyValueTransaction, byte[] primitiveBuffer) throws IOException {
+    public void multiExecute(K[] keys, IndexAlignedKeyValueTransaction<V> indexAlignedKeyValueTransaction, StackBuffer stackBuffer) throws IOException {
         throw new UnsupportedOperationException("TODO");
     }
 
@@ -160,17 +161,17 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     public <R> R execute(K key,
         boolean createIfAbsent,
         final KeyValueTransaction<V, R> keyValueTransaction,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
 
         final byte[] keyBytes = keyMarshaller.keyBytes(key);
         if (createIfAbsent) {
             return namedMap.readWriteAutoGrow(mapName, 1,
-                (monkey, filer, _primitiveBuffer, lock) -> keyValueTransaction.commit(new KeyValueContext<V>() {
+                (monkey, filer, _stackBuffer, lock) -> keyValueTransaction.commit(new KeyValueContext<V>() {
 
                     @Override
                     public void set(V value) throws IOException {
                         synchronized (lock) {
-                            long ai = MapStore.INSTANCE.add(filer, monkey, (byte) 1, keyBytes, EMPTY_PAYLOAD, _primitiveBuffer);
+                            long ai = MapStore.INSTANCE.add(filer, monkey, (byte) 1, keyBytes, EMPTY_PAYLOAD, _stackBuffer);
                             values[(int) ai] = value;
                         }
                     }
@@ -178,7 +179,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
                     @Override
                     public void remove() throws IOException {
                         synchronized (lock) {
-                            long ai = MapStore.INSTANCE.remove(filer, monkey, keyBytes, _primitiveBuffer);
+                            long ai = MapStore.INSTANCE.remove(filer, monkey, keyBytes, _stackBuffer);
                             values[(int) ai] = null;
                         }
                     }
@@ -187,17 +188,17 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
                     @SuppressWarnings("unchecked")
                     public V get() throws IOException {
                         synchronized (lock) {
-                            long ai = MapStore.INSTANCE.get(filer, monkey, keyBytes, _primitiveBuffer);
+                            long ai = MapStore.INSTANCE.get(filer, monkey, keyBytes, _stackBuffer);
                             if (ai > -1) {
                                 return (V) values[(int) ai];
                             }
                             return null;
                         }
                     }
-                }), primitiveBuffer);
+                }), stackBuffer);
         } else {
             return namedMap.read(mapName,
-                (monkey, filer, _primitiveBuffer, lock) -> keyValueTransaction.commit(new KeyValueContext<V>() {
+                (monkey, filer, _stackBuffer, lock) -> keyValueTransaction.commit(new KeyValueContext<V>() {
 
                     @Override
                     public void set(V value) throws IOException {
@@ -208,7 +209,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
                     public void remove() throws IOException {
                         if (monkey != null && filer != null) {
                             synchronized (lock) {
-                                long ai = MapStore.INSTANCE.remove(filer, monkey, keyBytes, _primitiveBuffer);
+                                long ai = MapStore.INSTANCE.remove(filer, monkey, keyBytes, _stackBuffer);
                                 if (ai > -1) {
                                     values[(int) ai] = null;
                                 }
@@ -221,7 +222,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
                     public V get() throws IOException {
                         if (monkey != null && filer != null) {
                             synchronized (lock) {
-                                long ai = MapStore.INSTANCE.get(filer, monkey, keyBytes, _primitiveBuffer);
+                                long ai = MapStore.INSTANCE.get(filer, monkey, keyBytes, _stackBuffer);
                                 if (ai > -1) {
                                     return (V) values[(int) ai];
                                 }
@@ -229,23 +230,23 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
                         }
                         return null;
                     }
-                }), primitiveBuffer);
+                }), stackBuffer);
         }
     }
 
     @Override
-    public boolean stream(final EntryStream<K, V> stream, byte[] primitiveBuffer) throws IOException {
+    public boolean stream(final EntryStream<K, V> stream, StackBuffer stackBuffer) throws IOException {
 
         return namedMap.stream(mapName,
             (key, monkey, filer, lock) -> MapStore.INSTANCE.stream(filer, monkey, lock, entry -> {
                 K key1 = keyMarshaller.bytesKey(entry.key, 0);
                 return stream.stream(key1, (V) values[entry.payloadIndex]);
-            }, primitiveBuffer), primitiveBuffer);
+            }, stackBuffer), stackBuffer);
 
     }
 
     @Override
-    public boolean streamKeys(final KeyStream<K> stream, byte[] primitiveBuffer) throws IOException {
+    public boolean streamKeys(final KeyStream<K> stream, StackBuffer stackBuffer) throws IOException {
         return namedMap.stream(mapName,
             (key, monkey, filer, lock) -> {
                 if (monkey == null || filer == null) {
@@ -254,7 +255,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
                 return MapStore.INSTANCE.streamKeys(filer, monkey, lock, key1 -> {
                     K k = keyMarshaller.bytesKey(key1, 0);
                     return stream.stream(k);
-                }, primitiveBuffer);
-            }, primitiveBuffer);
+                }, stackBuffer);
+            }, stackBuffer);
     }
 }

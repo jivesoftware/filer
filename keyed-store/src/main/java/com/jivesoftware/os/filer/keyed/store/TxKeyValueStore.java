@@ -29,6 +29,7 @@ import com.jivesoftware.os.filer.io.api.IndexAlignedKeyValueTransaction;
 import com.jivesoftware.os.filer.io.api.KeyValueContext;
 import com.jivesoftware.os.filer.io.api.KeyValueStore;
 import com.jivesoftware.os.filer.io.api.KeyValueTransaction;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import com.jivesoftware.os.filer.io.map.MapStore;
@@ -74,16 +75,16 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public boolean[] contains(List<K> keys, byte[] primitiveBuffer) throws IOException {
+    public boolean[] contains(List<K> keys, StackBuffer stackBuffer) throws IOException {
         byte[][] keysBytes = new byte[keys.size()][];
         for (int i = 0; i < keysBytes.length; i++) {
             keysBytes[i] = keyValueMarshaller.keyBytes(keys.get(i));
         }
-        return namedMap.contains(keysBytes, name, primitiveBuffer);
+        return namedMap.contains(keysBytes, name, stackBuffer);
     }
 
     @Override
-    public void multiExecute(K[] keys, IndexAlignedKeyValueTransaction<V> indexAlignedKeyValueTransaction, byte[] primitiveBuffer) throws IOException {
+    public void multiExecute(K[] keys, IndexAlignedKeyValueTransaction<V> indexAlignedKeyValueTransaction, StackBuffer stackBuffer) throws IOException {
         byte[][] keysBytes = new byte[keys.length][];
         for (int i = 0; i < keysBytes.length; i++) {
             keysBytes[i] = keys[i] != null ? keyValueMarshaller.keyBytes(keys[i]) : null;
@@ -94,63 +95,63 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
 
                     @Override
                     public void set(V value) throws IOException {
-                        MapStore.INSTANCE.add(filer, monkey, (byte) 1, keysBytes[index], keyValueMarshaller.valueBytes(value), primitiveBuffer);
+                        MapStore.INSTANCE.add(filer, monkey, (byte) 1, keysBytes[index], keyValueMarshaller.valueBytes(value), stackBuffer);
                     }
 
                     @Override
                     public void remove() throws IOException {
-                        MapStore.INSTANCE.remove(filer, monkey, keysBytes[index], primitiveBuffer);
+                        MapStore.INSTANCE.remove(filer, monkey, keysBytes[index], stackBuffer);
                     }
 
                     @Override
                     public V get() throws IOException {
-                        long pi = MapStore.INSTANCE.get(filer, monkey, keysBytes[index], primitiveBuffer);
+                        long pi = MapStore.INSTANCE.get(filer, monkey, keysBytes[index], stackBuffer);
                         if (pi > -1) {
-                            byte[] rawValue = MapStore.INSTANCE.getPayload(filer, monkey, pi, primitiveBuffer);
+                            byte[] rawValue = MapStore.INSTANCE.getPayload(filer, monkey, pi, stackBuffer);
                             return keyValueMarshaller.bytesValue(keys[index], rawValue, 0);
                         }
                         return null;
                     }
                 }, index);
-            }, primitiveBuffer);
+            }, stackBuffer);
     }
 
     @Override
-    public <R> R execute(final K key, boolean createIfAbsent, final KeyValueTransaction<V, R> keyValueTransaction, byte[] primitiveBuffer) throws IOException {
+    public <R> R execute(final K key, boolean createIfAbsent, final KeyValueTransaction<V, R> keyValueTransaction, StackBuffer stackBuffer) throws IOException {
         final byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         if (createIfAbsent) {
             return namedMap.readWriteAutoGrow(keyBytes, name,
-                (monkey, filer, _primitiveBuffer, lock) -> keyValueTransaction.commit(new KeyValueContext<V>() {
+                (monkey, filer, _stackBuffer, lock) -> keyValueTransaction.commit(new KeyValueContext<V>() {
 
                     @Override
                     public void set(V value) throws IOException {
                         synchronized (lock) {
-                            MapStore.INSTANCE.add(filer, monkey, (byte) 1, keyBytes, keyValueMarshaller.valueBytes(value), _primitiveBuffer);
+                            MapStore.INSTANCE.add(filer, monkey, (byte) 1, keyBytes, keyValueMarshaller.valueBytes(value), _stackBuffer);
                         }
                     }
 
                     @Override
                     public void remove() throws IOException {
                         synchronized (lock) {
-                            MapStore.INSTANCE.remove(filer, monkey, keyBytes, _primitiveBuffer);
+                            MapStore.INSTANCE.remove(filer, monkey, keyBytes, _stackBuffer);
                         }
                     }
 
                     @Override
                     public V get() throws IOException {
                         synchronized (lock) {
-                            long pi = MapStore.INSTANCE.get(filer, monkey, keyBytes, _primitiveBuffer);
+                            long pi = MapStore.INSTANCE.get(filer, monkey, keyBytes, _stackBuffer);
                             if (pi > -1) {
-                                byte[] rawValue = MapStore.INSTANCE.getPayload(filer, monkey, pi, _primitiveBuffer);
+                                byte[] rawValue = MapStore.INSTANCE.getPayload(filer, monkey, pi, _stackBuffer);
                                 return keyValueMarshaller.bytesValue(key, rawValue, 0);
                             }
                             return null;
                         }
                     }
-                }), primitiveBuffer);
+                }), stackBuffer);
         } else {
             return namedMap.read(keyBytes, name,
-                (monkey, filer, _primitiveBuffer, lock) -> keyValueTransaction.commit(new KeyValueContext<V>() {
+                (monkey, filer, _stackBuffer, lock) -> keyValueTransaction.commit(new KeyValueContext<V>() {
 
                     @Override
                     public void set(V value) throws IOException {
@@ -161,7 +162,7 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
                     public void remove() throws IOException {
                         if (filer != null && monkey != null) {
                             synchronized (lock) {
-                                MapStore.INSTANCE.remove(filer, monkey, keyBytes, _primitiveBuffer);
+                                MapStore.INSTANCE.remove(filer, monkey, keyBytes, _stackBuffer);
                             }
                         }
                     }
@@ -170,21 +171,21 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
                     public V get() throws IOException {
                         if (filer != null && monkey != null) {
                             synchronized (lock) {
-                                long pi = MapStore.INSTANCE.get(filer, monkey, keyBytes, _primitiveBuffer);
+                                long pi = MapStore.INSTANCE.get(filer, monkey, keyBytes, _stackBuffer);
                                 if (pi > -1) {
-                                    byte[] rawValue = MapStore.INSTANCE.getPayload(filer, monkey, pi, _primitiveBuffer);
+                                    byte[] rawValue = MapStore.INSTANCE.getPayload(filer, monkey, pi, _stackBuffer);
                                     return keyValueMarshaller.bytesValue(key, rawValue, 0);
                                 }
                             }
                         }
                         return null;
                     }
-                }), primitiveBuffer);
+                }), stackBuffer);
         }
     }
 
     @Override
-    public boolean stream(final EntryStream<K, V> stream, byte[] primitiveBuffer) throws IOException {
+    public boolean stream(final EntryStream<K, V> stream, StackBuffer stackBuffer) throws IOException {
         return namedMap.stream(name, (key, monkey, filer, lock) -> {
             if (monkey == null || filer == null) {
                 return true;
@@ -193,12 +194,12 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
                 K k = keyValueMarshaller.bytesKey(entry.key, 0);
                 V v = keyValueMarshaller.bytesValue(k, entry.payload, 0);
                 return stream.stream(k, v);
-            }, primitiveBuffer);
-        }, primitiveBuffer);
+            }, stackBuffer);
+        }, stackBuffer);
     }
 
     @Override
-    public boolean streamKeys(final KeyStream<K> stream, byte[] primitiveBuffer) throws IOException {
+    public boolean streamKeys(final KeyStream<K> stream, StackBuffer stackBuffer) throws IOException {
         return namedMap.stream(name, (key, monkey, filer, lock) -> {
             if (monkey == null || filer == null) {
                 return true;
@@ -206,7 +207,7 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
             return MapStore.INSTANCE.streamKeys(filer, monkey, lock, key1 -> {
                 K k = keyValueMarshaller.bytesKey(key1, 0);
                 return stream.stream(k);
-            }, primitiveBuffer);
-        }, primitiveBuffer);
+            }, stackBuffer);
+        }, stackBuffer);
     }
 }

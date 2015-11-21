@@ -21,6 +21,7 @@ import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
 import com.jivesoftware.os.filer.io.api.KeyRange;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import java.io.IOException;
@@ -34,28 +35,28 @@ import java.util.List;
  */
 public interface FPIndex<K, I extends FPIndex<K, I>> {
 
-    long get(K key, byte[] primitiveBuffer) throws IOException;
+    long get(K key, StackBuffer stackBuffer) throws IOException;
 
-    void set(K key, long fp, byte[] primitiveBuffer) throws IOException;
+    void set(K key, long fp, StackBuffer stackBuffer) throws IOException;
 
-    long getAndSet(K key, long fp, byte[] primitiveBuffer) throws IOException;
+    long getAndSet(K key, long fp, StackBuffer stackBuffer) throws IOException;
 
     boolean acquire(int alwaysRoomForNMoreKeys);
 
     int nextGrowSize(int alwaysRoomForNMoreKeys) throws IOException;
 
-    void copyTo(Filer curentFiler, FPIndex<K, I> newMonkey, Filer newFiler, byte[] primitiveBuffer) throws IOException;
+    void copyTo(Filer curentFiler, FPIndex<K, I> newMonkey, Filer newFiler, StackBuffer stackBuffer) throws IOException;
 
     void release(int alwayRoomForNMoreKeys);
 
-    boolean stream(List<KeyRange> ranges, KeysStream<K> stream, byte[] primitiveBuffer) throws IOException;
+    boolean stream(List<KeyRange> ranges, KeysStream<K> stream, StackBuffer stackBuffer) throws IOException;
 
     <H, M, R> R read(
         ChunkStore chunkStore,
         K key,
         OpenFiler<M, ChunkFiler> opener,
         ChunkTransaction<M, R> filerTransaction,
-        byte[] primitiveBuffer) throws IOException;
+        StackBuffer stackBuffer) throws IOException;
 
     <H, M, R> R writeNewReplace(
         ChunkStore chunkStore,
@@ -65,7 +66,7 @@ public interface FPIndex<K, I extends FPIndex<K, I>> {
         OpenFiler<M, ChunkFiler> opener,
         GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction,
-        byte[] primitiveBuffer) throws IOException;
+        StackBuffer stackBuffer) throws IOException;
 
     <H, M, R> R readWriteAutoGrow(
         ChunkStore chunkStore,
@@ -75,6 +76,6 @@ public interface FPIndex<K, I extends FPIndex<K, I>> {
         OpenFiler<M, ChunkFiler> opener,
         GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction,
-        byte[] primitiveBuffer) throws IOException;
+        StackBuffer stackBuffer) throws IOException;
 
 }

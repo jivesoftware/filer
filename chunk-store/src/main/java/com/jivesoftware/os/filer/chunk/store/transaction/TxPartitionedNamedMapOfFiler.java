@@ -19,6 +19,7 @@ import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.PartitionFunction;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
 import com.jivesoftware.os.filer.io.api.KeyRange;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import java.io.IOException;
 import java.util.List;
@@ -44,9 +45,9 @@ public class TxPartitionedNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         byte[] filerKey,
         H sizeHint,
         ChunkTransaction<M, R> filerTransaction,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
         return stores[partitionFunction.partition(stores.length, partitionKey)]
-            .readWriteAutoGrow(mapName, filerKey, sizeHint, filerTransaction, primitiveBuffer);
+            .readWriteAutoGrow(mapName, filerKey, sizeHint, filerTransaction, stackBuffer);
     }
 
     public <R> R writeNewReplace(byte[] partitionKey,
@@ -54,16 +55,16 @@ public class TxPartitionedNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         byte[] filerKey,
         H sizeHint,
         ChunkTransaction<M, R> chunkTransaction,
-        byte[] primitiveBuffer) throws IOException {
-        return stores[partitionFunction.partition(stores.length, partitionKey)].writeNewReplace(mapName, filerKey, sizeHint, chunkTransaction, primitiveBuffer);
+        StackBuffer stackBuffer) throws IOException {
+        return stores[partitionFunction.partition(stores.length, partitionKey)].writeNewReplace(mapName, filerKey, sizeHint, chunkTransaction, stackBuffer);
     }
 
-    public <R> R read(byte[] partitionKey, final byte[] mapName, final byte[] filerKey, final ChunkTransaction<M, R> filerTransaction, byte[] primitiveBuffer)
+    public <R> R read(byte[] partitionKey, final byte[] mapName, final byte[] filerKey, final ChunkTransaction<M, R> filerTransaction, StackBuffer stackBuffer)
         throws IOException {
-        return stores[partitionFunction.partition(stores.length, partitionKey)].read(mapName, filerKey, filerTransaction, primitiveBuffer);
+        return stores[partitionFunction.partition(stores.length, partitionKey)].read(mapName, filerKey, filerTransaction, stackBuffer);
     }
 
-    public <R> List<R> readEach(byte[][] partitionKeys, byte[] mapName, byte[][] filerKeys, ChunkTransaction<M, R> filerTransaction, byte[] primitiveBuffer)
+    public <R> List<R> readEach(byte[][] partitionKeys, byte[] mapName, byte[][] filerKeys, ChunkTransaction<M, R> filerTransaction, StackBuffer stackBuffer)
         throws IOException {
         byte[][][] partitionedFilerKeys = new byte[stores.length][][];
         for (int i = 0; i < partitionKeys.length; i++) {
@@ -80,25 +81,25 @@ public class TxPartitionedNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         List<R> result = Lists.newArrayList();
         for (int p = 0; p < stores.length; p++) {
             if (partitionedFilerKeys[p] != null) {
-                result.addAll(stores[p].readEach(mapName, partitionedFilerKeys[p], filerTransaction, primitiveBuffer));
+                result.addAll(stores[p].readEach(mapName, partitionedFilerKeys[p], filerTransaction, stackBuffer));
             }
         }
         return result;
     }
 
-    public Boolean stream(final byte[] mapName, final List<KeyRange> ranges, final TxStream<byte[], M, ChunkFiler> stream, byte[] primitiveBuffer) throws
+    public Boolean stream(final byte[] mapName, final List<KeyRange> ranges, final TxStream<byte[], M, ChunkFiler> stream, StackBuffer stackBuffer) throws
         IOException {
         for (final TxNamedMapOfFiler<N, H, M> store : stores) {
-            if (!store.stream(mapName, ranges, stream, primitiveBuffer)) {
+            if (!store.stream(mapName, ranges, stream, stackBuffer)) {
                 return false;
             }
         }
         return true;
     }
 
-    public Boolean streamKeys(final byte[] mapName, final List<KeyRange> ranges, final TxStreamKeys<byte[]> stream, byte[] primitiveBuffer) throws IOException {
+    public Boolean streamKeys(final byte[] mapName, final List<KeyRange> ranges, final TxStreamKeys<byte[]> stream, StackBuffer stackBuffer) throws IOException {
         for (final TxNamedMapOfFiler<N, H, M> store : stores) {
-            if (!store.streamKeys(mapName, ranges, stream, primitiveBuffer)) {
+            if (!store.streamKeys(mapName, ranges, stream, stackBuffer)) {
                 return false;
             }
         }

@@ -22,6 +22,7 @@ import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
 import com.jivesoftware.os.filer.io.api.KeyRange;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import java.io.IOException;
@@ -53,32 +54,32 @@ public class PowerKeyedFPIndex implements FPIndex<Integer, PowerKeyedFPIndex> {
     }
 
     @Override
-    public long get(Integer key, byte[] primitiveBuffer) throws IOException {
+    public long get(Integer key, StackBuffer stackBuffer) throws IOException {
         return fpIndex[key];
     }
 
     @Override
-    public void set(final Integer key, final long fp, byte[] primitiveBuffer) throws IOException {
-        backingChunkStore.execute(backingFP, null, (monkey, filer, _primitiveBuffer, lock) -> {
+    public void set(final Integer key, final long fp, StackBuffer stackBuffer) throws IOException {
+        backingChunkStore.execute(backingFP, null, (monkey, filer, _stackBuffer, lock) -> {
             synchronized (lock) {
                 filer.seek(8 + (8 * key));
-                FilerIO.writeLong(filer, fp, "fp", _primitiveBuffer);
+                FilerIO.writeLong(filer, fp, "fp", _stackBuffer);
             }
             return null;
-        }, primitiveBuffer);
+        }, stackBuffer);
         fpIndex[key] = fp;
     }
 
     @Override
-    public long getAndSet(final Integer key, final long fp, byte[] primitiveBuffer) throws IOException {
+    public long getAndSet(final Integer key, final long fp, StackBuffer stackBuffer) throws IOException {
         long got = fpIndex[key];
-        backingChunkStore.execute(backingFP, null, (monkey, filer, _primitiveBuffer, lock) -> {
+        backingChunkStore.execute(backingFP, null, (monkey, filer, _stackBuffer, lock) -> {
             synchronized (lock) {
                 filer.seek(8 + (8 * key));
-                FilerIO.writeLong(filer, fp, "fp", _primitiveBuffer);
+                FilerIO.writeLong(filer, fp, "fp", _stackBuffer);
             }
             return null;
-        }, primitiveBuffer);
+        }, stackBuffer);
         fpIndex[key] = fp;
         return got;
     }
@@ -86,31 +87,31 @@ public class PowerKeyedFPIndex implements FPIndex<Integer, PowerKeyedFPIndex> {
     @Override
     public <H, M, R> R read(ChunkStore chunkStore, Integer key,
         OpenFiler<M, ChunkFiler> opener, ChunkTransaction<M, R> filerTransaction,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
         return KeyedFPIndexUtil.INSTANCE.read(this, keySemaphores.semaphore(key, seed), keySemaphores.getNumPermits(), chunkStore, keySizeLocks[key],
-            key, opener, filerTransaction, primitiveBuffer);
+            key, opener, filerTransaction, stackBuffer);
     }
 
     @Override
     public <H, M, R> R writeNewReplace(ChunkStore chunkStore, Integer key, H hint,
         CreateFiler<H, M, ChunkFiler> creator, OpenFiler<M, ChunkFiler> opener, GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
         return KeyedFPIndexUtil.INSTANCE.writeNewReplace(this, keySemaphores.semaphore(key, seed), keySemaphores.getNumPermits(), chunkStore,
-            keySizeLocks[key], key, hint, creator, opener, growFiler, filerTransaction, primitiveBuffer);
+            keySizeLocks[key], key, hint, creator, opener, growFiler, filerTransaction, stackBuffer);
     }
 
     @Override
     public <H, M, R> R readWriteAutoGrow(ChunkStore chunkStore, Integer key, H hint,
         CreateFiler<H, M, ChunkFiler> creator, OpenFiler<M, ChunkFiler> opener, GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
         return KeyedFPIndexUtil.INSTANCE.readWriteAutoGrowIfNeeded(this, keySemaphores.semaphore(key, seed), keySemaphores.getNumPermits(), chunkStore,
-            keySizeLocks[key], key, hint, creator, opener, growFiler, filerTransaction, primitiveBuffer);
+            keySizeLocks[key], key, hint, creator, opener, growFiler, filerTransaction, stackBuffer);
     }
 
     @Override
-    public boolean stream(List<KeyRange> ranges, final KeysStream<Integer> keysStream, byte[] primitiveBuffer) throws IOException {
+    public boolean stream(List<KeyRange> ranges, final KeysStream<Integer> keysStream, StackBuffer stackBuffer) throws IOException {
         if (ranges != null) {
             throw new IllegalStateException("This doesn't make sense!");
         }
@@ -133,7 +134,7 @@ public class PowerKeyedFPIndex implements FPIndex<Integer, PowerKeyedFPIndex> {
     }
 
     @Override
-    public void copyTo(Filer curentFiler, FPIndex<Integer, PowerKeyedFPIndex> newMonkey, Filer newFiler, byte[] primitiveBuffer) throws IOException {
+    public void copyTo(Filer curentFiler, FPIndex<Integer, PowerKeyedFPIndex> newMonkey, Filer newFiler, StackBuffer stackBuffer) throws IOException {
     }
 
     @Override

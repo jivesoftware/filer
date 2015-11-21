@@ -16,6 +16,7 @@
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
 import com.jivesoftware.os.filer.io.GrowFiler;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import java.io.IOException;
 
@@ -45,12 +46,12 @@ public class MapBackedKeyedFPIndexGrower implements GrowFiler<Integer, MapBacked
         ChunkFiler newFiler,
         Object currentLock,
         Object newLock,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
 
         synchronized (currentLock) {
             synchronized (newLock) {
                 if (newMonkey.acquire(sizeHint)) {
-                    currentMonkey.copyTo(currentFiler, newMonkey, newFiler, primitiveBuffer);
+                    currentMonkey.copyTo(currentFiler, newMonkey, newFiler, stackBuffer);
                 } else {
                     throw new RuntimeException("Newly allocated MapBackedKeyedFPIndexGrower context does not have necessary capacity!");
                 }

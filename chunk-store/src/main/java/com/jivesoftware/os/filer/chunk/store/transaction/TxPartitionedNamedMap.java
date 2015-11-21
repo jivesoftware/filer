@@ -18,6 +18,7 @@ package com.jivesoftware.os.filer.chunk.store.transaction;
 import com.jivesoftware.os.filer.io.PartitionFunction;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
 import com.jivesoftware.os.filer.io.api.IndexAlignedChunkTransaction;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.map.MapContext;
 import com.jivesoftware.os.filer.io.map.MapStore;
@@ -36,7 +37,7 @@ public class TxPartitionedNamedMap {
         this.partitionFunction = partitionFunction;
     }
 
-    public boolean[] contains(byte[][] keysBytes, byte[] mapName, byte[] primitiveBuffer) throws IOException {
+    public boolean[] contains(byte[][] keysBytes, byte[] mapName, StackBuffer stackBuffer) throws IOException {
         byte[][][] partitionedKeysBytes = new byte[namedMaps.length][keysBytes.length][];
         boolean[][] partitionedContains = new boolean[namedMaps.length][keysBytes.length];
         for (int i = 0; i < keysBytes.length; i++) {
@@ -47,17 +48,17 @@ public class TxPartitionedNamedMap {
         for (int p = 0; p < namedMaps.length; p++) {
             final byte[][] currentKeysBytes = partitionedKeysBytes[p];
             final boolean[] currentContains = partitionedContains[p];
-            namedMaps[p].read(mapName, (context, filer, primitiveBuffer1, lock) -> {
+            namedMaps[p].read(mapName, (context, filer, stackBuffer1, lock) -> {
                 if (filer != null) {
                     synchronized (lock) {
                         for (int i = 0; i < currentKeysBytes.length; i++) {
                             byte[] keyBytes = currentKeysBytes[i];
-                            currentContains[i] = (keyBytes != null && MapStore.INSTANCE.contains(filer, context, keyBytes, primitiveBuffer1));
+                            currentContains[i] = (keyBytes != null && MapStore.INSTANCE.contains(filer, context, keyBytes, stackBuffer1));
                         }
                     }
                 }
                 return null;
-            }, primitiveBuffer);
+            }, stackBuffer);
         }
 
         boolean[] result = new boolean[keysBytes.length];
@@ -69,17 +70,17 @@ public class TxPartitionedNamedMap {
         return result;
     }
 
-    public <R> R readWriteAutoGrow(byte[] partitionKey, final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction, byte[] primitiveBuffer)
+    public <R> R readWriteAutoGrow(byte[] partitionKey, final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction, StackBuffer stackBuffer)
         throws IOException {
         int i = partitionFunction.partition(namedMaps.length, partitionKey);
         final TxNamedMap namedMap = namedMaps[i];
-        return namedMap.readWriteAutoGrow(mapName, 1, mapTransaction, primitiveBuffer);
+        return namedMap.readWriteAutoGrow(mapName, 1, mapTransaction, stackBuffer);
     }
 
     public void multiReadWriteAutoGrow(byte[][] keysBytes,
         final byte[] mapName,
         final IndexAlignedChunkTransaction<MapContext> indexAlignedChunkTransaction,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
 
         byte[][][] partitionedKeysBytes = new byte[namedMaps.length][keysBytes.length][];
         int[] additionalCapacity = new int[namedMaps.length];
@@ -91,7 +92,7 @@ public class TxPartitionedNamedMap {
 
         for (int p = 0; p < namedMaps.length; p++) {
             final byte[][] currentKeysBytes = partitionedKeysBytes[p];
-            namedMaps[p].readWriteAutoGrow(mapName, additionalCapacity[p], (context, filer, primitiveBuffer1, lock) -> {
+            namedMaps[p].readWriteAutoGrow(mapName, additionalCapacity[p], (context, filer, stackBuffer1, lock) -> {
                 if (filer != null) {
                     synchronized (lock) {
                         for (int i = 0; i < currentKeysBytes.length; i++) {
@@ -103,20 +104,20 @@ public class TxPartitionedNamedMap {
                     }
                 }
                 return null;
-            }, primitiveBuffer);
+            }, stackBuffer);
         }
     }
 
-    public <R> R read(byte[] partitionKey, final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction, byte[] primitiveBuffer) throws
+    public <R> R read(byte[] partitionKey, final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction, StackBuffer stackBuffer) throws
         IOException {
         int i = partitionFunction.partition(namedMaps.length, partitionKey);
         final TxNamedMap namedMap = namedMaps[i];
-        return namedMap.read(mapName, mapTransaction, primitiveBuffer);
+        return namedMap.read(mapName, mapTransaction, stackBuffer);
     }
 
-    public Boolean stream(final byte[] mapName, final TxStream<byte[], MapContext, ChunkFiler> stream, byte[] primitiveBuffer) throws IOException {
+    public Boolean stream(final byte[] mapName, final TxStream<byte[], MapContext, ChunkFiler> stream, StackBuffer stackBuffer) throws IOException {
         for (TxNamedMap namedMap : namedMaps) {
-            boolean result = namedMap.stream(mapName, stream, primitiveBuffer);
+            boolean result = namedMap.stream(mapName, stream, stackBuffer);
             if (!result) {
                 return false;
             }

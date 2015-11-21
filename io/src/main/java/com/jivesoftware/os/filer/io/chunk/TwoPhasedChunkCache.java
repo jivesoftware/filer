@@ -16,6 +16,7 @@
 package com.jivesoftware.os.filer.io.chunk;
 
 import com.jivesoftware.os.filer.io.ByteBufferFactory;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkCache.CacheOpener;
 import java.io.IOException;
 
@@ -50,9 +51,9 @@ public class TwoPhasedChunkCache {
         this.maxNewCacheSize = maxNewCacheSize;
     }
 
-    public <M> void set(long chunkFP, Chunk<M> chunk, byte[] primitiveBuffer) throws IOException {
+    public <M> void set(long chunkFP, Chunk<M> chunk, StackBuffer stackBuffer) throws IOException {
         synchronized (this) {
-            newCache.set(chunkFP, chunk, initialCacheSize, primitiveBuffer);
+            newCache.set(chunkFP, chunk, initialCacheSize, stackBuffer);
         }
     }
 
@@ -69,7 +70,7 @@ public class TwoPhasedChunkCache {
         }
     }
 
-    public <M> Chunk<M> acquire(long chunkFP, final CacheOpener<M> opener, byte[] primitiveBuffer) throws IOException {
+    public <M> Chunk<M> acquire(long chunkFP, final CacheOpener<M> opener, StackBuffer stackBuffer) throws IOException {
         boolean revived = false;
         try {
             synchronized (this) {
@@ -82,14 +83,14 @@ public class TwoPhasedChunkCache {
                     }
                 }
 
-                Chunk<M> chunk = newCache.acquireIfPresent(chunkFP, primitiveBuffer);
+                Chunk<M> chunk = newCache.acquireIfPresent(chunkFP, stackBuffer);
                 if (chunk == null) {
-                    chunk = oldCache.remove(chunkFP, primitiveBuffer);
+                    chunk = oldCache.remove(chunkFP, stackBuffer);
                     if (chunk != null) {
-                        chunk = newCache.promoteAndAcquire(chunkFP, chunk, initialCacheSize, primitiveBuffer);
+                        chunk = newCache.promoteAndAcquire(chunkFP, chunk, initialCacheSize, stackBuffer);
                         revived = true;
                     } else {
-                        chunk = newCache.promoteAndAcquire(chunkFP, opener.open(chunkFP), initialCacheSize, primitiveBuffer);
+                        chunk = newCache.promoteAndAcquire(chunkFP, opener.open(chunkFP), initialCacheSize, stackBuffer);
                     }
                 }
                 return chunk;
@@ -111,27 +112,27 @@ public class TwoPhasedChunkCache {
         newCache = new ChunkCache(name, bufferFactory);
     }
 
-    public boolean contains(long chunkFP, byte[] primitiveBuffer) throws IOException {
+    public boolean contains(long chunkFP, StackBuffer stackBuffer) throws IOException {
         synchronized (this) {
-            return newCache.contains(chunkFP, primitiveBuffer) || oldCache.contains(chunkFP, primitiveBuffer);
+            return newCache.contains(chunkFP, stackBuffer) || oldCache.contains(chunkFP, stackBuffer);
         }
     }
 
-    public void release(long chunkFP, byte[] primitiveBuffer) throws IOException {
+    public void release(long chunkFP, StackBuffer stackBuffer) throws IOException {
         synchronized (this) {
-            if (!newCache.release(chunkFP, primitiveBuffer)) {
-                if (!oldCache.release(chunkFP, primitiveBuffer)) {
+            if (!newCache.release(chunkFP, stackBuffer)) {
+                if (!oldCache.release(chunkFP, stackBuffer)) {
                     throw new IllegalStateException("Attempted to release nonexistent chunkFP: " + chunkFP);
                 }
             }
         }
     }
 
-    public void remove(long chunkFP, byte[] primitiveBuffer) throws IOException {
+    public void remove(long chunkFP, StackBuffer stackBuffer) throws IOException {
         synchronized (this) {
-            Chunk<Object> chunk = newCache.remove(chunkFP, primitiveBuffer);
+            Chunk<Object> chunk = newCache.remove(chunkFP, stackBuffer);
             if (chunk == null) {
-                chunk = oldCache.remove(chunkFP, primitiveBuffer);
+                chunk = oldCache.remove(chunkFP, stackBuffer);
                 if (chunk == null) {
                     // probably rolled
                     return;

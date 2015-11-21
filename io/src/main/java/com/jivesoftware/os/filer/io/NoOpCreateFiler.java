@@ -1,5 +1,6 @@
 package com.jivesoftware.os.filer.io;
 
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import java.io.IOException;
 
 /**
@@ -12,7 +13,7 @@ public class NoOpCreateFiler<F extends Filer> implements CreateFiler<Long, Void,
     }
 
     @Override
-    public Void create(Long hint, F filer, byte[] primitiveBuffer) {
+    public Void create(Long hint, F filer, StackBuffer stackBuffer) {
         return null;
     }
 

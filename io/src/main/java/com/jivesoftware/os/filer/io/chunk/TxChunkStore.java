@@ -21,6 +21,7 @@ import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.io.StripingLocksProvider;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -106,10 +107,10 @@ public class TxChunkStore implements Copyable<ChunkStore> {
     }
 
     @Override
-    public void copyTo(ChunkStore to, byte[] primitiveBuffer) throws IOException {
+    public void copyTo(ChunkStore to, StackBuffer stackBuffer) throws IOException {
         if (txing.compareAndSet(false, true)) {
-            commit(primitiveBuffer);
-            master.copyTo(to, primitiveBuffer);
+            commit(stackBuffer);
+            master.copyTo(to, stackBuffer);
             txing.set(false);
         }
     }
@@ -121,7 +122,7 @@ public class TxChunkStore implements Copyable<ChunkStore> {
         }
     }
 
-    public void commit(byte[] primitiveBuffer) throws IOException {
+    public void commit(StackBuffer stackBuffer) throws IOException {
 
         fplut.removeAll((overlayFP, masterFP) -> {
             //master.slabTransfer(overlay, overlayFP.overlayFP, masterFP);
@@ -131,14 +132,14 @@ public class TxChunkStore implements Copyable<ChunkStore> {
         for (Integer chunkPower : reusableMasterFP.keySet()) {
             BlockingQueue<Long> free = reusableMasterFP.get(chunkPower);
             for (Long f = free.poll(); f != null; f = free.poll()) {
-                master.remove(f, primitiveBuffer);
+                master.remove(f, stackBuffer);
             }
         }
 
         // overlay.reset();
     }
 
-    public <M, H> long newChunk(int level, final H hint, final CreateFiler<H, M, ChunkFiler> createFiler, byte[] primitiveBuffer) throws IOException {
+    public <M, H> long newChunk(int level, final H hint, final CreateFiler<H, M, ChunkFiler> createFiler, StackBuffer stackBuffer) throws IOException {
 
         long capacity = createFiler.sizeInBytes(hint);
         int chunkPower = FilerIO.chunkPower(capacity, ChunkStore.cMinPower);
@@ -148,10 +149,10 @@ public class TxChunkStore implements Copyable<ChunkStore> {
             masterFP = free.poll();
         }
         if (masterFP == null) {
-            masterFP = master.newChunk(hint, createFiler, primitiveBuffer);
+            masterFP = master.newChunk(hint, createFiler, stackBuffer);
         }
 
-        OverlayFP overlayFP = new OverlayFP(level, chunkPower, overlay.newChunk(hint, createFiler, primitiveBuffer), masterFP);
+        OverlayFP overlayFP = new OverlayFP(level, chunkPower, overlay.newChunk(hint, createFiler, stackBuffer), masterFP);
         fplut.set(overlayFP, masterFP);
         return masterFP;
     }
@@ -160,29 +161,29 @@ public class TxChunkStore implements Copyable<ChunkStore> {
         final long masterFP,
         final OpenFiler<M, ChunkFiler> openFiler,
         final ChunkTransaction<M, R> chunkTransaction,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
 
-        return execute(level, masterFP, openFiler, chunkTransaction, primitiveBuffer);
+        return execute(level, masterFP, openFiler, chunkTransaction, stackBuffer);
     }
 
     public <M, R> R readWrite(final int level,
         final long masterFP,
         final OpenFiler<M, ChunkFiler> openFiler,
         final ChunkTransaction<M, R> chunkTransaction,
-        byte[] primitiveBuffer) throws IOException {
-        return execute(level, masterFP, openFiler, chunkTransaction, primitiveBuffer);
+        StackBuffer stackBuffer) throws IOException {
+        return execute(level, masterFP, openFiler, chunkTransaction, stackBuffer);
     }
 
     <M, R> R execute(final int level,
         long masterFP,
         final OpenFiler<M, ChunkFiler> openFiler,
         final ChunkTransaction<M, R> chunkTransaction,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
 
         return fplut.get(masterFP, (overlayFP, gotMasterFp) -> {
 
             if (overlayFP == null) {
-                overlayFP = master.execute(gotMasterFp, openFiler, (monkey, masterFiler, _primitiveBuffer, lock) -> {
+                overlayFP = master.execute(gotMasterFp, openFiler, (monkey, masterFiler, _stackBuffer, lock) -> {
                     synchronized (lock) {
                         long size = masterFiler.getSize();
                         int chunkPower = FilerIO.chunkPower(size, ChunkStore.cMinPower); // Grrr
@@ -194,24 +195,24 @@ public class TxChunkStore implements Copyable<ChunkStore> {
                             }
 
                             @Override
-                            public M create(Long hint, ChunkFiler overlayFiler, byte[] primitiveBuffer) throws IOException {
+                            public M create(Long hint, ChunkFiler overlayFiler, StackBuffer stackBuffer) throws IOException {
                                 FilerIO.copy(masterFiler, overlayFiler, -1);
                                 return monkey;
                             }
 
-                        }, _primitiveBuffer);
+                        }, _stackBuffer);
                         return new OverlayFP(level, chunkPower, fp, gotMasterFp);
                     }
-                }, primitiveBuffer);
+                }, stackBuffer);
                 fplut.set(overlayFP, overlayFP.masterFP);
 
             }
-            return overlay.execute(overlayFP.overlayFP, openFiler, chunkTransaction, primitiveBuffer);
+            return overlay.execute(overlayFP.overlayFP, openFiler, chunkTransaction, stackBuffer);
         });
 
     }
 
-    public void remove(final long masterFP, byte[] primitiveBuffer) throws IOException {
+    public void remove(final long masterFP, StackBuffer stackBuffer) throws IOException {
         fplut.remove(masterFP, (overlayFP, masterFP1) -> {
             if (overlayFP != null) {
                 BlockingQueue<Long> free = reusableMasterFP.get(overlayFP.power);
@@ -225,18 +226,18 @@ public class TxChunkStore implements Copyable<ChunkStore> {
                 free.add(masterFP1);
 
             } else {
-                master.remove(masterFP1, primitiveBuffer);
+                master.remove(masterFP1, stackBuffer);
             }
             return null;
         });
     }
 
-    public boolean isValid(long masterFP, byte[] primitiveBuffer) throws IOException {
+    public boolean isValid(long masterFP, StackBuffer stackBuffer) throws IOException {
         return fplut.contains(masterFP, (overlayFP, gotMasterFp) -> {
             if (overlayFP != null) {
                 return true;
             }
-            return master.isValid(gotMasterFp, primitiveBuffer);
+            return master.isValid(gotMasterFp, stackBuffer);
         });
 
     }

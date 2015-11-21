@@ -1,6 +1,7 @@
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
 import com.jivesoftware.os.filer.io.GrowFiler;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.map.MapContext;
 import com.jivesoftware.os.filer.io.map.MapStore;
@@ -31,12 +32,12 @@ public class MapGrower<M extends MapContext> implements GrowFiler<Integer, M, Ch
         ChunkFiler newFiler,
         Object currentLock,
         Object newLock,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
 
         synchronized (currentLock) {
             synchronized (newLock) {
                 if (MapStore.INSTANCE.acquire(newMonkey, sizeHint)) {
-                    MapStore.INSTANCE.copyTo(currentFiler, currentMonkey, newFiler, newMonkey, null, primitiveBuffer);
+                    MapStore.INSTANCE.copyTo(currentFiler, currentMonkey, newFiler, newMonkey, null, stackBuffer);
                 } else {
                     throw new RuntimeException("Newly allocated MapGrower context does not have necessary capacity!");
                 }

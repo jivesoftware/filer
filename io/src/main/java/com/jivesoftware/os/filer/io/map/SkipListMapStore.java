@@ -3,6 +3,7 @@ package com.jivesoftware.os.filer.io.map;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.api.KeyRange;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -49,15 +50,15 @@ public class SkipListMapStore {
         byte maxColumnHeight,
         SkipListComparator _valueComparator,
         Filer filer,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
         if (headKey.length != keySize) {
             throw new RuntimeException("Expected that headKey.length == keySize");
         }
         _maxCount += 2;
         int columnAndPayload = payloadSize(maxColumnHeight) + _payloadSize;
-        MapContext mapContext = MapStore.INSTANCE.create(_maxCount, keySize, variableKeySizes, columnAndPayload, false, filer, primitiveBuffer);
+        MapContext mapContext = MapStore.INSTANCE.create(_maxCount, keySize, variableKeySizes, columnAndPayload, false, filer, stackBuffer);
         int headKeyIndex = (int) MapStore.INSTANCE.add(filer, mapContext, (byte) 1, headKey,
-            newColumn(new byte[_payloadSize], maxColumnHeight, maxColumnHeight), primitiveBuffer);
+            newColumn(new byte[_payloadSize], maxColumnHeight, maxColumnHeight), stackBuffer);
         SkipListMapContext context = new SkipListMapContext(mapContext, headKeyIndex, headKey, _valueComparator);
         return context;
     }
@@ -65,10 +66,10 @@ public class SkipListMapStore {
     public SkipListMapContext open(byte[] headKey,
         SkipListComparator _valueComparator,
         Filer filer,
-        byte[] primitiveBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException {
 
-        MapContext mapContext = MapStore.INSTANCE.open(filer, primitiveBuffer);
-        int headKeyIndex = (int) MapStore.INSTANCE.get(filer, mapContext, headKey, primitiveBuffer);
+        MapContext mapContext = MapStore.INSTANCE.open(filer, stackBuffer);
+        int headKeyIndex = (int) MapStore.INSTANCE.get(filer, mapContext, headKey, stackBuffer);
         if (headKeyIndex == -1) {
             throw new RuntimeException("SkipListSetPage:Invalid Page!");
         }
@@ -76,48 +77,48 @@ public class SkipListMapStore {
         return context;
     }
 
-    public long getCount(Filer filer, SkipListMapContext page, byte[] primitiveBuffer) throws IOException {
-        return MapStore.INSTANCE.getCount(filer, primitiveBuffer) - 1; // -1 because of head
+    public long getCount(Filer filer, SkipListMapContext page, StackBuffer stackBuffer) throws IOException {
+        return MapStore.INSTANCE.getCount(filer, stackBuffer) - 1; // -1 because of head
     }
 
-    public long add(Filer filer, SkipListMapContext context, byte[] key, byte[] _payload, byte[] primitiveBuffer) throws IOException {
+    public long add(Filer filer, SkipListMapContext context, byte[] key, byte[] _payload, StackBuffer stackBuffer) throws IOException {
 
-        int index = (int) MapStore.INSTANCE.get(filer, context.mapContext, key, primitiveBuffer);
+        int index = (int) MapStore.INSTANCE.get(filer, context.mapContext, key, stackBuffer);
         if (index != -1) { // aready exists so just update payload
-            MapStore.INSTANCE.setPayloadAtIndex(filer, context.mapContext, index, columnSize(context.maxHeight), _payload, 0, _payload.length, primitiveBuffer);
+            MapStore.INSTANCE.setPayloadAtIndex(filer, context.mapContext, index, columnSize(context.maxHeight), _payload, 0, _payload.length, stackBuffer);
             return index;
         }
 
         byte[] newColumn = newColumn(_payload, context.maxHeight, (byte) -1); // create a new colum for a new key
-        final int insertsIndex = (int) MapStore.INSTANCE.add(filer, context.mapContext, (byte) 1, key, newColumn, primitiveBuffer);
+        final int insertsIndex = (int) MapStore.INSTANCE.add(filer, context.mapContext, (byte) 1, key, newColumn, stackBuffer);
 
         int level = context.maxHeight - 1;
         int ilevel = columnLength(filer, context, insertsIndex);
         int atIndex = context.headIndex;
         while (level > 0) {
-            int nextIndex = rcolumnLevel(filer, context, atIndex, level, primitiveBuffer);
+            int nextIndex = rcolumnLevel(filer, context, atIndex, level, stackBuffer);
             if (nextIndex == -1) {
                 if (level < ilevel) {
-                    wcolumnLevel(filer, context, atIndex, level, insertsIndex, primitiveBuffer);
+                    wcolumnLevel(filer, context, atIndex, level, insertsIndex, stackBuffer);
                     if (level == 1) {
-                        wcolumnLevel(filer, context, insertsIndex, 0, atIndex, primitiveBuffer);
+                        wcolumnLevel(filer, context, insertsIndex, 0, atIndex, stackBuffer);
                     }
                 }
                 level--;
             } else {
-                int compare = context.keyComparator.compare(MapStore.INSTANCE.getKey(filer, context.mapContext, nextIndex, primitiveBuffer),
-                    MapStore.INSTANCE.getKey(filer, context.mapContext, insertsIndex, primitiveBuffer));
+                int compare = context.keyComparator.compare(MapStore.INSTANCE.getKey(filer, context.mapContext, nextIndex, stackBuffer),
+                    MapStore.INSTANCE.getKey(filer, context.mapContext, insertsIndex, stackBuffer));
                 if (compare == 0) {
                     throw new RuntimeException("should be impossible");
                 } else if (compare < 0) { // keep looking forward
                     atIndex = nextIndex;
                 } else { // insert
                     if (level < ilevel) {
-                        wcolumnLevel(filer, context, insertsIndex, level, nextIndex, primitiveBuffer);
-                        wcolumnLevel(filer, context, atIndex, level, insertsIndex, primitiveBuffer);
+                        wcolumnLevel(filer, context, insertsIndex, level, nextIndex, stackBuffer);
+                        wcolumnLevel(filer, context, atIndex, level, insertsIndex, stackBuffer);
                         if (level == 1) {
-                            wcolumnLevel(filer, context, insertsIndex, 0, atIndex, primitiveBuffer);
-                            wcolumnLevel(filer, context, nextIndex, 0, insertsIndex, primitiveBuffer);
+                            wcolumnLevel(filer, context, insertsIndex, 0, atIndex, stackBuffer);
+                            wcolumnLevel(filer, context, nextIndex, 0, insertsIndex, stackBuffer);
                         }
                     }
                     level--;
@@ -127,9 +128,9 @@ public class SkipListMapStore {
         return insertsIndex;
     }
 
-    public byte[] findWouldInsertAtOrAfter(Filer filer, SkipListMapContext context, byte[] _key, byte[] primitiveBuffer) throws IOException {
+    public byte[] findWouldInsertAtOrAfter(Filer filer, SkipListMapContext context, byte[] _key, StackBuffer stackBuffer) throws IOException {
 
-        int index = (int) MapStore.INSTANCE.get(filer, context.mapContext, _key, primitiveBuffer);
+        int index = (int) MapStore.INSTANCE.get(filer, context.mapContext, _key, stackBuffer);
         if (index != -1) { // aready exists so return self
             return _key;
         }
@@ -138,14 +139,14 @@ public class SkipListMapStore {
         int level = context.maxHeight - 1;
         int atIndex = context.headIndex;
         while (level > 0) {
-            int nextIndex = rcolumnLevel(filer, context, atIndex, level, primitiveBuffer);
+            int nextIndex = rcolumnLevel(filer, context, atIndex, level, stackBuffer);
             if (nextIndex == -1) {
                 if (level == 1) {
-                    return MapStore.INSTANCE.getKeyAtIndex(filer, context.mapContext, atIndex, primitiveBuffer);
+                    return MapStore.INSTANCE.getKeyAtIndex(filer, context.mapContext, atIndex, stackBuffer);
                 }
                 level--;
             } else {
-                int compare = context.keyComparator.compare(MapStore.INSTANCE.getKey(filer, context.mapContext, nextIndex, primitiveBuffer),
+                int compare = context.keyComparator.compare(MapStore.INSTANCE.getKey(filer, context.mapContext, nextIndex, stackBuffer),
                     _key);
                 if (compare == 0) {
                     throw new RuntimeException("should be impossible");
@@ -156,7 +157,7 @@ public class SkipListMapStore {
                         if (atIndex == context.headIndex) {
                             return null;
                         }
-                        return MapStore.INSTANCE.getKeyAtIndex(filer, context.mapContext, atIndex, primitiveBuffer);
+                        return MapStore.INSTANCE.getKeyAtIndex(filer, context.mapContext, atIndex, stackBuffer);
                     }
                     level--;
                 }
@@ -165,17 +166,17 @@ public class SkipListMapStore {
         return null;
     }
 
-    public byte[] getFirst(Filer filer, SkipListMapContext page, byte[] primitiveBuffer) throws IOException {
-        int firstIndex = rcolumnLevel(filer, page, page.headIndex, 1, primitiveBuffer);
+    public byte[] getFirst(Filer filer, SkipListMapContext page, StackBuffer stackBuffer) throws IOException {
+        int firstIndex = rcolumnLevel(filer, page, page.headIndex, 1, stackBuffer);
         if (firstIndex == -1) {
             return null;
         } else {
-            return MapStore.INSTANCE.getKeyAtIndex(filer, page.mapContext, firstIndex, primitiveBuffer);
+            return MapStore.INSTANCE.getKeyAtIndex(filer, page.mapContext, firstIndex, stackBuffer);
         }
     }
 
-    public void remove(Filer filer, SkipListMapContext context, byte[] _key, byte[] primitiveBuffer) throws IOException {
-        int removeIndex = (int) MapStore.INSTANCE.get(filer, context.mapContext, _key, primitiveBuffer);
+    public void remove(Filer filer, SkipListMapContext context, byte[] _key, StackBuffer stackBuffer) throws IOException {
+        int removeIndex = (int) MapStore.INSTANCE.get(filer, context.mapContext, _key, stackBuffer);
         if (removeIndex == -1) { // doesn't exists so return
             return;
         }
@@ -183,18 +184,18 @@ public class SkipListMapStore {
         int level = context.maxHeight - 1;
         int atIndex = context.headIndex;
         while (level > 0) {
-            int nextIndex = rcolumnLevel(filer, context, atIndex, level, primitiveBuffer);
+            int nextIndex = rcolumnLevel(filer, context, atIndex, level, stackBuffer);
             if (nextIndex == -1) {
                 level--;
             } else {
-                int compare = context.keyComparator.compare(MapStore.INSTANCE.getKey(filer, context.mapContext, nextIndex, primitiveBuffer),
-                    MapStore.INSTANCE.getKey(filer, context.mapContext, removeIndex, primitiveBuffer));
+                int compare = context.keyComparator.compare(MapStore.INSTANCE.getKey(filer, context.mapContext, nextIndex, stackBuffer),
+                    MapStore.INSTANCE.getKey(filer, context.mapContext, removeIndex, stackBuffer));
                 if (compare == 0) {
                     while (level > -1) {
-                        int removesNextIndex = rcolumnLevel(filer, context, removeIndex, level, primitiveBuffer);
-                        wcolumnLevel(filer, context, atIndex, level, removesNextIndex, primitiveBuffer);
+                        int removesNextIndex = rcolumnLevel(filer, context, removeIndex, level, stackBuffer);
+                        wcolumnLevel(filer, context, atIndex, level, removesNextIndex, stackBuffer);
                         if (level == 0) {
-                            wcolumnLevel(filer, context, removesNextIndex, level, atIndex, primitiveBuffer);
+                            wcolumnLevel(filer, context, removesNextIndex, level, atIndex, stackBuffer);
                         }
                         level--;
                     }
@@ -206,19 +207,19 @@ public class SkipListMapStore {
                 }
             }
         }
-        MapStore.INSTANCE.remove(filer, context.mapContext, _key, primitiveBuffer);
+        MapStore.INSTANCE.remove(filer, context.mapContext, _key, stackBuffer);
     }
 
-    public byte[] getPrior(Filer filer, SkipListMapContext context, byte[] key, byte[] primitiveBuffer) throws IOException {
-        int index = (int) MapStore.INSTANCE.get(filer, context.mapContext, key, primitiveBuffer);
+    public byte[] getPrior(Filer filer, SkipListMapContext context, byte[] key, StackBuffer stackBuffer) throws IOException {
+        int index = (int) MapStore.INSTANCE.get(filer, context.mapContext, key, stackBuffer);
         if (index == -1) {
             return null;
         } else {
-            int pi = rcolumnLevel(filer, context, index, 0, primitiveBuffer);
+            int pi = rcolumnLevel(filer, context, index, 0, stackBuffer);
             if (pi == -1) {
                 return null;
             } else {
-                byte[] got = MapStore.INSTANCE.getKeyAtIndex(filer, context.mapContext, pi, primitiveBuffer);
+                byte[] got = MapStore.INSTANCE.getKeyAtIndex(filer, context.mapContext, pi, stackBuffer);
                 if (Arrays.equals(context.headKey, got)) {
                     return null; // don't give out head key
                 }
@@ -227,22 +228,22 @@ public class SkipListMapStore {
         }
     }
 
-    public byte[] getNextKey(Filer filer, SkipListMapContext context, byte[] key, byte[] primitiveBuffer) throws IOException {
-        int index = (int) MapStore.INSTANCE.get(filer, context.mapContext, key, primitiveBuffer);
+    public byte[] getNextKey(Filer filer, SkipListMapContext context, byte[] key, StackBuffer stackBuffer) throws IOException {
+        int index = (int) MapStore.INSTANCE.get(filer, context.mapContext, key, stackBuffer);
         if (index == -1) {
             return null;
         } else {
-            int nextIndex = rcolumnLevel(filer, context, index, 1, primitiveBuffer);
+            int nextIndex = rcolumnLevel(filer, context, index, 1, stackBuffer);
             if (nextIndex == -1) {
                 return null;
             } else {
-                return MapStore.INSTANCE.getKeyAtIndex(filer, context.mapContext, nextIndex, primitiveBuffer);
+                return MapStore.INSTANCE.getKeyAtIndex(filer, context.mapContext, nextIndex, stackBuffer);
             }
         }
     }
 
-    public byte[] getExistingPayload(Filer filer, SkipListMapContext context, byte[] key, byte[] primitiveBuffer) throws IOException {
-        int index = (int) MapStore.INSTANCE.get(filer, context.mapContext, key, primitiveBuffer);
+    public byte[] getExistingPayload(Filer filer, SkipListMapContext context, byte[] key, StackBuffer stackBuffer) throws IOException {
+        int index = (int) MapStore.INSTANCE.get(filer, context.mapContext, key, stackBuffer);
         if (index == -1) {
             return null;
         } else {
@@ -251,7 +252,7 @@ public class SkipListMapStore {
     }
 
     public boolean streamKeys(final Filer filer, final SkipListMapContext context, final Object lock,
-        List<KeyRange> ranges, MapStore.KeyStream stream, byte[] primitiveBuffer) throws IOException {
+        List<KeyRange> ranges, MapStore.KeyStream stream, StackBuffer stackBuffer) throws IOException {
         if (ranges == null) {
             for (int index = 0; index < context.mapContext.capacity; index++) {
                 if (index == context.headIndex) { // Barf
@@ -259,7 +260,7 @@ public class SkipListMapStore {
                 }
                 byte[] key;
                 synchronized (lock) {
-                    key = MapStore.INSTANCE.getKeyAtIndex(filer, context.mapContext, index, primitiveBuffer);
+                    key = MapStore.INSTANCE.getKeyAtIndex(filer, context.mapContext, index, stackBuffer);
                 }
                 if (key != null) {
                     if (!stream.stream(key)) {
@@ -270,9 +271,9 @@ public class SkipListMapStore {
 
         } else {
             for (KeyRange range : ranges) {
-                byte[] key = findWouldInsertAtOrAfter(filer, context, range.getStartInclusiveKey(), primitiveBuffer);
+                byte[] key = findWouldInsertAtOrAfter(filer, context, range.getStartInclusiveKey(), stackBuffer);
                 if (key == null) {
-                    key = getNextKey(filer, context, context.headKey, primitiveBuffer);
+                    key = getNextKey(filer, context, context.headKey, stackBuffer);
                 }
                 if (key != null) {
                     if (range.contains(key)) {
@@ -280,12 +281,12 @@ public class SkipListMapStore {
                             return false;
                         }
                     }
-                    byte[] next = getNextKey(filer, context, key, primitiveBuffer);
+                    byte[] next = getNextKey(filer, context, key, stackBuffer);
                     while (next != null && range.contains(next)) {
                         if (!stream.stream(next)) {
                             return false;
                         }
-                        next = getNextKey(filer, context, next, primitiveBuffer);
+                        next = getNextKey(filer, context, next, stackBuffer);
                     }
                 }
             }
@@ -298,7 +299,7 @@ public class SkipListMapStore {
      * this is a the lazy impl... this can be highly optimized when we have time!
      *
      */
-    public void copyTo(Filer f, SkipListMapContext from, final Filer t, final SkipListMapContext to, MapStore.CopyToStream stream, byte[] primitiveBuffer)
+    public void copyTo(Filer f, SkipListMapContext from, final Filer t, final SkipListMapContext to, MapStore.CopyToStream stream, StackBuffer stackBuffer)
         throws IOException {
         for (int fromIndex = 0; fromIndex < from.mapContext.capacity; fromIndex++) {
             if (fromIndex == from.headIndex) { // Barf
@@ -314,9 +315,9 @@ public class SkipListMapStore {
                 continue;
             }
 
-            byte[] key = MapStore.INSTANCE.getKey(f, from.mapContext, fromIndex, primitiveBuffer);
+            byte[] key = MapStore.INSTANCE.getKey(f, from.mapContext, fromIndex, stackBuffer);
             byte[] payload = getColumnPayload(f, from, fromIndex, from.maxHeight);
-            long toIndex = add(t, to, key, payload, primitiveBuffer);
+            long toIndex = add(t, to, key, payload, stackBuffer);
 
             if (stream != null) {
                 stream.copied(fromIndex, toIndex);
@@ -355,20 +356,20 @@ public class SkipListMapStore {
         return MapStore.INSTANCE.read(f, MapStore.INSTANCE.startOfPayload(setIndex, entrySize, keyLength, keySize));
     }
 
-    private int rcolumnLevel(Filer f, SkipListMapContext context, int setIndex, int level, byte[] primitiveBuffer) throws IOException {
+    private int rcolumnLevel(Filer f, SkipListMapContext context, int setIndex, int level, StackBuffer stackBuffer) throws IOException {
         int entrySize = context.mapContext.entrySize;
         int keyLength = context.mapContext.keyLengthSize;
         int keySize = context.mapContext.keySize;
         int offset = (int) MapStore.INSTANCE.startOfPayload(setIndex, entrySize, keyLength, keySize) + 1 + (level * cColumKeySize);
-        return MapStore.INSTANCE.readInt(f, offset, primitiveBuffer);
+        return MapStore.INSTANCE.readInt(f, offset, stackBuffer);
     }
 
-    private void wcolumnLevel(Filer f, SkipListMapContext context, int setIndex, int level, int v, byte[] primitiveBuffer) throws IOException {
+    private void wcolumnLevel(Filer f, SkipListMapContext context, int setIndex, int level, int v, StackBuffer stackBuffer) throws IOException {
         int entrySize = context.mapContext.entrySize;
         int keyLength = context.mapContext.keyLengthSize;
         int keySize = context.mapContext.keySize;
         int offset = (int) MapStore.INSTANCE.startOfPayload(setIndex, entrySize, keyLength, keySize) + 1 + (level * cColumKeySize);
-        MapStore.INSTANCE.writeInt(f, offset, v, primitiveBuffer);
+        MapStore.INSTANCE.writeInt(f, offset, v, stackBuffer);
     }
 
     private int columnSize(int maxHeight) {
@@ -386,17 +387,17 @@ public class SkipListMapStore {
         return payload;
     }
 
-    public void toSysOut(Filer f, SkipListMapContext context, BytesToString keyToString, byte[] primitiveBuffer) throws IOException {
+    public void toSysOut(Filer f, SkipListMapContext context, BytesToString keyToString, StackBuffer stackBuffer) throws IOException {
         if (keyToString == null) {
             keyToString = new BytesToBytesString();
         }
         int atIndex = context.headIndex;
         int count = 0;
         while (atIndex != -1) {
-            toSysOut(f, context, atIndex, keyToString, primitiveBuffer);
-            atIndex = rcolumnLevel(f, context, atIndex, 1, primitiveBuffer);
+            toSysOut(f, context, atIndex, keyToString, stackBuffer);
+            atIndex = rcolumnLevel(f, context, atIndex, 1, stackBuffer);
 
-            if (count > MapStore.INSTANCE.getCount(f, primitiveBuffer)) {
+            if (count > MapStore.INSTANCE.getCount(f, stackBuffer)) {
                 System.out.println("BAD Panda! Cyclic");
                 break;
             }
@@ -449,8 +450,8 @@ public class SkipListMapStore {
         }
     }
 
-    private void toSysOut(Filer filer, SkipListMapContext context, int index, BytesToString keyToString, byte[] primitiveBuffer) throws IOException {
-        byte[] key = MapStore.INSTANCE.getKeyAtIndex(filer, context.mapContext, index, primitiveBuffer);
+    private void toSysOut(Filer filer, SkipListMapContext context, int index, BytesToString keyToString, StackBuffer stackBuffer) throws IOException {
+        byte[] key = MapStore.INSTANCE.getKeyAtIndex(filer, context.mapContext, index, stackBuffer);
         System.out.print("\ti:" + index);
         System.out.print("\tv:" + keyToString.bytesToString(key) + " - \t");
         int l = columnLength(filer, context, index);
@@ -460,12 +461,12 @@ public class SkipListMapStore {
             } else {
                 System.out.print(i + ":(");
             }
-            int ni = rcolumnLevel(filer, context, index, i, primitiveBuffer);
+            int ni = rcolumnLevel(filer, context, index, i, stackBuffer);
             if (ni == -1) {
                 System.out.print("NULL");
 
             } else {
-                byte[] nkey = MapStore.INSTANCE.getKeyAtIndex(filer, context.mapContext, ni, primitiveBuffer);
+                byte[] nkey = MapStore.INSTANCE.getKeyAtIndex(filer, context.mapContext, ni, stackBuffer);
                 if (nkey == null) {
                     System.out.print(ni + "=???");
                 } else {

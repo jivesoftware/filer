@@ -18,6 +18,7 @@ package com.jivesoftware.os.filer.chunk.store.transaction;
 import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.LocksProvider;
 import com.jivesoftware.os.filer.io.OpenFiler;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.map.MapContext;
 import com.jivesoftware.os.filer.io.map.MapStore;
@@ -49,11 +50,11 @@ public class SkipListMapBackedKeyedFPIndexOpener implements OpenFiler<SkipListMa
     }
 
     @Override
-    public SkipListMapBackedKeyedFPIndex open(ChunkFiler filer, byte[] primitiveBuffer) throws IOException {
-        MapContext mapContext = MapStore.INSTANCE.open(filer, primitiveBuffer);
+    public SkipListMapBackedKeyedFPIndex open(ChunkFiler filer, StackBuffer stackBuffer) throws IOException {
+        MapContext mapContext = MapStore.INSTANCE.open(filer, stackBuffer);
         byte[] headKey = new byte[mapContext.keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
-        SkipListMapContext skipListMapContext = SkipListMapStore.INSTANCE.open(headKey, LexSkipListComparator.cSingleton, filer, primitiveBuffer);
+        SkipListMapContext skipListMapContext = SkipListMapStore.INSTANCE.open(headKey, LexSkipListComparator.cSingleton, filer, stackBuffer);
         Map<IBA, Long> keyFPCache = null;
         if (cacheFactory != null) {
             keyFPCache = cacheFactory.createCache();

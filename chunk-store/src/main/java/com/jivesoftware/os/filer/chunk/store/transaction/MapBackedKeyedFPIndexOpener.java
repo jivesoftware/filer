@@ -18,6 +18,7 @@ package com.jivesoftware.os.filer.chunk.store.transaction;
 import com.jivesoftware.os.filer.io.IBA;
 import com.jivesoftware.os.filer.io.LocksProvider;
 import com.jivesoftware.os.filer.io.OpenFiler;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.map.MapContext;
 import com.jivesoftware.os.filer.io.map.MapStore;
@@ -42,8 +43,8 @@ public class MapBackedKeyedFPIndexOpener implements OpenFiler<MapBackedKeyedFPIn
     }
 
     @Override
-    public MapBackedKeyedFPIndex open(ChunkFiler filer, byte[] primitiveBuffer) throws IOException {
-        MapContext mapContext = MapStore.INSTANCE.open(filer, primitiveBuffer);
+    public MapBackedKeyedFPIndex open(ChunkFiler filer, StackBuffer stackBuffer) throws IOException {
+        MapContext mapContext = MapStore.INSTANCE.open(filer, stackBuffer);
         Map<IBA, Long> keyFPCache = null;
         if (cacheFactory != null) {
             keyFPCache = cacheFactory.createCache();

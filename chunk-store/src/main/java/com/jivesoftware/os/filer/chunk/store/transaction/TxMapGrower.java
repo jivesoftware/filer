@@ -2,6 +2,7 @@ package com.jivesoftware.os.filer.chunk.store.transaction;
 
 import com.jivesoftware.os.filer.io.GrowFiler;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.map.MapContext;
 import java.io.IOException;
@@ -38,11 +39,11 @@ public class TxMapGrower {
                     ChunkFiler newFiler,
                     Object currentLock,
                     Object newLock,
-                    byte[] primitiveBuffer) throws IOException {
+                    StackBuffer stackBuffer) throws IOException {
 
-                    mapGrower.growAndAcquire(hint, currentMonkey, currentFiler, newMonkey, newFiler, currentLock, newLock, primitiveBuffer);
+                    mapGrower.growAndAcquire(hint, currentMonkey, currentFiler, newMonkey, newFiler, currentLock, newLock, stackBuffer);
 
-                    result.set(chunkTransaction.commit(newMonkey, newFiler, primitiveBuffer, newLock));
+                    result.set(chunkTransaction.commit(newMonkey, newFiler, stackBuffer, newLock));
                 }
 
                 @Override

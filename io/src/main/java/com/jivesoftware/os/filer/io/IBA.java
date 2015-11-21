@@ -7,9 +7,13 @@ import java.util.Arrays;
  */
 public class IBA {
 
-    private final byte[] bytes;
+    private byte[] bytes;
 
     public IBA(byte[] bytes) {
+        this.bytes = bytes;
+    }
+
+    public void violateImmutability(byte[] bytes) {
         this.bytes = bytes;
     }
 
@@ -39,9 +43,9 @@ public class IBA {
 
     @Override
     public String toString() {
-        return "IBA{" +
-                bytesToString() +
-                '}';
+        return "IBA{"
+            + bytesToString()
+            + '}';
     }
 
     private String bytesToString() {
