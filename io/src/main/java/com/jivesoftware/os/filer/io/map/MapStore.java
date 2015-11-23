@@ -743,91 +743,91 @@ public class MapStore {
 
     int readInt(Filer filer, long start, StackBuffer stackBuffer) throws IOException {
         filer.seek(start);
-        filer.read(stackBuffer.primativeBuffer, 0, 4);
+        filer.read(stackBuffer.primitiveBuffer, 0, 4);
         int v = 0;
-        v |= (stackBuffer.primativeBuffer[0] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[0] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[1] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[1] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[2] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[2] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[3] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[3] & 0xFF);
         return v;
     }
 
     float readFloat(Filer filer, long start, StackBuffer stackBuffer) throws IOException {
         filer.seek(start);
-        filer.read(stackBuffer.primativeBuffer, 0, 4);
+        filer.read(stackBuffer.primitiveBuffer, 0, 4);
         int v = 0;
-        v |= (stackBuffer.primativeBuffer[0] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[0] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[1] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[1] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[2] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[2] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[3] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[3] & 0xFF);
         return Float.intBitsToFloat(v);
     }
 
     long readLong(Filer filer, long start, StackBuffer stackBuffer) throws IOException {
         filer.seek(start);
-        filer.read(stackBuffer.primativeBuffer, 0, 8);
+        filer.read(stackBuffer.primitiveBuffer, 0, 8);
         long v = 0;
-        v |= (stackBuffer.primativeBuffer[0] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[0] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[1] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[1] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[2] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[2] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[3] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[3] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[4] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[4] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[5] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[5] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[6] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[6] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[7] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[7] & 0xFF);
         return v;
     }
 
     double readDouble(Filer filer, long start, StackBuffer stackBuffer) throws IOException {
         filer.seek(start);
-        filer.read(stackBuffer.primativeBuffer, 0, 8);
+        filer.read(stackBuffer.primitiveBuffer, 0, 8);
         long v = 0;
-        v |= (stackBuffer.primativeBuffer[0] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[0] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[1] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[1] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[2] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[2] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[3] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[3] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[4] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[4] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[5] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[5] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[6] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[6] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[7] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[7] & 0xFF);
         return Double.longBitsToDouble(v);
     }
 
     void writeUnsignedShort(Filer filer, long start, int v, StackBuffer stackBuffer) throws IOException {
         filer.seek(start);
-        stackBuffer.primativeBuffer[0] = (byte) (v >>> 8);
-        stackBuffer.primativeBuffer[1] = (byte) (v);
-        filer.write(stackBuffer.primativeBuffer, 0, 2);
+        stackBuffer.primitiveBuffer[0] = (byte) (v >>> 8);
+        stackBuffer.primitiveBuffer[1] = (byte) (v);
+        filer.write(stackBuffer.primitiveBuffer, 0, 2);
     }
 
     void writeInt(Filer filer, long start, int v, StackBuffer stackBuffer) throws IOException {
         filer.seek(start);
-        stackBuffer.primativeBuffer[0] = (byte) (v >>> 24);
-        stackBuffer.primativeBuffer[1] = (byte) (v >>> 16);
-        stackBuffer.primativeBuffer[2] = (byte) (v >>> 8);
-        stackBuffer.primativeBuffer[3] = (byte) (v);
+        stackBuffer.primitiveBuffer[0] = (byte) (v >>> 24);
+        stackBuffer.primitiveBuffer[1] = (byte) (v >>> 16);
+        stackBuffer.primitiveBuffer[2] = (byte) (v >>> 8);
+        stackBuffer.primitiveBuffer[3] = (byte) (v);
 
-        filer.write(stackBuffer.primativeBuffer, 0, 4);
+        filer.write(stackBuffer.primitiveBuffer, 0, 4);
     }
 
     void read(Filer filer, int start, byte[] read, int offset, int length) throws IOException {

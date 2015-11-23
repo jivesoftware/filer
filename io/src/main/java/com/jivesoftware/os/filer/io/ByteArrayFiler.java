@@ -187,4 +187,65 @@ public class ByteArrayFiler implements Filer {
         System.arraycopy(src, 0, newSrc, 0, src.length);
         return newSrc;
     }
+
+    @Override
+    public short readShort() throws IOException {
+        int b0 = read();
+        int b1 = read();
+
+        short v = 0;
+        v |= (b0 & 0xFF);
+        v <<= 8;
+        v |= (b1 & 0xFF);
+        return v;
+    }
+
+    @Override
+    public int readInt() throws IOException {
+        int b0 = read();
+        int b1 = read();
+        int b2 = read();
+        int b3 = read();
+
+        int v = 0;
+        v |= (b0 & 0xFF);
+        v <<= 8;
+        v |= (b1 & 0xFF);
+        v <<= 8;
+        v |= (b2 & 0xFF);
+        v <<= 8;
+        v |= (b3 & 0xFF);
+        return v;
+    }
+
+    @Override
+    public long readLong() throws IOException {
+        int b0 = read();
+        int b1 = read();
+        int b2 = read();
+        int b3 = read();
+        int b4 = read();
+        int b5 = read();
+        int b6 = read();
+        int b7 = read();
+
+        long v = 0;
+        v |= (b0 & 0xFF);
+        v <<= 8;
+        v |= (b1 & 0xFF);
+        v <<= 8;
+        v |= (b2 & 0xFF);
+        v <<= 8;
+        v |= (b3 & 0xFF);
+        v <<= 8;
+        v |= (b4 & 0xFF);
+        v <<= 8;
+        v |= (b5 & 0xFF);
+        v <<= 8;
+        v |= (b6 & 0xFF);
+        v <<= 8;
+        v |= (b7 & 0xFF);
+
+        return v;
+    }
 }

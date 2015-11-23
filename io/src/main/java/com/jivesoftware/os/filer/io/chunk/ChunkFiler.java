@@ -21,7 +21,7 @@ public class ChunkFiler implements Filer {
     private final long startOfFP;
     private final long endOfFP;
 
-    ChunkFiler(ChunkStore chunkStore, AutoGrowingByteBufferBackedFiler filer, long chunkFP, long startOfFP, long endOfFP) {
+    public ChunkFiler(ChunkStore chunkStore, AutoGrowingByteBufferBackedFiler filer, long chunkFP, long startOfFP, long endOfFP) {
         this.chunkStore = chunkStore;
         this.filer = filer;
         this.chunkFP = chunkFP;
@@ -86,6 +86,39 @@ public class ChunkFiler implements Filer {
     }
 
     @Override
+    public short readShort() throws IOException {
+        long fp = filer.getFilePointer();
+        if (fp < startOfFP || (fp + 2) > endOfFP) {
+            throw new IndexOutOfBoundsException("FP out of bounds " + startOfFP + " <= " + fp + " <= " + endOfFP);
+        } else if (fp == endOfFP) {
+            return -1;
+        }
+        return filer.readShort();
+    }
+
+    @Override
+    public int readInt() throws IOException {
+        long fp = filer.getFilePointer();
+        if (fp < startOfFP || (fp + 4) > endOfFP) {
+            throw new IndexOutOfBoundsException("FP out of bounds " + startOfFP + " <= " + fp + " <= " + endOfFP);
+        } else if (fp == endOfFP) {
+            return -1;
+        }
+        return filer.readInt();
+    }
+
+    @Override
+    public long readLong() throws IOException {
+        long fp = filer.getFilePointer();
+        if (fp < startOfFP || (fp + 8) > endOfFP) {
+            throw new IndexOutOfBoundsException("FP out of bounds " + startOfFP + " <= " + fp + " <= " + endOfFP);
+        } else if (fp == endOfFP) {
+            return -1;
+        }
+        return filer.readLong();
+    }
+
+    @Override
     final public void write(int b) throws IOException {
         long fp = filer.getFilePointer();
         if (fp < startOfFP || fp >= endOfFP) {
@@ -137,7 +170,6 @@ public class ChunkFiler implements Filer {
 
     @Override
     final public long getFilePointer() throws IOException {
-
         long fp = filer.getFilePointer();
         if (fp < startOfFP || fp > endOfFP) {
             throw new IndexOutOfBoundsException("FP out of bounds " + fp + " " + this);
@@ -147,7 +179,7 @@ public class ChunkFiler implements Filer {
 
     @Override
     final public void eof() throws IOException {
-        filer.seek(endOfFP - startOfFP);
+        filer.seek(endOfFP);
     }
 
     @Override

@@ -33,6 +33,7 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
 
     private ByteBufferBackedFiler[] filers;
     private int fpFilerIndex;
+    private long fpFilerOffset;
     private long length;
 
     private final int fShift;
@@ -65,6 +66,7 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         this.maxBufferSegmentSize = maxBufferSegmentSize;
         this.filers = filers;
         this.fpFilerIndex = -1;
+        this.fpFilerOffset = -1;
         this.length = length;
         this.fShift = fShift;
         this.fseekMask = fseekMask;
@@ -153,6 +155,7 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         }
         filers[f].seek(fseek);
         fpFilerIndex = f;
+        fpFilerOffset = fpFilerIndex * maxBufferSegmentSize;
         length = Math.max(length, position);
     }
 
@@ -186,8 +189,7 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         if (filers.length == 0) {
             return 0;
         }
-        long fp = (fpFilerIndex * maxBufferSegmentSize) + filers[fpFilerIndex].getFilePointer();
-        return fp;
+        return fpFilerOffset + filers[fpFilerIndex].getFilePointer();
     }
 
     @Override
@@ -207,6 +209,7 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         int read = filers[fpFilerIndex].read();
         while (read == -1 && fpFilerIndex < filers.length - 1) {
             fpFilerIndex++;
+            fpFilerOffset += maxBufferSegmentSize;
             filers[fpFilerIndex].seek(0);
             read = filers[fpFilerIndex].read();
         }
@@ -232,6 +235,7 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         remaining -= read;
         while (remaining > 0 && fpFilerIndex < filers.length - 1) {
             fpFilerIndex++;
+            fpFilerOffset += maxBufferSegmentSize;
             filers[fpFilerIndex].seek(0);
             read = filers[fpFilerIndex].read(b, offset, remaining);
             if (read == -1) {
@@ -266,6 +270,7 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         offset += canWrite;
         while (remaingToWrite > 0) {
             fpFilerIndex++;
+            fpFilerOffset += maxBufferSegmentSize;
             filers[fpFilerIndex].seek(0);
             canWrite = Math.min(remaingToWrite, filers[fpFilerIndex].length() - filers[fpFilerIndex].getFilePointer());
             filers[fpFilerIndex].write(b, offset, (int) canWrite);
@@ -284,7 +289,7 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
     public boolean canLeak(long startOfFP, long endOfFP) {
         int startF = (int) (startOfFP >> fShift);
         int endF = (int) (endOfFP >> fShift);
-        return (endF != startF);
+        return (endF == startF);
     }
 
     public ByteBuffer leak(long startOfFP, long endOfFP) throws IOException {
@@ -302,5 +307,78 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         buf.limit((int) endFseek);
 
         return buf.slice();
+    }
+
+    @Override
+    public short readShort() throws IOException {
+        if (filers[fpFilerIndex].hasRemaining(2)) {
+            return filers[fpFilerIndex].readShort();
+        } else {
+            int b0 = read();
+            int b1 = read();
+
+            short v = 0;
+            v |= (b0 & 0xFF);
+            v <<= 8;
+            v |= (b1 & 0xFF);
+            return v;
+        }
+    }
+
+    @Override
+    public int readInt() throws IOException {
+        if (filers[fpFilerIndex].hasRemaining(4)) {
+            return filers[fpFilerIndex].readInt();
+        } else {
+            int b0 = read();
+            int b1 = read();
+            int b2 = read();
+            int b3 = read();
+
+            int v = 0;
+            v |= (b0 & 0xFF);
+            v <<= 8;
+            v |= (b1 & 0xFF);
+            v <<= 8;
+            v |= (b2 & 0xFF);
+            v <<= 8;
+            v |= (b3 & 0xFF);
+            return v;
+        }
+    }
+
+    @Override
+    public long readLong() throws IOException {
+        if (filers[fpFilerIndex].hasRemaining(8)) {
+            return filers[fpFilerIndex].readLong();
+        } else {
+            int b0 = read();
+            int b1 = read();
+            int b2 = read();
+            int b3 = read();
+            int b4 = read();
+            int b5 = read();
+            int b6 = read();
+            int b7 = read();
+
+            long v = 0;
+            v |= (b0 & 0xFF);
+            v <<= 8;
+            v |= (b1 & 0xFF);
+            v <<= 8;
+            v |= (b2 & 0xFF);
+            v <<= 8;
+            v |= (b3 & 0xFF);
+            v <<= 8;
+            v |= (b4 & 0xFF);
+            v <<= 8;
+            v |= (b5 & 0xFF);
+            v <<= 8;
+            v |= (b6 & 0xFF);
+            v <<= 8;
+            v |= (b7 & 0xFF);
+
+            return v;
+        }
     }
 }

@@ -66,4 +66,9 @@ public interface Filer extends Readable, Writeable {
      */
     void flush() throws IOException;
 
+    short readShort() throws IOException;
+
+    int readInt() throws IOException;
+
+    long readLong() throws IOException;
 }

@@ -8,8 +8,8 @@ import com.jivesoftware.os.filer.io.IBA;
  */
 public class StackBuffer {
 
-    public final byte[] primativeBuffer = new byte[8];
-    private final IBA accessKey = new IBA(primativeBuffer);
+    public final byte[] primitiveBuffer = new byte[8];
+    private final IBA accessKey = new IBA(primitiveBuffer);
 
     public IBA accessKey(byte[] key) {
         accessKey.violateImmutability(key);

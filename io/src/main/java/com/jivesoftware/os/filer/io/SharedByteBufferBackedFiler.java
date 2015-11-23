@@ -112,4 +112,18 @@ public class SharedByteBufferBackedFiler implements Filer {
         buffer.put(b, _offset, _len);
     }
 
+    @Override
+    public short readShort() throws IOException {
+        return buffer.getShort();
+    }
+
+    @Override
+    public int readInt() throws IOException {
+        return buffer.getInt();
+    }
+
+    @Override
+    public long readLong() throws IOException {
+        return buffer.getLong();
+    }
 }

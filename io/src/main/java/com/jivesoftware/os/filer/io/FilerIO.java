@@ -2,12 +2,9 @@ package com.jivesoftware.os.filer.io;
 
 import com.jivesoftware.os.filer.io.api.StackBuffer;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 
 /**
  *
@@ -169,10 +166,10 @@ public class FilerIO {
      */
     public static void writeShort(Writeable _filer, int v,
         String fieldName, StackBuffer stackBuffer) throws IOException {
-        stackBuffer.primativeBuffer[0] = (byte) (v >>> 8);
-        stackBuffer.primativeBuffer[1] = (byte) (v);
+        stackBuffer.primitiveBuffer[0] = (byte) (v >>> 8);
+        stackBuffer.primitiveBuffer[1] = (byte) (v);
 
-        _filer.write(stackBuffer.primativeBuffer, 0, 2);
+        _filer.write(stackBuffer.primitiveBuffer, 0, 2);
     }
 
     /**
@@ -185,9 +182,9 @@ public class FilerIO {
     public static void writeChar(Writeable _filer, int v,
         String fieldName, StackBuffer stackBuffer) throws IOException {
 
-        stackBuffer.primativeBuffer[0] = (byte) (v >>> 8);
-        stackBuffer.primativeBuffer[1] = (byte) (v);
-        _filer.write(stackBuffer.primativeBuffer, 0, 2);
+        stackBuffer.primitiveBuffer[0] = (byte) (v >>> 8);
+        stackBuffer.primitiveBuffer[1] = (byte) (v);
+        _filer.write(stackBuffer.primitiveBuffer, 0, 2);
     }
 
     /**
@@ -198,11 +195,11 @@ public class FilerIO {
      * @throws IOException
      */
     public static void writeInt(Writeable _filer, int v, String fieldName, StackBuffer stackBuffer) throws IOException {
-        stackBuffer.primativeBuffer[0] = (byte) (v >>> 24);
-        stackBuffer.primativeBuffer[1] = (byte) (v >>> 16);
-        stackBuffer.primativeBuffer[2] = (byte) (v >>> 8);
-        stackBuffer.primativeBuffer[3] = (byte) (v);
-        _filer.write(stackBuffer.primativeBuffer, 0, 4);
+        stackBuffer.primitiveBuffer[0] = (byte) (v >>> 24);
+        stackBuffer.primitiveBuffer[1] = (byte) (v >>> 16);
+        stackBuffer.primitiveBuffer[2] = (byte) (v >>> 8);
+        stackBuffer.primitiveBuffer[3] = (byte) (v);
+        _filer.write(stackBuffer.primitiveBuffer, 0, 4);
     }
 
     /**
@@ -214,15 +211,15 @@ public class FilerIO {
      */
     public static void writeLong(Writeable _filer, long v,
         String fieldName, StackBuffer stackBuffer) throws IOException {
-        stackBuffer.primativeBuffer[0] = (byte) (v >>> 56);
-        stackBuffer.primativeBuffer[1] = (byte) (v >>> 48);
-        stackBuffer.primativeBuffer[2] = (byte) (v >>> 40);
-        stackBuffer.primativeBuffer[3] = (byte) (v >>> 32);
-        stackBuffer.primativeBuffer[4] = (byte) (v >>> 24);
-        stackBuffer.primativeBuffer[5] = (byte) (v >>> 16);
-        stackBuffer.primativeBuffer[6] = (byte) (v >>> 8);
-        stackBuffer.primativeBuffer[7] = (byte) (v);
-        _filer.write(stackBuffer.primativeBuffer, 0, 8);
+        stackBuffer.primitiveBuffer[0] = (byte) (v >>> 56);
+        stackBuffer.primitiveBuffer[1] = (byte) (v >>> 48);
+        stackBuffer.primitiveBuffer[2] = (byte) (v >>> 40);
+        stackBuffer.primitiveBuffer[3] = (byte) (v >>> 32);
+        stackBuffer.primitiveBuffer[4] = (byte) (v >>> 24);
+        stackBuffer.primitiveBuffer[5] = (byte) (v >>> 16);
+        stackBuffer.primitiveBuffer[6] = (byte) (v >>> 8);
+        stackBuffer.primitiveBuffer[7] = (byte) (v);
+        _filer.write(stackBuffer.primitiveBuffer, 0, 8);
     }
 
     /**
@@ -1056,11 +1053,11 @@ public class FilerIO {
      * @throws IOException
      */
     public static short readShort(Readable _filer, String fieldName, StackBuffer stackBuffer) throws IOException {
-        _filer.read(stackBuffer.primativeBuffer, 0, 2);
+        _filer.read(stackBuffer.primitiveBuffer, 0, 2);
         short v = 0;
-        v |= (stackBuffer.primativeBuffer[0] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[0] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[1] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[1] & 0xFF);
         return v;
     }
 
@@ -1072,11 +1069,11 @@ public class FilerIO {
      * @throws IOException
      */
     public static int readUnsignedShort(Readable _filer, String fieldName, StackBuffer stackBuffer) throws IOException {
-        _filer.read(stackBuffer.primativeBuffer, 0, 2);
+        _filer.read(stackBuffer.primitiveBuffer, 0, 2);
         int v = 0;
-        v |= (stackBuffer.primativeBuffer[0] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[0] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[1] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[1] & 0xFF);
         return v;
     }
 
@@ -1088,11 +1085,11 @@ public class FilerIO {
      * @throws IOException
      */
     public static char readChar(Readable _filer, String fieldName, StackBuffer stackBuffer) throws IOException {
-        _filer.read(stackBuffer.primativeBuffer, 0, 2);
+        _filer.read(stackBuffer.primitiveBuffer, 0, 2);
         char v = 0;
-        v |= (stackBuffer.primativeBuffer[0] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[0] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[1] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[1] & 0xFF);
         return v;
     }
 
@@ -1117,15 +1114,15 @@ public class FilerIO {
      * @throws IOException
      */
     public static int readInt(Readable _filer, String fieldName, StackBuffer stackBuffer) throws IOException {
-        _filer.read(stackBuffer.primativeBuffer, 0, 4);
+        _filer.read(stackBuffer.primitiveBuffer, 0, 4);
         int v = 0;
-        v |= (stackBuffer.primativeBuffer[0] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[0] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[1] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[1] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[2] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[2] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[3] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[3] & 0xFF);
         return v;
     }
 
@@ -1137,23 +1134,23 @@ public class FilerIO {
      * @throws IOException
      */
     public static long readLong(Readable _filer, String fieldName, StackBuffer stackBuffer) throws IOException {
-        _filer.read(stackBuffer.primativeBuffer, 0, 8);
+        _filer.read(stackBuffer.primitiveBuffer, 0, 8);
         long v = 0;
-        v |= (stackBuffer.primativeBuffer[0] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[0] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[1] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[1] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[2] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[2] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[3] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[3] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[4] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[4] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[5] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[5] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[6] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[6] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[7] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[7] & 0xFF);
 
         return v;
     }
@@ -1166,15 +1163,15 @@ public class FilerIO {
      * @throws Exception
      */
     public static float readFloat(Readable _filer, String fieldName, StackBuffer stackBuffer) throws IOException {
-        _filer.read(stackBuffer.primativeBuffer, 0, 4);
+        _filer.read(stackBuffer.primitiveBuffer, 0, 4);
         int v = 0;
-        v |= (stackBuffer.primativeBuffer[0] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[0] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[1] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[1] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[2] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[2] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[3] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[3] & 0xFF);
         return Float.intBitsToFloat(v);
     }
 
@@ -1218,23 +1215,23 @@ public class FilerIO {
      * @throws Exception
      */
     public static double readDouble(Readable _filer, String fieldName, StackBuffer stackBuffer) throws IOException {
-        _filer.read(stackBuffer.primativeBuffer, 0, 8);
+        _filer.read(stackBuffer.primitiveBuffer, 0, 8);
         long v = 0;
-        v |= (stackBuffer.primativeBuffer[0] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[0] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[1] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[1] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[2] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[2] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[3] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[3] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[4] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[4] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[5] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[5] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[6] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[6] & 0xFF);
         v <<= 8;
-        v |= (stackBuffer.primativeBuffer[7] & 0xFF);
+        v |= (stackBuffer.primitiveBuffer[7] & 0xFF);
         return Double.longBitsToDouble(v);
     }
 
@@ -1727,184 +1724,6 @@ public class FilerIO {
      */
     public static long chunkLength(int _chunkPower) {
         return 1L << _chunkPower;
-    }
-
-    /**
-     * Returns a {@link DataInput} which delegates to the given {@link Filer}.
-     *
-     * @param _filer the delegated filer
-     * @return a delegating input
-     */
-    public static DataInput asDataInput(final Filer _filer) {
-        return new DataInput() {
-
-            @Override
-            public void readFully(byte[] b) throws IOException {
-                int bytesRead = _filer.read(b);
-                if (bytesRead < b.length) {
-                    throw new EOFException();
-                }
-            }
-
-            @Override
-            public void readFully(byte[] b, int off, int len) throws IOException {
-                int bytesRead = _filer.read(b, off, len);
-                if (bytesRead < len) {
-                    throw new EOFException();
-                }
-            }
-
-            @Override
-            public int skipBytes(int n) throws IOException {
-                long fp = _filer.getFilePointer();
-                return (int) (_filer.skip(n) - fp);
-            }
-
-            @Override
-            public boolean readBoolean() throws IOException {
-                return FilerIO.readBoolean(_filer, null);
-            }
-
-            @Override
-            public byte readByte() throws IOException {
-                return FilerIO.readByte(_filer, null);
-            }
-
-            @Override
-            public int readUnsignedByte() throws IOException {
-                return FilerIO.readUnsignedByte(_filer, null);
-            }
-
-            @Override
-            public short readShort() throws IOException {
-                return FilerIO.readShort(_filer, null, new StackBuffer());
-            }
-
-            @Override
-            public int readUnsignedShort() throws IOException {
-                return FilerIO.readUnsignedShort(_filer, null, new StackBuffer());
-            }
-
-            @Override
-            public char readChar() throws IOException {
-                return FilerIO.readChar(_filer, null, new StackBuffer());
-            }
-
-            @Override
-            public int readInt() throws IOException {
-                return FilerIO.readInt(_filer, null, new StackBuffer());
-            }
-
-            @Override
-            public long readLong() throws IOException {
-                return FilerIO.readLong(_filer, null, new StackBuffer());
-            }
-
-            @Override
-            public float readFloat() throws IOException {
-                return FilerIO.readFloat(_filer, null, new StackBuffer());
-            }
-
-            @Override
-            public double readDouble() throws IOException {
-                return FilerIO.readDouble(_filer, null, new StackBuffer());
-            }
-
-            @Override
-            public String readLine() throws IOException {
-                return FilerIO.readLine(_filer, null);
-            }
-
-            @Override
-            public String readUTF() throws IOException {
-                int length = readUnsignedShort();
-                byte[] bytes = new byte[length];
-                read(_filer, bytes);
-                return new String(bytes, StandardCharsets.UTF_8);
-            }
-        };
-    }
-
-    /**
-     * Returns a {@link DataOutput} which delegates to the given {@link Filer}.
-     *
-     * @param _filer the delegated filer
-     * @return a delegating output
-     */
-    public static DataOutput asDataOutput(final Filer _filer) {
-        return new DataOutput() {
-            @Override
-            public void write(int b) throws IOException {
-                _filer.write(b);
-            }
-
-            @Override
-            public void write(byte[] b) throws IOException {
-                _filer.write(b);
-            }
-
-            @Override
-            public void write(byte[] b, int off, int len) throws IOException {
-                _filer.write(b, off, len);
-            }
-
-            @Override
-            public void writeBoolean(boolean v) throws IOException {
-                FilerIO.writeBoolean(_filer, v, null);
-            }
-
-            @Override
-            public void writeByte(int v) throws IOException {
-                FilerIO.writeByte(_filer, v, null);
-            }
-
-            @Override
-            public void writeShort(int v) throws IOException {
-                FilerIO.writeShort(_filer, v, null, new StackBuffer());
-            }
-
-            @Override
-            public void writeChar(int v) throws IOException {
-                FilerIO.writeChar(_filer, v, null, new StackBuffer());
-            }
-
-            @Override
-            public void writeInt(int v) throws IOException {
-                FilerIO.writeInt(_filer, v, null, new StackBuffer());
-            }
-
-            @Override
-            public void writeLong(long v) throws IOException {
-                FilerIO.writeLong(_filer, v, null, new StackBuffer());
-            }
-
-            @Override
-            public void writeFloat(float v) throws IOException {
-                FilerIO.writeFloat(_filer, v, null, new StackBuffer());
-            }
-
-            @Override
-            public void writeDouble(double v) throws IOException {
-                FilerIO.writeDouble(_filer, v, null, new StackBuffer());
-            }
-
-            @Override
-            public void writeBytes(String s) throws IOException {
-                FilerIO.write(_filer, s.getBytes(), null);
-            }
-
-            @Override
-            public void writeChars(String s) throws IOException {
-                FilerIO.writeCharArray(_filer, s.toCharArray(), null, new StackBuffer());
-            }
-
-            @Override
-            public void writeUTF(String s) throws IOException {
-                byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
-                FilerIO.writeShort(_filer, bytes.length, null, new StackBuffer());
-                FilerIO.write(_filer, bytes, null);
-            }
-        };
     }
 
 }
