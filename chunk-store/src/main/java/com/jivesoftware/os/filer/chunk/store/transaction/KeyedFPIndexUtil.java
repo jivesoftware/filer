@@ -46,13 +46,9 @@ public class KeyedFPIndexUtil {
         K key,
         OpenFiler<M, ChunkFiler> opener,
         ChunkTransaction<M, R> filerTransaction,
-        StackBuffer stackBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
 
-        try {
-            semaphore.acquire();
-        } catch (InterruptedException e) {
-            throw new RuntimeException("Failed to acquire 1 permits.", e);
-        }
+        semaphore.acquire();
 
         try {
             long fp;
@@ -80,13 +76,9 @@ public class KeyedFPIndexUtil {
         final OpenFiler<M, ChunkFiler> opener,
         final GrowFiler<H, M, ChunkFiler> growFiler,
         final ChunkTransaction<M, R> filerTransaction,
-        StackBuffer stackBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
 
-        try {
-            semaphore.acquire();
-        } catch (InterruptedException e) {
-            throw new RuntimeException("Failed to acquire 1 permits.", e);
-        }
+        semaphore.acquire();
 
         final AtomicInteger releasablePermits = new AtomicInteger(1);
         try {
@@ -109,13 +101,9 @@ public class KeyedFPIndexUtil {
             if (currentFP.get() > -1) {
                 semaphore.release();
                 releasablePermits.set(0);
-                try {
-                    while (!semaphore.tryAcquire(numPermits, 5, TimeUnit.MINUTES)) {
-                        System.err.println("Deadlock due to probable case of reentrant transaction");
-                        Thread.dumpStack();
-                    }
-                } catch (InterruptedException e) {
-                    throw new RuntimeException("Failed to acquire all permits.", e);
+                while (!semaphore.tryAcquire(numPermits, 5, TimeUnit.MINUTES)) {
+                    System.err.println("Deadlock due to probable case of reentrant transaction");
+                    Thread.dumpStack();
                 }
                 releasablePermits.set(numPermits);
                 try {
@@ -143,15 +131,11 @@ public class KeyedFPIndexUtil {
         final OpenFiler<M, ChunkFiler> opener,
         final GrowFiler<H, M, ChunkFiler> growFiler,
         final ChunkTransaction<M, R> filerTransaction,
-        StackBuffer stackBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
 
         long fp;
 
-        try {
-            semaphore.acquire();
-        } catch (InterruptedException e) {
-            throw new RuntimeException("Failed to acquire 1 permits.", e);
-        }
+        semaphore.acquire();
 
         try {
             synchronized (keyLock) {
@@ -188,14 +172,11 @@ public class KeyedFPIndexUtil {
             semaphore.release();
         }
 
-        try {
-            while (!semaphore.tryAcquire(numPermits, 5, TimeUnit.MINUTES)) {
-                System.err.println("Deadlock due to probable case of reentrant transaction");
-                Thread.dumpStack();
-            }
-        } catch (InterruptedException e) {
-            throw new RuntimeException("Failed to acquire all permits.", e);
+        while (!semaphore.tryAcquire(numPermits, 5, TimeUnit.MINUTES)) {
+            System.err.println("Deadlock due to probable case of reentrant transaction");
+            Thread.dumpStack();
         }
+
         final AtomicInteger releasablePermits = new AtomicInteger(numPermits);
         try {
             fp = backingFPIndex.get(key, stackBuffer);
