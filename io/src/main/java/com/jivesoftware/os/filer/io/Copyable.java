@@ -9,5 +9,5 @@ import java.io.IOException;
  */
 public interface Copyable<V> {
 
-    void copyTo(V to, StackBuffer stackBuffer) throws IOException;
+    void copyTo(V to, StackBuffer stackBuffer) throws IOException, InterruptedException;
 }

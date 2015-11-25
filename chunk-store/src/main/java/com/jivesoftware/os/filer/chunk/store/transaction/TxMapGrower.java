@@ -39,7 +39,7 @@ public class TxMapGrower {
                     ChunkFiler newFiler,
                     Object currentLock,
                     Object newLock,
-                    StackBuffer stackBuffer) throws IOException {
+                    StackBuffer stackBuffer) throws IOException, InterruptedException {
 
                     mapGrower.growAndAcquire(hint, currentMonkey, currentFiler, newMonkey, newFiler, currentLock, newLock, stackBuffer);
 

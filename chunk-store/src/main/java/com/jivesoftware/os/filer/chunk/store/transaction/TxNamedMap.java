@@ -70,7 +70,7 @@ public class TxNamedMap {
     private final MapBackedKeyedFPIndexGrower grower = new MapBackedKeyedFPIndexGrower();
 
     public <R> R readWriteAutoGrow(final byte[] mapName, int additionalCapacity, final ChunkTransaction<MapContext, R> mapTransaction,
-        StackBuffer stackBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP, stackBuffer)) {
                 long fp = chunkStore.newChunk(null, skyHookIndexCreator, stackBuffer);
@@ -88,7 +88,8 @@ public class TxNamedMap {
         }, stackBuffer);
     }
 
-    public <R> R read(final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction, StackBuffer stackBuffer) throws IOException {
+    public <R> R read(final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction, StackBuffer stackBuffer) throws IOException,
+        InterruptedException {
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP, stackBuffer)) {
                 return mapTransaction.commit(null, null, stackBuffer, null);
@@ -112,7 +113,8 @@ public class TxNamedMap {
         }, stackBuffer);
     }
 
-    public Boolean stream(final byte[] mapName, final TxStream<byte[], MapContext, ChunkFiler> stream, StackBuffer stackBuffer) throws IOException {
+    public Boolean stream(final byte[] mapName, final TxStream<byte[], MapContext, ChunkFiler> stream, StackBuffer stackBuffer) throws IOException,
+        InterruptedException {
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP, stackBuffer)) {
                 return true;

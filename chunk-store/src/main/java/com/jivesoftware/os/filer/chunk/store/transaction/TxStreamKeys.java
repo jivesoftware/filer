@@ -24,5 +24,5 @@ import java.io.IOException;
  */
 public interface TxStreamKeys<K> {
 
-    boolean stream(K key) throws IOException;
+    boolean stream(K key) throws IOException, InterruptedException;
 }

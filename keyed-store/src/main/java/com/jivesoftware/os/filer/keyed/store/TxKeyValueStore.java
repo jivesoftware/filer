@@ -75,7 +75,7 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public boolean[] contains(List<K> keys, StackBuffer stackBuffer) throws IOException {
+    public boolean[] contains(List<K> keys, StackBuffer stackBuffer) throws IOException, InterruptedException {
         byte[][] keysBytes = new byte[keys.size()][];
         for (int i = 0; i < keysBytes.length; i++) {
             keysBytes[i] = keyValueMarshaller.keyBytes(keys.get(i));
@@ -84,7 +84,8 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public void multiExecute(K[] keys, IndexAlignedKeyValueTransaction<V> indexAlignedKeyValueTransaction, StackBuffer stackBuffer) throws IOException {
+    public void multiExecute(K[] keys, IndexAlignedKeyValueTransaction<V> indexAlignedKeyValueTransaction, StackBuffer stackBuffer) throws IOException,
+        InterruptedException {
         byte[][] keysBytes = new byte[keys.length][];
         for (int i = 0; i < keysBytes.length; i++) {
             keysBytes[i] = keys[i] != null ? keyValueMarshaller.keyBytes(keys[i]) : null;
@@ -117,7 +118,8 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public <R> R execute(final K key, boolean createIfAbsent, final KeyValueTransaction<V, R> keyValueTransaction, StackBuffer stackBuffer) throws IOException {
+    public <R> R execute(final K key, boolean createIfAbsent, final KeyValueTransaction<V, R> keyValueTransaction, StackBuffer stackBuffer) throws IOException,
+        InterruptedException {
         final byte[] keyBytes = keyValueMarshaller.keyBytes(key);
         if (createIfAbsent) {
             return namedMap.readWriteAutoGrow(keyBytes, name,
@@ -185,7 +187,7 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public boolean stream(final EntryStream<K, V> stream, StackBuffer stackBuffer) throws IOException {
+    public boolean stream(final EntryStream<K, V> stream, StackBuffer stackBuffer) throws IOException, InterruptedException {
         return namedMap.stream(name, (key, monkey, filer, lock) -> {
             if (monkey == null || filer == null) {
                 return true;
@@ -199,7 +201,7 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public boolean streamKeys(final KeyStream<K> stream, StackBuffer stackBuffer) throws IOException {
+    public boolean streamKeys(final KeyStream<K> stream, StackBuffer stackBuffer) throws IOException, InterruptedException {
         return namedMap.stream(name, (key, monkey, filer, lock) -> {
             if (monkey == null || filer == null) {
                 return true;

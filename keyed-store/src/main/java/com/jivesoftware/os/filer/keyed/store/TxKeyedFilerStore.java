@@ -124,28 +124,28 @@ public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
     }
 
     @Override
-    public <R> R read(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction, StackBuffer stackBuffer) throws IOException {
+    public <R> R read(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction, StackBuffer stackBuffer) throws IOException, InterruptedException {
         return namedMapOfFiler.read(keyBytes, name, keyBytes, transaction,stackBuffer);
     }
 
     @Override
-    public <R> List<R> readEach(byte[][] eachKeyBytes, H newFilerInitialCapacity, ChunkTransaction<M, R> transaction, StackBuffer stackBuffer) throws IOException {
+    public <R> List<R> readEach(byte[][] eachKeyBytes, H newFilerInitialCapacity, ChunkTransaction<M, R> transaction, StackBuffer stackBuffer) throws IOException, InterruptedException {
         return namedMapOfFiler.readEach(eachKeyBytes, name, eachKeyBytes, transaction,stackBuffer);
     }
 
     @Override
-    public <R> R readWriteAutoGrow(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction, StackBuffer stackBuffer) throws IOException {
+    public <R> R readWriteAutoGrow(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction, StackBuffer stackBuffer) throws IOException, InterruptedException {
         return namedMapOfFiler.readWriteAutoGrow(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction,stackBuffer);
 
     }
 
     @Override
-    public <R> R writeNewReplace(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction, StackBuffer stackBuffer) throws IOException {
+    public <R> R writeNewReplace(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction, StackBuffer stackBuffer) throws IOException, InterruptedException {
         return namedMapOfFiler.writeNewReplace(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction,stackBuffer);
     }
 
     @Override
-    public boolean stream(List<KeyRange> ranges, final KeyValueStore.EntryStream<byte[], Filer> stream, StackBuffer stackBuffer) throws IOException {
+    public boolean stream(List<KeyRange> ranges, final KeyValueStore.EntryStream<byte[], Filer> stream, StackBuffer stackBuffer) throws IOException, InterruptedException {
         return namedMapOfFiler.stream(name, ranges, (key, monkey, filer, lock) -> {
             synchronized (lock) {
                 return stream.stream(key, filer);
@@ -154,7 +154,7 @@ public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
     }
 
     @Override
-    public boolean streamKeys(List<KeyRange> ranges, final KeyValueStore.KeyStream<byte[]> stream, StackBuffer stackBuffer) throws IOException {
+    public boolean streamKeys(List<KeyRange> ranges, final KeyValueStore.KeyStream<byte[]> stream, StackBuffer stackBuffer) throws IOException, InterruptedException {
         return namedMapOfFiler.streamKeys(name, ranges, key -> {
             if (key != null) {
                 return stream.stream(key);

@@ -51,7 +51,7 @@ public class StripedFiler {
         return root.length();
     }
 
-    public <R> R rootTx(long fp, StripeTx<R> stripeTx) throws IOException {
+    public <R> R rootTx(long fp, StripeTx<R> stripeTx) throws IOException, InterruptedException {
         synchronized (root) {
             return stripeTx.tx(fp, null, root);
         }
@@ -67,7 +67,7 @@ public class StripedFiler {
         return (int) (seed >>> (48 - 32));
     }
 
-    public <R> R tx(long fp, StripeTx<R> stripeTx) throws IOException {
+    public <R> R tx(long fp, StripeTx<R> stripeTx) throws IOException, InterruptedException {
         int stripe = Math.abs(hashFP(fp) % stripes.length);
         synchronized (locks[stripe]) {
             if (stripes[stripe] == null) {
@@ -82,7 +82,7 @@ public class StripedFiler {
 
     public static interface StripeTx<R> {
 
-        R tx(long fp, ChunkCache chunkCache, AutoGrowingByteBufferBackedFiler filer) throws IOException;
+        R tx(long fp, ChunkCache chunkCache, AutoGrowingByteBufferBackedFiler filer) throws IOException, InterruptedException;
     }
 
     static byte[] join(byte[] array1, byte[] array2) {

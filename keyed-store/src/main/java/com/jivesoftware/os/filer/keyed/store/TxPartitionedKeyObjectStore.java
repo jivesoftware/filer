@@ -42,7 +42,7 @@ public class TxPartitionedKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public boolean[] contains(List<K> keys, StackBuffer stackBuffer) throws IOException {
+    public boolean[] contains(List<K> keys, StackBuffer stackBuffer) throws IOException, InterruptedException {
         List[] partitionedKeys = new List[stores.length];
         for (int p = 0; p < stores.length; p++) {
             partitionedKeys[p] = new ArrayList();
@@ -70,7 +70,8 @@ public class TxPartitionedKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public void multiExecute(K[] keys, IndexAlignedKeyValueTransaction<V> indexAlignedKeyValueTransaction, StackBuffer stackBuffer) throws IOException {
+    public void multiExecute(K[] keys, IndexAlignedKeyValueTransaction<V> indexAlignedKeyValueTransaction, StackBuffer stackBuffer) throws IOException,
+        InterruptedException {
         throw new UnsupportedOperationException("TODO");
     }
 
@@ -78,12 +79,12 @@ public class TxPartitionedKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     public <R> R execute(K key,
         boolean createIfAbsent,
         KeyValueTransaction<V, R> keyValueTransaction,
-        StackBuffer stackBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
         return stores[partitionFunction.partition(stores.length, key)].execute(key, createIfAbsent, keyValueTransaction, stackBuffer);
     }
 
     @Override
-    public boolean stream(final EntryStream<K, V> stream, StackBuffer stackBuffer) throws IOException {
+    public boolean stream(final EntryStream<K, V> stream, StackBuffer stackBuffer) throws IOException, InterruptedException {
         for (TxKeyObjectStore<K, V> store : stores) {
             if (!store.stream(stream, stackBuffer)) {
                 return false;
@@ -94,7 +95,7 @@ public class TxPartitionedKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public boolean streamKeys(final KeyStream<K> stream, StackBuffer stackBuffer) throws IOException {
+    public boolean streamKeys(final KeyStream<K> stream, StackBuffer stackBuffer) throws IOException, InterruptedException {
         for (TxKeyObjectStore<K, V> store : stores) {
             if (!store.streamKeys(stream, stackBuffer)) {
                 return false;

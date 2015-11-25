@@ -231,7 +231,7 @@ public class NamedMapsNGTest {
     }
 
     @Test
-    public void testCommit() throws Exception {
+    public void testCommit() throws Exception, InterruptedException {
         StackBuffer stackBuffer = new StackBuffer();
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
         File dir = Files.createTempDirectory("testCommit").toFile();
@@ -421,7 +421,7 @@ public class NamedMapsNGTest {
 
     private void doItAgain(final int addCount, TxPartitionedNamedMap namedMap, int c,
         TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock> namedMapOfFilers,
-        StackBuffer stackBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
         int accum = 0;
         for (int i = 0; i < addCount; i++) {
             accum += i;

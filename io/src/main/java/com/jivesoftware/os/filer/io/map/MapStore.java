@@ -620,7 +620,8 @@ public class MapStore {
         return hash == Long.MIN_VALUE ? Long.MAX_VALUE : Math.abs(hash);
     }
 
-    public boolean stream(final Filer filer, final MapContext context, final Object lock, EntryStream stream, StackBuffer stackBuffer) throws IOException {
+    public boolean stream(final Filer filer, final MapContext context, final Object lock, EntryStream stream, StackBuffer stackBuffer) throws IOException,
+        InterruptedException {
         for (int index = 0; index < context.capacity; index++) {
             byte[] key;
             byte[] payload = null;
@@ -639,7 +640,8 @@ public class MapStore {
         return true;
     }
 
-    public boolean streamKeys(final Filer filer, final MapContext context, final Object lock, KeyStream stream, StackBuffer stackBuffer) throws IOException {
+    public boolean streamKeys(final Filer filer, final MapContext context, final Object lock, KeyStream stream, StackBuffer stackBuffer) throws IOException,
+        InterruptedException {
         for (int index = 0; index < context.capacity; index++) {
             byte[] key;
             synchronized (lock) {
@@ -656,12 +658,12 @@ public class MapStore {
 
     public interface EntryStream {
 
-        boolean stream(Entry entry) throws IOException;
+        boolean stream(Entry entry) throws IOException, InterruptedException;
     }
 
     public interface KeyStream {
 
-        boolean stream(byte[] key) throws IOException;
+        boolean stream(byte[] key) throws IOException, InterruptedException;
     }
 
     public static class Entry {

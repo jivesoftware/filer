@@ -35,28 +35,28 @@ import java.util.List;
  */
 public interface FPIndex<K, I extends FPIndex<K, I>> {
 
-    long get(K key, StackBuffer stackBuffer) throws IOException;
+    long get(K key, StackBuffer stackBuffer) throws IOException, InterruptedException;
 
-    void set(K key, long fp, StackBuffer stackBuffer) throws IOException;
+    void set(K key, long fp, StackBuffer stackBuffer) throws IOException, InterruptedException;
 
-    long getAndSet(K key, long fp, StackBuffer stackBuffer) throws IOException;
+    long getAndSet(K key, long fp, StackBuffer stackBuffer) throws IOException, InterruptedException;
 
     boolean acquire(int alwaysRoomForNMoreKeys);
 
-    int nextGrowSize(int alwaysRoomForNMoreKeys) throws IOException;
+    int nextGrowSize(int alwaysRoomForNMoreKeys) throws IOException, InterruptedException;
 
-    void copyTo(Filer curentFiler, FPIndex<K, I> newMonkey, Filer newFiler, StackBuffer stackBuffer) throws IOException;
+    void copyTo(Filer curentFiler, FPIndex<K, I> newMonkey, Filer newFiler, StackBuffer stackBuffer) throws IOException, InterruptedException;
 
     void release(int alwayRoomForNMoreKeys);
 
-    boolean stream(List<KeyRange> ranges, KeysStream<K> stream, StackBuffer stackBuffer) throws IOException;
+    boolean stream(List<KeyRange> ranges, KeysStream<K> stream, StackBuffer stackBuffer) throws IOException, InterruptedException;
 
     <H, M, R> R read(
         ChunkStore chunkStore,
         K key,
         OpenFiler<M, ChunkFiler> opener,
         ChunkTransaction<M, R> filerTransaction,
-        StackBuffer stackBuffer) throws IOException;
+        StackBuffer stackBuffer) throws IOException, InterruptedException;
 
     <H, M, R> R writeNewReplace(
         ChunkStore chunkStore,
@@ -66,7 +66,7 @@ public interface FPIndex<K, I extends FPIndex<K, I>> {
         OpenFiler<M, ChunkFiler> opener,
         GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction,
-        StackBuffer stackBuffer) throws IOException;
+        StackBuffer stackBuffer) throws IOException, InterruptedException;
 
     <H, M, R> R readWriteAutoGrow(
         ChunkStore chunkStore,
@@ -76,6 +76,6 @@ public interface FPIndex<K, I extends FPIndex<K, I>> {
         OpenFiler<M, ChunkFiler> opener,
         GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction,
-        StackBuffer stackBuffer) throws IOException;
+        StackBuffer stackBuffer) throws IOException, InterruptedException;
 
 }

@@ -88,7 +88,7 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
     }
 
     @Override
-    public long get(final byte[] key, StackBuffer stackBuffer) throws IOException {
+    public long get(final byte[] key, StackBuffer stackBuffer) throws IOException, InterruptedException {
         Long got = null;
         if (keyToFpCache != null) {
             got = keyToFpCache.get(stackBuffer.accessKey(key));
@@ -111,7 +111,7 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
     }
 
     @Override
-    public void set(final byte[] key, final long fp, StackBuffer stackBuffer) throws IOException {
+    public void set(final byte[] key, final long fp, StackBuffer stackBuffer) throws IOException, InterruptedException {
         if (keyToFpCache != null) {
             keyToFpCache.put(new IBA(key), fp);
         }
@@ -124,7 +124,7 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
     }
 
     @Override
-    public long getAndSet(final byte[] key, final long fp, StackBuffer stackBuffer) throws IOException {
+    public long getAndSet(final byte[] key, final long fp, StackBuffer stackBuffer) throws IOException, InterruptedException {
         if (keyToFpCache != null) {
             keyToFpCache.put(new IBA(key), fp);
         }
@@ -144,7 +144,7 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
     @Override
     public <H, M, R> R read(ChunkStore chunkStore, byte[] key,
         OpenFiler<M, ChunkFiler> opener, ChunkTransaction<M, R> filerTransaction,
-        StackBuffer stackBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
         Object keyLock = keyLocks.lock(key, seed);
         return KeyedFPIndexUtil.INSTANCE.read(this, keySemaphores.semaphore(key, seed), keySemaphores.getNumPermits(), chunkStore, keyLock,
             key, opener, filerTransaction, stackBuffer);
@@ -154,7 +154,7 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
     public <H, M, R> R writeNewReplace(ChunkStore chunkStore, byte[] key, H hint,
         CreateFiler<H, M, ChunkFiler> creator, OpenFiler<M, ChunkFiler> opener, GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction,
-        StackBuffer stackBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
         Object keyLock = keyLocks.lock(key, seed);
         return KeyedFPIndexUtil.INSTANCE.writeNewReplace(this, keySemaphores.semaphore(key, seed), keySemaphores.getNumPermits(), chunkStore, keyLock,
             key, hint, creator, opener, growFiler, filerTransaction, stackBuffer);
@@ -164,14 +164,14 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
     public <H, M, R> R readWriteAutoGrow(ChunkStore chunkStore, byte[] key, H hint,
         CreateFiler<H, M, ChunkFiler> creator, OpenFiler<M, ChunkFiler> opener, GrowFiler<H, M, ChunkFiler> growFiler,
         ChunkTransaction<M, R> filerTransaction,
-        StackBuffer stackBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
         Object keyLock = keyLocks.lock(key, seed);
         return KeyedFPIndexUtil.INSTANCE.readWriteAutoGrowIfNeeded(this, keySemaphores.semaphore(key, seed), keySemaphores.getNumPermits(),
             chunkStore, keyLock, key, hint, creator, opener, growFiler, filerTransaction, stackBuffer);
     }
 
     @Override
-    public boolean stream(final List<KeyRange> ranges, final KeysStream<byte[]> keysStream, StackBuffer stackBuffer) throws IOException {
+    public boolean stream(final List<KeyRange> ranges, final KeysStream<byte[]> keysStream, StackBuffer stackBuffer) throws IOException, InterruptedException {
         final MapStore.KeyStream mapKeyStream = key -> {
             if (ranges != null) {
                 for (KeyRange range : ranges) {

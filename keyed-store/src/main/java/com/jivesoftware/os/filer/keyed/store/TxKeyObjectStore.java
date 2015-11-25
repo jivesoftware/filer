@@ -133,7 +133,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public boolean[] contains(List<K> keys, StackBuffer stackBuffer) throws IOException {
+    public boolean[] contains(List<K> keys, StackBuffer stackBuffer) throws IOException, InterruptedException {
         final byte[][] keysBytes = new byte[keys.size()][];
         for (int i = 0; i < keysBytes.length; i++) {
             K key = keys.get(i);
@@ -161,7 +161,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     public <R> R execute(K key,
         boolean createIfAbsent,
         final KeyValueTransaction<V, R> keyValueTransaction,
-        StackBuffer stackBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
 
         final byte[] keyBytes = keyMarshaller.keyBytes(key);
         if (createIfAbsent) {
@@ -235,7 +235,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public boolean stream(final EntryStream<K, V> stream, StackBuffer stackBuffer) throws IOException {
+    public boolean stream(final EntryStream<K, V> stream, StackBuffer stackBuffer) throws IOException, InterruptedException {
 
         return namedMap.stream(mapName,
             (key, monkey, filer, lock) -> MapStore.INSTANCE.stream(filer, monkey, lock, entry -> {
@@ -246,7 +246,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
     }
 
     @Override
-    public boolean streamKeys(final KeyStream<K> stream, StackBuffer stackBuffer) throws IOException {
+    public boolean streamKeys(final KeyStream<K> stream, StackBuffer stackBuffer) throws IOException, InterruptedException {
         return namedMap.stream(mapName,
             (key, monkey, filer, lock) -> {
                 if (monkey == null || filer == null) {

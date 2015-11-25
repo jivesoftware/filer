@@ -111,7 +111,7 @@ public class TxKeyValueStoreNGTest {
                         context.set(rand.nextLong());
                         return true;
                     }, stackBuffer);
-                } catch (IOException x) {
+                } catch (InterruptedException | IOException x) {
                     x.printStackTrace();
                 }
             }
@@ -122,7 +122,7 @@ public class TxKeyValueStoreNGTest {
     }
 
     @Test
-    public void testExecute() throws IOException {
+    public void testExecute() throws IOException, InterruptedException {
         StackBuffer stackBuffer = new StackBuffer();
         int numKeys = 16;
         List<Long> keys = new ArrayList<>();
@@ -172,7 +172,7 @@ public class TxKeyValueStoreNGTest {
     }
 
     @Test
-    public void testMultiExecute() throws IOException {
+    public void testMultiExecute() throws IOException, InterruptedException {
         StackBuffer stackBuffer = new StackBuffer();
         int numKeys = 16;
         List<Long> keys = new ArrayList<>();

@@ -128,7 +128,7 @@ public class ChunkStoreTest {
         }
     }
 
-    private void writeIntToChunk(ChunkStore chunkStore, long chunkFP, final int value, StackBuffer stackBuffer) throws IOException {
+    private void writeIntToChunk(ChunkStore chunkStore, long chunkFP, final int value, StackBuffer stackBuffer) throws IOException, InterruptedException {
         chunkStore.execute(chunkFP, openFiler, (monkey, filer, stackBuffer1, lock) -> {
             synchronized (lock) {
                 FilerIO.writeInt(filer, value, "", stackBuffer1);
@@ -137,7 +137,7 @@ public class ChunkStoreTest {
         }, stackBuffer);
     }
 
-    private void assertIntInChunk(ChunkStore chunkStore, long chunk10, final int expected, StackBuffer stackBuffer) throws IOException {
+    private void assertIntInChunk(ChunkStore chunkStore, long chunk10, final int expected, StackBuffer stackBuffer) throws IOException, InterruptedException {
         chunkStore.execute(chunk10, openFiler, (monkey, filer, stackBuffer1, lock) -> {
             synchronized (lock) {
                 int value = FilerIO.readInt(filer, "", stackBuffer1);

@@ -169,7 +169,7 @@ public class SkipListMapTest {
     }
 
     @Test
-    public void reopenTest() throws IOException {
+    public void reopenTest() throws IOException, InterruptedException {
         StackBuffer stackBuffer = new StackBuffer();
         ByteBufferFactory provider = new HeapByteBufferFactory();
         int capacity = 16;
@@ -230,7 +230,7 @@ public class SkipListMapTest {
     }
 
     @Test
-    public void removeTest() throws IOException {
+    public void removeTest() throws IOException, InterruptedException {
         StackBuffer stackBuffer = new StackBuffer();
         ByteBufferFactory provider = new HeapByteBufferFactory();
         int capacity = 16;
@@ -286,7 +286,7 @@ public class SkipListMapTest {
 
     private void assertContents(SkipListMapStore sls, ByteBufferBackedFiler f, SkipListMapContext from, final HashSet<Byte> expectedContains,
         StackBuffer stackBuffer)
-        throws IOException {
+        throws IOException, InterruptedException {
         sls.streamKeys(f, from, new Object(), null, key -> {
             if (key != null) {
                 Assert.assertTrue(expectedContains.contains(key[0]), "Expected:" + key[0]);
@@ -298,7 +298,7 @@ public class SkipListMapTest {
     }
 
     @Test
-    public void copyToTest() throws IOException {
+    public void copyToTest() throws IOException, InterruptedException {
         StackBuffer stackBuffer = new StackBuffer();
         ByteBufferFactory provider = new HeapByteBufferFactory();
         int capacity = 16;
@@ -332,7 +332,7 @@ public class SkipListMapTest {
     }
 
     @Test
-    public void variableKeysTest() throws IOException {
+    public void variableKeysTest() throws IOException, InterruptedException {
         StackBuffer stackBuffer = new StackBuffer();
         ByteBufferFactory provider = new HeapByteBufferFactory();
         int capacity = 1024;
@@ -370,7 +370,7 @@ public class SkipListMapTest {
     }
 
     @Test
-    public void streamRangesTest() throws IOException {
+    public void streamRangesTest() throws IOException, InterruptedException {
         StackBuffer stackBuffer = new StackBuffer();
         ByteBufferFactory provider = new HeapByteBufferFactory();
         int capacity = 1024;
@@ -402,7 +402,7 @@ public class SkipListMapTest {
     }
 
     @Test
-    public void prefixStreamTest() throws IOException {
+    public void prefixStreamTest() throws IOException, InterruptedException {
         StackBuffer stackBuffer = new StackBuffer();
         ByteBufferFactory provider = new HeapByteBufferFactory();
         int capacity = 14;

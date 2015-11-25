@@ -37,7 +37,7 @@ public class TxPartitionedNamedMap {
         this.partitionFunction = partitionFunction;
     }
 
-    public boolean[] contains(byte[][] keysBytes, byte[] mapName, StackBuffer stackBuffer) throws IOException {
+    public boolean[] contains(byte[][] keysBytes, byte[] mapName, StackBuffer stackBuffer) throws IOException, InterruptedException {
         byte[][][] partitionedKeysBytes = new byte[namedMaps.length][keysBytes.length][];
         boolean[][] partitionedContains = new boolean[namedMaps.length][keysBytes.length];
         for (int i = 0; i < keysBytes.length; i++) {
@@ -71,7 +71,7 @@ public class TxPartitionedNamedMap {
     }
 
     public <R> R readWriteAutoGrow(byte[] partitionKey, final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction, StackBuffer stackBuffer)
-        throws IOException {
+        throws IOException, InterruptedException {
         int i = partitionFunction.partition(namedMaps.length, partitionKey);
         final TxNamedMap namedMap = namedMaps[i];
         return namedMap.readWriteAutoGrow(mapName, 1, mapTransaction, stackBuffer);
@@ -80,7 +80,7 @@ public class TxPartitionedNamedMap {
     public void multiReadWriteAutoGrow(byte[][] keysBytes,
         final byte[] mapName,
         final IndexAlignedChunkTransaction<MapContext> indexAlignedChunkTransaction,
-        StackBuffer stackBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
 
         byte[][][] partitionedKeysBytes = new byte[namedMaps.length][keysBytes.length][];
         int[] additionalCapacity = new int[namedMaps.length];
@@ -109,13 +109,14 @@ public class TxPartitionedNamedMap {
     }
 
     public <R> R read(byte[] partitionKey, final byte[] mapName, final ChunkTransaction<MapContext, R> mapTransaction, StackBuffer stackBuffer) throws
-        IOException {
+        IOException, InterruptedException {
         int i = partitionFunction.partition(namedMaps.length, partitionKey);
         final TxNamedMap namedMap = namedMaps[i];
         return namedMap.read(mapName, mapTransaction, stackBuffer);
     }
 
-    public Boolean stream(final byte[] mapName, final TxStream<byte[], MapContext, ChunkFiler> stream, StackBuffer stackBuffer) throws IOException {
+    public Boolean stream(final byte[] mapName, final TxStream<byte[], MapContext, ChunkFiler> stream, StackBuffer stackBuffer) throws IOException,
+        InterruptedException {
         for (TxNamedMap namedMap : namedMaps) {
             boolean result = namedMap.stream(mapName, stream, stackBuffer);
             if (!result) {

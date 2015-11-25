@@ -252,7 +252,7 @@ public class SkipListMapStore {
     }
 
     public boolean streamKeys(final Filer filer, final SkipListMapContext context, final Object lock,
-        List<KeyRange> ranges, MapStore.KeyStream stream, StackBuffer stackBuffer) throws IOException {
+        List<KeyRange> ranges, MapStore.KeyStream stream, StackBuffer stackBuffer) throws IOException, InterruptedException {
         if (ranges == null) {
             for (int index = 0; index < context.mapContext.capacity; index++) {
                 if (index == context.headIndex) { // Barf

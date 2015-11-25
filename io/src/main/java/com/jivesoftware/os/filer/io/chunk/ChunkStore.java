@@ -117,7 +117,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
 
     }
 
-    public void open(StackBuffer stackBuffer) throws IOException {
+    public void open(StackBuffer stackBuffer) throws IOException, InterruptedException {
         this.filer.rootTx(-1L, (fp, chunkCache, filer) -> {
             filer.seek(0);
             lengthOfFile = FilerIO.readLong(filer, "lengthOfFile", stackBuffer);
@@ -132,7 +132,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
     }
 
     @Override
-    public void copyTo(final ChunkStore to, StackBuffer stackBuffer) throws IOException {
+    public void copyTo(final ChunkStore to, StackBuffer stackBuffer) throws IOException, InterruptedException {
         this.filer.rootTx(-1L, (fp, chunkCache, fromFiler) -> {
             to.filer.rootTx(-1L,
                 (fp1, chunkCache1, toFiler) -> {
@@ -163,7 +163,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
      * @return
      * @throws IOException
      */
-    public <M, H> long newChunk(final H hint, final CreateFiler<H, M, ChunkFiler> createFiler, StackBuffer stackBuffer) throws IOException {
+    public <M, H> long newChunk(final H hint, final CreateFiler<H, M, ChunkFiler> createFiler, StackBuffer stackBuffer) throws IOException, InterruptedException {
         long _capacity = createFiler.sizeInBytes(hint);
         final int chunkPower = FilerIO.chunkPower(_capacity, cMinPower);
         final long chunkLength = FilerIO.chunkLength(chunkPower)
@@ -270,7 +270,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
      * @throws IOException
      */
     public <M, R> R execute(final long chunkFP, final OpenFiler<M, ChunkFiler> openFiler, final ChunkTransaction<M, R> chunkTransaction, StackBuffer stackBuffer)
-        throws IOException {
+        throws IOException, InterruptedException {
 
         final Chunky<M> chunky = filer.tx(chunkFP, (fp, chunkCache, filer) -> {
             Chunk<M> chunk = chunkCache.acquireIfPresent(chunkFP, stackBuffer);
@@ -324,7 +324,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
 
     }
 
-    public void remove(long chunkFP, StackBuffer stackBuffer) throws IOException {
+    public void remove(long chunkFP, StackBuffer stackBuffer) throws IOException, InterruptedException {
 
         final Integer chunkPower = filer.tx(chunkFP, (fp, chunkCache, filer) -> {
             chunkCache.remove(fp, stackBuffer);
@@ -382,7 +382,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
     private static final byte[] zerosMin = new byte[(int) Math.pow(2, cMinPower)]; // never too big
     private static final byte[] zerosMax = new byte[(int) Math.pow(2, 16)]; // 65536 max used until min needed
 
-    public boolean isValid(final long chunkFP, StackBuffer stackBuffer) throws IOException {
+    public boolean isValid(final long chunkFP, StackBuffer stackBuffer) throws IOException, InterruptedException {
         return filer.tx(chunkFP, (fp, chunkCache, filer) -> {
             if (chunkCache.contains(fp, stackBuffer)) {
                 return true;

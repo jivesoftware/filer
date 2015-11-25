@@ -96,7 +96,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                     ChunkFiler newFiler,
                     Object currentLock,
                     Object newLock,
-                    StackBuffer stackBuffer) throws IOException {
+                    StackBuffer stackBuffer) throws IOException, InterruptedException {
                     result.set(chunkTransaction.commit(newMonkey, newFiler, stackBuffer, newLock));
                 }
 
@@ -164,7 +164,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         final byte[] filerKey,
         final H sizeHint,
         final ChunkTransaction<M, R> filerTransaction,
-        StackBuffer stackBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
 
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP, stackBuffer)) {
@@ -195,7 +195,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         final byte[] filerKey,
         final H sizeHint,
         final ChunkTransaction<M, R> chunkTransaction,
-        StackBuffer stackBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
 
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP, stackBuffer)) {
@@ -226,7 +226,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         }, stackBuffer);
     }
 
-    public <R> R read(final byte[] mapName, final byte[] filerKey, final ChunkTransaction<M, R> filerTransaction, StackBuffer stackBuffer) throws IOException {
+    public <R> R read(final byte[] mapName, final byte[] filerKey, final ChunkTransaction<M, R> filerTransaction, StackBuffer stackBuffer) throws IOException, InterruptedException {
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP, stackBuffer)) {
                 return filerTransaction.commit(null, null, stackBuffer, null);
@@ -265,7 +265,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
     }
 
     public <R> List<R> readEach(final byte[] mapName, final byte[][] filerKeys, final ChunkTransaction<M, R> filerTransaction,
-        StackBuffer stackBuffer) throws IOException {
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP, stackBuffer)) {
                 return Collections.emptyList();
@@ -332,7 +332,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
     }
 
     public Boolean stream(final byte[] mapName, final List<KeyRange> ranges, final TxStream<byte[], M, ChunkFiler> stream, StackBuffer stackBuffer) throws
-        IOException {
+        IOException, InterruptedException {
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP, stackBuffer)) {
                 return true;
@@ -375,7 +375,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         }, stackBuffer);
     }
 
-    public Boolean streamKeys(final byte[] mapName, final List<KeyRange> ranges, final TxStreamKeys<byte[]> stream, StackBuffer stackBuffer) throws IOException {
+    public Boolean streamKeys(final byte[] mapName, final List<KeyRange> ranges, final TxStreamKeys<byte[]> stream, StackBuffer stackBuffer) throws IOException, InterruptedException {
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP, stackBuffer)) {
                 return true;

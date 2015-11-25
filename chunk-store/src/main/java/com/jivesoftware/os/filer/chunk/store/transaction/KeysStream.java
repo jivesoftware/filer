@@ -24,6 +24,6 @@ import java.io.IOException;
  */
 public interface KeysStream<K> {
 
-    boolean stream(K key) throws IOException;
+    boolean stream(K key) throws IOException, InterruptedException;
 
 }

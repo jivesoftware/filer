@@ -64,7 +64,7 @@ public class TxKeyObjectStoreNGTest {
     }
 
     @Test
-    public void testExecute() throws IOException {
+    public void testExecute() throws IOException, InterruptedException {
         StackBuffer stackBuffer = new StackBuffer();
         int numKeys = 16;
         List<Long> keys = new ArrayList<>();

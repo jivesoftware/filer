@@ -75,7 +75,7 @@ public class MapStoreTest {
     }
 
     @Test
-    public void copy() throws IOException {
+    public void copy() throws IOException, InterruptedException {
           StackBuffer stackBuffer = new StackBuffer();
        int filerSize = MapStore.INSTANCE.computeFilerSize(2, 1, false, 1, false);
         Filer filer = new ByteBufferBackedFiler(ByteBuffer.allocate(filerSize));
