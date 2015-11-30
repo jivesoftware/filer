@@ -90,8 +90,6 @@ public class ChunkFiler implements Filer {
         long fp = filer.getFilePointer();
         if (fp < startOfFP || (fp + 2) > endOfFP) {
             throw new IndexOutOfBoundsException("FP out of bounds " + startOfFP + " <= " + fp + " <= " + endOfFP);
-        } else if (fp == endOfFP) {
-            return -1;
         }
         return filer.readShort();
     }
@@ -101,8 +99,6 @@ public class ChunkFiler implements Filer {
         long fp = filer.getFilePointer();
         if (fp < startOfFP || (fp + 4) > endOfFP) {
             throw new IndexOutOfBoundsException("FP out of bounds " + startOfFP + " <= " + fp + " <= " + endOfFP);
-        } else if (fp == endOfFP) {
-            return -1;
         }
         return filer.readInt();
     }
@@ -112,8 +108,6 @@ public class ChunkFiler implements Filer {
         long fp = filer.getFilePointer();
         if (fp < startOfFP || (fp + 8) > endOfFP) {
             throw new IndexOutOfBoundsException("FP out of bounds " + startOfFP + " <= " + fp + " <= " + endOfFP);
-        } else if (fp == endOfFP) {
-            return -1;
         }
         return filer.readLong();
     }
