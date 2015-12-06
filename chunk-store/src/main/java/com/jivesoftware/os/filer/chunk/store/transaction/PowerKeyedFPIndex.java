@@ -124,6 +124,11 @@ public class PowerKeyedFPIndex implements FPIndex<Integer, PowerKeyedFPIndex> {
     }
 
     @Override
+    public long size(StackBuffer stackBuffer) {
+        return fpIndex.length;
+    }
+
+    @Override
     public boolean acquire(int alwaysRoomForNMoreKeys) {
         return true;
     }

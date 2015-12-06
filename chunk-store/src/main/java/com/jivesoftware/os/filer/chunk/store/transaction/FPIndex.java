@@ -51,6 +51,8 @@ public interface FPIndex<K, I extends FPIndex<K, I>> {
 
     boolean stream(List<KeyRange> ranges, KeysStream<K> stream, StackBuffer stackBuffer) throws IOException, InterruptedException;
 
+    long size(StackBuffer stackBuffer) throws IOException, InterruptedException;
+
     <H, M, R> R read(
         ChunkStore chunkStore,
         K key,

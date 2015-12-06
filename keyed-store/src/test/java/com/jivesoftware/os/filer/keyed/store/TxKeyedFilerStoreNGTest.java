@@ -237,16 +237,19 @@ public class TxKeyedFilerStoreNGTest {
             allKeys[i] = FilerIO.intBytes(i);
         }
 
-        List<Integer> values = store.readEach(allKeys, newFilerInitialCapacity, (monkey, filer, _stackBuffer, lock) -> {
+        Integer[] results = new Integer[20];
+        store.readEach(allKeys, newFilerInitialCapacity, (monkey, filer, _stackBuffer, lock) -> {
             synchronized (lock) {
                 filer.seek(0);
                 return FilerIO.readInt(filer, "", _stackBuffer);
             }
-        }, stackBuffer);
+        }, results, stackBuffer);
 
-        Collections.sort(values);
+        //Collections.sort(values);
         for (int i = 0; i < 20; i++) {
-            assertEquals(values.get(i).intValue(), i);
+            assertEquals(results[i].intValue(), i);
         }
+
+        assertEquals(store.size(stackBuffer), 20);
     }
 }

@@ -192,4 +192,10 @@ public class MapBackedKeyedFPIndex implements FPIndex<byte[], MapBackedKeyedFPIn
                 monkey.mapContext, lock, mapKeyStream, _stackBuffer), stackBuffer);
     }
 
+    @Override
+    public long size(StackBuffer stackBuffer) throws IOException, InterruptedException {
+        return backingChunkStore.execute(backingFP, null,
+            (MapBackedKeyedFPIndex monkey, ChunkFiler filer, StackBuffer _stackBuffer, Object lock) -> MapStore.INSTANCE.getCount(filer, _stackBuffer),
+            stackBuffer);
+    }
 }

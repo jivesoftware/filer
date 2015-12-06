@@ -25,10 +25,10 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * @author jonathan.colt
  * @param <N>
  * @param <H>
  * @param <M>
+ * @author jonathan.colt
  */
 public class TxPartitionedNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
 
@@ -64,8 +64,13 @@ public class TxPartitionedNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         return stores[partitionFunction.partition(stores.length, partitionKey)].read(mapName, filerKey, filerTransaction, stackBuffer);
     }
 
-    public <R> List<R> readEach(byte[][] partitionKeys, byte[] mapName, byte[][] filerKeys, ChunkTransaction<M, R> filerTransaction, StackBuffer stackBuffer)
-        throws IOException, InterruptedException {
+    public <R> void readEach(byte[][] partitionKeys,
+        byte[] mapName,
+        byte[][] filerKeys,
+        ChunkTransaction<M, R> filerTransaction,
+        R[] results,
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
+
         byte[][][] partitionedFilerKeys = new byte[stores.length][][];
         for (int i = 0; i < partitionKeys.length; i++) {
             byte[] partitionKey = partitionKeys[i];
@@ -81,10 +86,9 @@ public class TxPartitionedNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         List<R> result = Lists.newArrayList();
         for (int p = 0; p < stores.length; p++) {
             if (partitionedFilerKeys[p] != null) {
-                result.addAll(stores[p].readEach(mapName, partitionedFilerKeys[p], filerTransaction, stackBuffer));
+                stores[p].readEach(mapName, partitionedFilerKeys[p], filerTransaction, results, stackBuffer);
             }
         }
-        return result;
     }
 
     public Boolean stream(final byte[] mapName, final List<KeyRange> ranges, final TxStream<byte[], M, ChunkFiler> stream, StackBuffer stackBuffer) throws
@@ -105,5 +109,13 @@ public class TxPartitionedNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
             }
         }
         return true;
+    }
+
+    public long size(byte[] mapName, StackBuffer stackBuffer) throws IOException, InterruptedException {
+        long count = 0;
+        for (TxNamedMapOfFiler<N, H, M> store : stores) {
+            count += store.size(mapName, stackBuffer);
+        }
+        return count;
     }
 }

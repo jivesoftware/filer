@@ -78,7 +78,10 @@ public class SkipListMapBackedKeyedFPIndex implements FPIndex<byte[], SkipListMa
     }
 
     @Override
-    public void copyTo(Filer currentFiler, FPIndex<byte[], SkipListMapBackedKeyedFPIndex> newMonkey, Filer newFiler, StackBuffer stackBuffer) throws IOException {
+    public void copyTo(Filer currentFiler,
+        FPIndex<byte[], SkipListMapBackedKeyedFPIndex> newMonkey,
+        Filer newFiler,
+        StackBuffer stackBuffer) throws IOException {
         // TODO rework generics to elimnate this cast
         SkipListMapStore.INSTANCE.copyTo(currentFiler, context, newFiler, ((SkipListMapBackedKeyedFPIndex) newMonkey).context, null, stackBuffer);
     }
@@ -173,14 +176,17 @@ public class SkipListMapBackedKeyedFPIndex implements FPIndex<byte[], SkipListMa
     public boolean stream(final List<KeyRange> ranges, final KeysStream<byte[]> keysStream, StackBuffer stackBuffer) throws IOException, InterruptedException {
         final MapStore.KeyStream mapKeyStream = keysStream::stream;
 
-        return backingChunkStore.execute(backingFP, null, new ChunkTransaction<SkipListMapBackedKeyedFPIndex, Boolean>() {
-
-            @Override
-            public Boolean commit(SkipListMapBackedKeyedFPIndex monkey, ChunkFiler filer, StackBuffer stackBuffer, Object lock) throws IOException,
-                InterruptedException {
-                return SkipListMapStore.INSTANCE.streamKeys(filer, monkey.context, lock, ranges, mapKeyStream, stackBuffer);
-            }
-        }, stackBuffer);
+        return backingChunkStore.execute(backingFP, null,
+            (SkipListMapBackedKeyedFPIndex monkey, ChunkFiler filer, StackBuffer _stackBuffer, Object lock)
+                -> SkipListMapStore.INSTANCE.streamKeys(filer, monkey.context, lock, ranges, mapKeyStream, _stackBuffer),
+            stackBuffer);
     }
 
+    @Override
+    public long size(StackBuffer stackBuffer) throws IOException, InterruptedException {
+        return backingChunkStore.execute(backingFP, null,
+            (SkipListMapBackedKeyedFPIndex monkey, ChunkFiler filer, StackBuffer _stackBuffer, Object lock)
+                -> SkipListMapStore.INSTANCE.getCount(filer, monkey.context, _stackBuffer),
+            stackBuffer);
+    }
 }

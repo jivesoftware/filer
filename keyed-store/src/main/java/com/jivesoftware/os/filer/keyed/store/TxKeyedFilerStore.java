@@ -124,43 +124,65 @@ public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
     }
 
     @Override
-    public <R> R read(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction, StackBuffer stackBuffer) throws IOException, InterruptedException {
-        return namedMapOfFiler.read(keyBytes, name, keyBytes, transaction,stackBuffer);
+    public <R> R read(byte[] keyBytes,
+        H newFilerInitialCapacity,
+        ChunkTransaction<M, R> transaction,
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
+        return namedMapOfFiler.read(keyBytes, name, keyBytes, transaction, stackBuffer);
     }
 
     @Override
-    public <R> List<R> readEach(byte[][] eachKeyBytes, H newFilerInitialCapacity, ChunkTransaction<M, R> transaction, StackBuffer stackBuffer) throws IOException, InterruptedException {
-        return namedMapOfFiler.readEach(eachKeyBytes, name, eachKeyBytes, transaction,stackBuffer);
+    public <R> void readEach(byte[][] eachKeyBytes,
+        H newFilerInitialCapacity,
+        ChunkTransaction<M, R> transaction,
+        R[] results,
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
+        namedMapOfFiler.readEach(eachKeyBytes, name, eachKeyBytes, transaction, results, stackBuffer);
     }
 
     @Override
-    public <R> R readWriteAutoGrow(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction, StackBuffer stackBuffer) throws IOException, InterruptedException {
-        return namedMapOfFiler.readWriteAutoGrow(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction,stackBuffer);
+    public <R> R readWriteAutoGrow(byte[] keyBytes,
+        H newFilerInitialCapacity,
+        ChunkTransaction<M, R> transaction,
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
+        return namedMapOfFiler.readWriteAutoGrow(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction, stackBuffer);
 
     }
 
     @Override
-    public <R> R writeNewReplace(byte[] keyBytes, H newFilerInitialCapacity, final ChunkTransaction<M, R> transaction, StackBuffer stackBuffer) throws IOException, InterruptedException {
-        return namedMapOfFiler.writeNewReplace(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction,stackBuffer);
+    public <R> R writeNewReplace(byte[] keyBytes,
+        H newFilerInitialCapacity,
+        ChunkTransaction<M, R> transaction,
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
+        return namedMapOfFiler.writeNewReplace(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction, stackBuffer);
     }
 
     @Override
-    public boolean stream(List<KeyRange> ranges, final KeyValueStore.EntryStream<byte[], Filer> stream, StackBuffer stackBuffer) throws IOException, InterruptedException {
+    public boolean stream(List<KeyRange> ranges,
+        KeyValueStore.EntryStream<byte[], Filer> stream,
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
         return namedMapOfFiler.stream(name, ranges, (key, monkey, filer, lock) -> {
             synchronized (lock) {
                 return stream.stream(key, filer);
             }
-        },stackBuffer);
+        }, stackBuffer);
     }
 
     @Override
-    public boolean streamKeys(List<KeyRange> ranges, final KeyValueStore.KeyStream<byte[]> stream, StackBuffer stackBuffer) throws IOException, InterruptedException {
+    public boolean streamKeys(List<KeyRange> ranges,
+        KeyValueStore.KeyStream<byte[]> stream,
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
         return namedMapOfFiler.streamKeys(name, ranges, key -> {
             if (key != null) {
                 return stream.stream(key);
             }
             return true;
-        },stackBuffer);
+        }, stackBuffer);
+    }
+
+    @Override
+    public long size(StackBuffer stackBuffer) throws IOException, InterruptedException {
+        return namedMapOfFiler.size(name, stackBuffer);
     }
 
     @Override

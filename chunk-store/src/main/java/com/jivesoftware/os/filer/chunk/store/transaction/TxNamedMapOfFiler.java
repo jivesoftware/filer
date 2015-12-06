@@ -45,34 +45,34 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
     public static final TxNamedMapOfFilerOverwriteGrowerProvider<Long, Void> OVERWRITE_GROWER_PROVIDER =
         sizeHint -> new GrowFiler<Long, Void, ChunkFiler>() {
 
-        @Override
-        public Long acquire(Long sizeHint, Void monkey, ChunkFiler filer, Object lock) throws IOException {
-            return filer.length() < sizeHint ? sizeHint : null;
-        }
+            @Override
+            public Long acquire(Long sizeHint, Void monkey, ChunkFiler filer, Object lock) throws IOException {
+                return filer.length() < sizeHint ? sizeHint : null;
+            }
 
-        @Override
-        public void growAndAcquire(Long sizeHint,
-            Void currentMonkey,
-            ChunkFiler currentFiler,
-            Void newMonkey,
-            ChunkFiler newFiler,
-            Object currentLock,
-            Object newLock,
-            StackBuffer stackBuffer
-        ) throws IOException {
-            synchronized (currentLock) {
-                synchronized (newLock) {
-                    currentFiler.seek(0);
-                    newFiler.seek(0);
-                    FilerIO.copy(currentFiler, newFiler, -1);
+            @Override
+            public void growAndAcquire(Long sizeHint,
+                Void currentMonkey,
+                ChunkFiler currentFiler,
+                Void newMonkey,
+                ChunkFiler newFiler,
+                Object currentLock,
+                Object newLock,
+                StackBuffer stackBuffer
+            ) throws IOException {
+                synchronized (currentLock) {
+                    synchronized (newLock) {
+                        currentFiler.seek(0);
+                        newFiler.seek(0);
+                        FilerIO.copy(currentFiler, newFiler, -1);
+                    }
                 }
             }
-        }
 
-        @Override
-        public void release(Long sizeHint, Void monkey, Object lock) {
-        }
-    };
+            @Override
+            public void release(Long sizeHint, Void monkey, Object lock) {
+            }
+        };
 
     public static final TxNamedMapOfFilerRewriteGrowerProvider<Long, Void> REWRITE_GROWER_PROVIDER = new TxNamedMapOfFilerRewriteGrowerProvider<Long, Void>() {
 
@@ -226,7 +226,10 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         }, stackBuffer);
     }
 
-    public <R> R read(final byte[] mapName, final byte[] filerKey, final ChunkTransaction<M, R> filerTransaction, StackBuffer stackBuffer) throws IOException, InterruptedException {
+    public <R> R read(final byte[] mapName,
+        final byte[] filerKey,
+        final ChunkTransaction<M, R> filerTransaction,
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP, stackBuffer)) {
                 return filerTransaction.commit(null, null, stackBuffer, null);
@@ -264,11 +267,11 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         }, stackBuffer);
     }
 
-    public <R> List<R> readEach(final byte[] mapName, final byte[][] filerKeys, final ChunkTransaction<M, R> filerTransaction,
+    public <R> void readEach(final byte[] mapName, final byte[][] filerKeys, final ChunkTransaction<M, R> filerTransaction, R[] results,
         StackBuffer stackBuffer) throws IOException, InterruptedException {
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP, stackBuffer)) {
-                return Collections.emptyList();
+                return;
             }
         }
 
@@ -284,7 +287,6 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
             }
         }
 
-        final List<R> result = Lists.newArrayList();
         chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, stackBuffer1, lock) -> {
             if (monkey == null || filer == null) {
                 return null;
@@ -312,11 +314,12 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                                                 return null;
                                             }
                                             // TODO consider using the provided filer in appropriate cases.
-                                            for (byte[] filerKey : keysForMonkey) {
+                                            for (int i = 0; i < keysForMonkey.length; i++) {
+                                                byte[] filerKey = keysForMonkey[i];
                                                 if (filerKey != null) {
                                                     R got = namedPowerMonkey.read(chunkStore, filerKey, filerOpener, filerTransaction, stackBuffer4);
                                                     if (got != null) {
-                                                        result.add(got);
+                                                        results[i] = got;
                                                     }
                                                 }
                                             }
@@ -328,11 +331,13 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                         }, stackBuffer2);
                 }, stackBuffer1);
         }, stackBuffer);
-        return result;
     }
 
-    public Boolean stream(final byte[] mapName, final List<KeyRange> ranges, final TxStream<byte[], M, ChunkFiler> stream, StackBuffer stackBuffer) throws
-        IOException, InterruptedException {
+    public Boolean stream(final byte[] mapName,
+        final List<KeyRange> ranges,
+        final TxStream<byte[], M, ChunkFiler> stream,
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
+
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP, stackBuffer)) {
                 return true;
@@ -364,7 +369,8 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                                         return namedPowerMonkey.stream(ranges, (byte[] filerKey) -> {
                                             Boolean filerResult = namedPowerMonkey.read(chunkStore, filerKey, filerOpener,
                                                 (M filerMonkey, ChunkFiler filerFiler, StackBuffer stackBuffer5, Object filerLock)
-                                                -> stream.stream(filerKey, filerMonkey, filerFiler, filerLock), stackBuffer4);
+                                                    -> stream.stream(filerKey, filerMonkey, filerFiler, filerLock),
+                                                stackBuffer4);
                                             return filerResult;
                                         }, stackBuffer4);
                                     }, stackBuffer3);
@@ -375,7 +381,11 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         }, stackBuffer);
     }
 
-    public Boolean streamKeys(final byte[] mapName, final List<KeyRange> ranges, final TxStreamKeys<byte[]> stream, StackBuffer stackBuffer) throws IOException, InterruptedException {
+    public Boolean streamKeys(final byte[] mapName,
+        final List<KeyRange> ranges,
+        final TxStreamKeys<byte[]> stream,
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
+
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP, stackBuffer)) {
                 return true;
@@ -413,5 +423,48 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                 }, stackBuffer1);
         }, stackBuffer);
 
+    }
+
+    public long size(byte[] mapName, StackBuffer stackBuffer) throws IOException, InterruptedException {
+        synchronized (chunkStore) {
+            if (!chunkStore.isValid(constantFP, stackBuffer)) {
+                return 0;
+            }
+        }
+        long[] count = new long[1];
+        chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, stackBuffer1, lock) -> {
+            if (monkey == null || filer == null) {
+                return null;
+            }
+
+            int chunkPower = FilerIO.chunkPower(mapName.length, 0);
+            return monkey.read(chunkStore, chunkPower, skyhookCog.opener,
+                (skyHookMonkey, skyHookFiler, stackBuffer2, skyHookLock) -> {
+                    if (skyHookMonkey == null || skyHookFiler == null) {
+                        return null;
+                    }
+
+                    return skyHookMonkey.read(chunkStore, mapName, namedIndexOpener,
+                        (namedIndexMonkey, namedIndexFiler, stackBuffer3, namedIndexLock) -> {
+                            if (namedIndexMonkey == null || namedIndexFiler == null) {
+                                return null;
+                            }
+                            namedIndexMonkey.stream(null, key -> {
+                                namedIndexMonkey.read(chunkStore, key, namedPowerOpener,
+                                    (N namedPowerMonkey, ChunkFiler namedPowerFiler, StackBuffer stackBuffer4, Object namedPowerLock) -> {
+                                        if (namedPowerMonkey == null || namedPowerFiler == null) {
+                                            return null;
+                                        }
+                                        count[0] += namedPowerMonkey.size(stackBuffer4);
+                                        return null;
+                                    }, stackBuffer3);
+                                return true;
+                            }, stackBuffer3);
+                            return null;
+                        }, stackBuffer2);
+                }, stackBuffer1);
+        }, stackBuffer);
+
+        return count[0];
     }
 }
