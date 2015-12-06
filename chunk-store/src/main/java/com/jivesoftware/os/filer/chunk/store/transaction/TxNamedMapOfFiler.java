@@ -15,7 +15,6 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.GrowFiler;
@@ -23,12 +22,12 @@ import com.jivesoftware.os.filer.io.NoOpCreateFiler;
 import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.api.IndexAlignedChunkTransaction;
 import com.jivesoftware.os.filer.io.api.KeyRange;
 import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -267,7 +266,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         }, stackBuffer);
     }
 
-    public <R> void readEach(final byte[] mapName, final byte[][] filerKeys, final ChunkTransaction<M, R> filerTransaction, R[] results,
+    public <R> void readEach(final byte[] mapName, final byte[][] filerKeys, final IndexAlignedChunkTransaction<M, R> filerTransaction, R[] results,
         StackBuffer stackBuffer) throws IOException, InterruptedException {
         synchronized (chunkStore) {
             if (!chunkStore.isValid(constantFP, stackBuffer)) {
@@ -317,7 +316,13 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                                             for (int i = 0; i < keysForMonkey.length; i++) {
                                                 byte[] filerKey = keysForMonkey[i];
                                                 if (filerKey != null) {
-                                                    R got = namedPowerMonkey.read(chunkStore, filerKey, filerOpener, filerTransaction, stackBuffer4);
+                                                    int index = i;
+                                                    R got = namedPowerMonkey.read(chunkStore,
+                                                        filerKey,
+                                                        filerOpener,
+                                                        (monkey1, filer1, stackBuffer5, lock1)
+                                                            -> filerTransaction.commit(monkey1, filer1, stackBuffer5, lock1, index),
+                                                        stackBuffer4);
                                                     if (got != null) {
                                                         results[i] = got;
                                                     }

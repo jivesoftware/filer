@@ -14,7 +14,7 @@ public interface KeyedFilerStore<H, M> {
 
     <R> void readEach(byte[][] eachKeyBytes,
         H newFilerInitialCapacity,
-        ChunkTransaction<M, R> chunkTransaction,
+        IndexAlignedChunkTransaction<M, R> chunkTransaction,
         R[] results,
         StackBuffer stackBuffer) throws IOException,
         InterruptedException;

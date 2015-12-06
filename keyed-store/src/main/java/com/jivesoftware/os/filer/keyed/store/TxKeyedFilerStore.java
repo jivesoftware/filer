@@ -28,6 +28,7 @@ import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.api.IndexAlignedChunkTransaction;
 import com.jivesoftware.os.filer.io.api.KeyRange;
 import com.jivesoftware.os.filer.io.api.KeyValueStore;
 import com.jivesoftware.os.filer.io.api.KeyedFilerStore;
@@ -134,7 +135,7 @@ public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
     @Override
     public <R> void readEach(byte[][] eachKeyBytes,
         H newFilerInitialCapacity,
-        ChunkTransaction<M, R> transaction,
+        IndexAlignedChunkTransaction<M, R> transaction,
         R[] results,
         StackBuffer stackBuffer) throws IOException, InterruptedException {
         namedMapOfFiler.readEach(eachKeyBytes, name, eachKeyBytes, transaction, results, stackBuffer);

@@ -79,7 +79,7 @@ public class TxPartitionedNamedMap {
 
     public void multiReadWriteAutoGrow(byte[][] keysBytes,
         final byte[] mapName,
-        final IndexAlignedChunkTransaction<MapContext> indexAlignedChunkTransaction,
+        final IndexAlignedChunkTransaction<MapContext, Void> indexAlignedChunkTransaction,
         StackBuffer stackBuffer) throws IOException, InterruptedException {
 
         byte[][][] partitionedKeysBytes = new byte[namedMaps.length][keysBytes.length][];
@@ -94,12 +94,10 @@ public class TxPartitionedNamedMap {
             final byte[][] currentKeysBytes = partitionedKeysBytes[p];
             namedMaps[p].readWriteAutoGrow(mapName, additionalCapacity[p], (context, filer, stackBuffer1, lock) -> {
                 if (filer != null) {
-                    synchronized (lock) {
-                        for (int i = 0; i < currentKeysBytes.length; i++) {
-                            byte[] keyBytes = currentKeysBytes[i];
-                            if (keyBytes != null) {
-                                indexAlignedChunkTransaction.commit(context, filer, i);
-                            }
+                    for (int i = 0; i < currentKeysBytes.length; i++) {
+                        byte[] keyBytes = currentKeysBytes[i];
+                        if (keyBytes != null) {
+                            indexAlignedChunkTransaction.commit(context, filer, stackBuffer1, lock, i);
                         }
                     }
                 }

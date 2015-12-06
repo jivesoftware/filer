@@ -7,7 +7,7 @@ import java.io.IOException;
  *
  * @param <M>
  */
-public interface IndexAlignedChunkTransaction<M> {
+public interface IndexAlignedChunkTransaction<M, R> {
 
-    void commit(M monkey, ChunkFiler filer, int index) throws IOException;
+    R commit(M monkey, ChunkFiler filer, StackBuffer stackBuffer, Object lock, int index) throws IOException;
 }

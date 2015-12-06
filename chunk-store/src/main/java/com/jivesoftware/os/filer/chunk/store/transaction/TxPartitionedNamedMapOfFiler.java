@@ -18,6 +18,7 @@ package com.jivesoftware.os.filer.chunk.store.transaction;
 import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.PartitionFunction;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.api.IndexAlignedChunkTransaction;
 import com.jivesoftware.os.filer.io.api.KeyRange;
 import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
@@ -67,7 +68,7 @@ public class TxPartitionedNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
     public <R> void readEach(byte[][] partitionKeys,
         byte[] mapName,
         byte[][] filerKeys,
-        ChunkTransaction<M, R> filerTransaction,
+        IndexAlignedChunkTransaction<M, R> filerTransaction,
         R[] results,
         StackBuffer stackBuffer) throws IOException, InterruptedException {
 
@@ -83,7 +84,6 @@ public class TxPartitionedNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                 partitionedFilerKeys[p][i] = filerKey;
             }
         }
-        List<R> result = Lists.newArrayList();
         for (int p = 0; p < stores.length; p++) {
             if (partitionedFilerKeys[p] != null) {
                 stores[p].readEach(mapName, partitionedFilerKeys[p], filerTransaction, results, stackBuffer);

@@ -238,7 +238,7 @@ public class TxKeyedFilerStoreNGTest {
         }
 
         Integer[] results = new Integer[20];
-        store.readEach(allKeys, newFilerInitialCapacity, (monkey, filer, _stackBuffer, lock) -> {
+        store.readEach(allKeys, newFilerInitialCapacity, (monkey, filer, _stackBuffer, lock, index) -> {
             synchronized (lock) {
                 filer.seek(0);
                 return FilerIO.readInt(filer, "", _stackBuffer);

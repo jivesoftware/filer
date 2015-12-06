@@ -91,29 +91,32 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
             keysBytes[i] = keys[i] != null ? keyValueMarshaller.keyBytes(keys[i]) : null;
         }
         namedMap.multiReadWriteAutoGrow(keysBytes, name,
-            (monkey, filer, index) -> {
-                indexAlignedKeyValueTransaction.commit(new KeyValueContext<V>() {
+            (monkey, filer, stackBuffer1, lock, index) -> {
+                synchronized (lock) {
+                    indexAlignedKeyValueTransaction.commit(new KeyValueContext<V>() {
 
-                    @Override
-                    public void set(V value) throws IOException {
-                        MapStore.INSTANCE.add(filer, monkey, (byte) 1, keysBytes[index], keyValueMarshaller.valueBytes(value), stackBuffer);
-                    }
-
-                    @Override
-                    public void remove() throws IOException {
-                        MapStore.INSTANCE.remove(filer, monkey, keysBytes[index], stackBuffer);
-                    }
-
-                    @Override
-                    public V get() throws IOException {
-                        long pi = MapStore.INSTANCE.get(filer, monkey, keysBytes[index], stackBuffer);
-                        if (pi > -1) {
-                            byte[] rawValue = MapStore.INSTANCE.getPayload(filer, monkey, pi, stackBuffer);
-                            return keyValueMarshaller.bytesValue(keys[index], rawValue, 0);
+                        @Override
+                        public void set(V value) throws IOException {
+                            MapStore.INSTANCE.add(filer, monkey, (byte) 1, keysBytes[index], keyValueMarshaller.valueBytes(value), stackBuffer1);
                         }
-                        return null;
-                    }
-                }, index);
+
+                        @Override
+                        public void remove() throws IOException {
+                            MapStore.INSTANCE.remove(filer, monkey, keysBytes[index], stackBuffer1);
+                        }
+
+                        @Override
+                        public V get() throws IOException {
+                            long pi = MapStore.INSTANCE.get(filer, monkey, keysBytes[index], stackBuffer1);
+                            if (pi > -1) {
+                                byte[] rawValue = MapStore.INSTANCE.getPayload(filer, monkey, pi, stackBuffer1);
+                                return keyValueMarshaller.bytesValue(keys[index], rawValue, 0);
+                            }
+                            return null;
+                        }
+                    }, index);
+                }
+                return null;
             }, stackBuffer);
     }
 
