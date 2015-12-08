@@ -15,6 +15,7 @@
  */
 package com.jivesoftware.os.filer.io.chunk;
 
+import com.jivesoftware.os.filer.io.AutoGrowingByteBufferBackedFiler;
 import com.jivesoftware.os.filer.io.Copyable;
 import com.jivesoftware.os.filer.io.CreateFiler;
 import com.jivesoftware.os.filer.io.Filer;
@@ -23,6 +24,7 @@ import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
 import com.jivesoftware.os.filer.io.api.CorruptionException;
 import com.jivesoftware.os.filer.io.api.StackBuffer;
+import com.jivesoftware.os.filer.io.api.StackBuffer.Chunky;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -281,7 +283,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
         StackBuffer stackBuffer)
         throws IOException, InterruptedException {
 
-        final Chunky<M> chunky = filer.tx(chunkFP, (fp, chunkCache, filer) -> {
+        Chunky<M> chunky = filer.tx(chunkFP, (fp, chunkCache, filer) -> {
             Chunk<M> chunk = chunkCache.acquireIfPresent(chunkFP, stackBuffer);
             if (chunk == null) {
                 filer.seek(chunkFP);
@@ -309,14 +311,17 @@ public class ChunkStore implements Copyable<ChunkStore> {
                 executeHits[chunk.chunkPower].inc(1);
             }
 
-            ChunkFiler chunkFiler = new ChunkFiler(ChunkStore.this, filer.duplicate(chunk.startOfFP, chunk.endOfFP), chunkFP, chunk.startOfFP,
+            //ChunkFiler chunkFiler = new ChunkFiler(ChunkStore.this, filer.duplicate(chunk.startOfFP, chunk.endOfFP), chunkFP, chunk.startOfFP,
+            //    chunk.endOfFP);
+            AutoGrowingByteBufferBackedFiler duplicate = filer.duplicate(stackBuffer.duplicateBuffer, chunk.startOfFP, chunk.endOfFP);
+            ChunkFiler chunkFiler = stackBuffer.chunkFiler(ChunkStore.this, duplicate, chunkFP, chunk.startOfFP,
                 chunk.endOfFP);
             chunkFiler.seek(0);
-            return new Chunky<>(chunkFiler, chunk);
+            return stackBuffer.chunky(duplicate, chunkFiler, chunk);
         });
 
         try {
-            return chunkTransaction.commit(chunky.chunk.monkey, chunky.filer, stackBuffer, chunky.chunk);
+            return chunkTransaction.commit(chunky.monkey.monkey, chunky.filer, stackBuffer, chunky.monkey);
         } finally {
 
             filer.tx(chunkFP, (fp, chunkCache, filer1) -> {
@@ -324,20 +329,14 @@ public class ChunkStore implements Copyable<ChunkStore> {
                 return null;
             });
 
+            ChunkFiler chunkyFiler = chunky.filer;
+            AutoGrowingByteBufferBackedFiler chunkyDuplicate = chunky.duplicate;
+            stackBuffer.recycle(chunkyFiler);
+            stackBuffer.duplicateBuffer.recycle(chunkyDuplicate);
+            stackBuffer.recycle(chunky);
         }
     }
 
-    private static class Chunky<M> {
-
-        final ChunkFiler filer;
-        final Chunk<M> chunk;
-
-        public Chunky(ChunkFiler chunky, Chunk<M> monkey) {
-            this.filer = chunky;
-            this.chunk = monkey;
-        }
-
-    }
 
     public void remove(long chunkFP, StackBuffer stackBuffer) throws IOException, InterruptedException {
 

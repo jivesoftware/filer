@@ -15,13 +15,21 @@ import java.nio.ByteBuffer;
  */
 public class ChunkFiler implements Filer {
 
-    private final ChunkStore chunkStore;
-    private final AutoGrowingByteBufferBackedFiler filer;
-    private final long chunkFP;
-    private final long startOfFP;
-    private final long endOfFP;
+    private ChunkStore chunkStore;
+    private AutoGrowingByteBufferBackedFiler filer;
+    private long chunkFP;
+    private long startOfFP;
+    private long endOfFP;
 
     public ChunkFiler(ChunkStore chunkStore, AutoGrowingByteBufferBackedFiler filer, long chunkFP, long startOfFP, long endOfFP) {
+        this.chunkStore = chunkStore;
+        this.filer = filer;
+        this.chunkFP = chunkFP;
+        this.startOfFP = startOfFP;
+        this.endOfFP = endOfFP;
+    }
+
+    public void mutate(ChunkStore chunkStore, AutoGrowingByteBufferBackedFiler filer, long chunkFP, long startOfFP, long endOfFP) {
         this.chunkStore = chunkStore;
         this.filer = filer;
         this.chunkFP = chunkFP;

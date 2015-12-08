@@ -51,6 +51,7 @@ public class AutoGrowingByteBufferBackedFilerNGTest {
 
     @Test
     public void writeByteTest() throws Exception {
+        AutoGrowingByteBufferBackedFilerDuplicateBuffer duplicateBuffer = new AutoGrowingByteBufferBackedFilerDuplicateBuffer(8);
         for (int b = 1; b < 10; b++) {
             System.out.println("b:" + b);
             Path createTempDirectory = Files.createTempDirectory("writeIntsTest");

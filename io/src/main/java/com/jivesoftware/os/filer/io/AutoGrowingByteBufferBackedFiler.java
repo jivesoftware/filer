@@ -30,15 +30,16 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
 
     private final ByteBufferFactory byteBufferFactory;
     private final long initialBufferSegmentSize;
-    private final long maxBufferSegmentSize;
+    private long maxBufferSegmentSize;
 
-    private ByteBufferBackedFiler[] filers;
+    ByteBufferBackedFiler[] filers;
+    int filersLength;
     private int fpFilerIndex;
     private long fpFilerOffset;
     private long length;
 
-    private final int fShift;
-    private final long fseekMask;
+    private int fShift;
+    private long fseekMask;
 
     public AutoGrowingByteBufferBackedFiler(ByteBufferFactory byteBufferFactory,
         long initialBufferSegmentSize,
@@ -51,6 +52,7 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         this.maxBufferSegmentSize = maxBufferSegmentSize;
 
         this.filers = new ByteBufferBackedFiler[0];
+        this.filersLength = 0;
 
         // test power of 2
         if ((maxBufferSegmentSize & (maxBufferSegmentSize - 1)) == 0) {
@@ -61,11 +63,18 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         }
     }
 
-    private AutoGrowingByteBufferBackedFiler(long maxBufferSegmentSize, ByteBufferBackedFiler[] filers, long length, int fShift, long fseekMask) {
+    AutoGrowingByteBufferBackedFiler(
+        long maxBufferSegmentSize,
+        ByteBufferBackedFiler[] filers,
+        int filersLength,
+        long length,
+        int fShift,
+        long fseekMask) {
         this.byteBufferFactory = null;
         this.initialBufferSegmentSize = -1;
         this.maxBufferSegmentSize = maxBufferSegmentSize;
         this.filers = filers;
+        this.filersLength = filersLength;
         this.fpFilerIndex = -1;
         this.fpFilerOffset = -1;
         this.length = length;
@@ -73,32 +82,50 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         this.fseekMask = fseekMask;
     }
 
-    public AutoGrowingByteBufferBackedFiler duplicate(long startFP, long endFp) {
-        ByteBufferBackedFiler[] duplicate = new ByteBufferBackedFiler[filers.length];
-        for (int i = 0; i < duplicate.length; i++) {
-            if ((i + 1) * maxBufferSegmentSize < startFP || (i - 1) * maxBufferSegmentSize > endFp) {
-                continue;
-            }
-            duplicate[i] = new ByteBufferBackedFiler(filers[i].buffer.duplicate());
-        }
-        return new AutoGrowingByteBufferBackedFiler(maxBufferSegmentSize, duplicate, length, fShift, fseekMask);
+    void mutate(long maxBufferSegmentSize,
+        ByteBufferBackedFiler[] filers,
+        int filersLength,
+        long length,
+        int fShift,
+        long fseekMask) {
+        this.maxBufferSegmentSize = maxBufferSegmentSize;
+        this.filers = filers;
+        this.filersLength = filersLength;
+        this.fpFilerIndex = -1;
+        this.fpFilerOffset = -1;
+        this.length = length;
+        this.fShift = fShift;
+        this.fseekMask = fseekMask;
     }
 
+    public AutoGrowingByteBufferBackedFiler duplicate(AutoGrowingByteBufferBackedFilerDuplicateBuffer duplicateBuffer, long startFP, long endFp) {
+        return duplicateBuffer.duplicate(duplicateBuffer, filers, filersLength, maxBufferSegmentSize, fShift, fseekMask, length, startFP, endFp);
+//        ByteBufferBackedFiler[] duplicate = new ByteBufferBackedFiler[filersLength];
+//        for (int i = 0; i < duplicate.length; i++) {
+//            if ((i + 1) * maxBufferSegmentSize < startFP || (i - 1) * maxBufferSegmentSize > endFp) {
+//                continue;
+//            }
+//            duplicate[i] = new ByteBufferBackedFiler(filers[i].buffer.duplicate());
+//        }
+//        return new AutoGrowingByteBufferBackedFiler(maxBufferSegmentSize, duplicate, filersLength, length, fShift, fseekMask);
+    }
+
+
     public AutoGrowingByteBufferBackedFiler duplicateNew(AutoGrowingByteBufferBackedFiler current) {
-        ByteBufferBackedFiler[] duplicate = new ByteBufferBackedFiler[filers.length];
-        System.arraycopy(current.filers, 0, duplicate, 0, current.filers.length - 1);
-        for (int i = current.filers.length - 1; i < duplicate.length; i++) {
+        ByteBufferBackedFiler[] duplicate = new ByteBufferBackedFiler[filersLength];
+        System.arraycopy(current.filers, 0, duplicate, 0, current.filersLength - 1);
+        for (int i = current.filersLength - 1; i < duplicate.length; i++) {
             duplicate[i] = new ByteBufferBackedFiler(filers[i].buffer.duplicate());
         }
-        return new AutoGrowingByteBufferBackedFiler(maxBufferSegmentSize, duplicate, length, fShift, fseekMask);
+        return new AutoGrowingByteBufferBackedFiler(maxBufferSegmentSize, duplicate, filersLength, length, fShift, fseekMask);
     }
 
     public AutoGrowingByteBufferBackedFiler duplicateAll() {
-        ByteBufferBackedFiler[] duplicate = new ByteBufferBackedFiler[filers.length];
+        ByteBufferBackedFiler[] duplicate = new ByteBufferBackedFiler[filersLength];
         for (int i = 0; i < duplicate.length; i++) {
             duplicate[i] = new ByteBufferBackedFiler(filers[i].buffer.duplicate());
         }
-        return new AutoGrowingByteBufferBackedFiler(maxBufferSegmentSize, duplicate, length, fShift, fseekMask);
+        return new AutoGrowingByteBufferBackedFiler(maxBufferSegmentSize, duplicate, filersLength, length, fShift, fseekMask);
     }
 
     public boolean exists() {
@@ -121,8 +148,8 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         }
         int f = (int) (position >> fShift);
         long fseek = position & fseekMask;
-        if (f >= filers.length) {
-            int lastFilerIndex = filers.length - 1;
+        if (f >= filersLength) {
+            int lastFilerIndex = filersLength - 1;
             if (lastFilerIndex > -1 && filers[lastFilerIndex].length() < maxBufferSegmentSize) {
                 byte[] key = String.valueOf(lastFilerIndex)
                     .getBytes(StandardCharsets.UTF_8);
@@ -132,8 +159,8 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
 
             int newLength = f + 1;
             ByteBufferBackedFiler[] newFilers = new ByteBufferBackedFiler[newLength];
-            System.arraycopy(filers, 0, newFilers, 0, filers.length);
-            for (int n = filers.length; n < newLength; n++) {
+            System.arraycopy(filers, 0, newFilers, 0, filersLength);
+            for (int n = filersLength; n < newLength; n++) {
                 byte[] key = String.valueOf(n)
                     .getBytes(StandardCharsets.UTF_8);
                 if (n < newLength - 1) {
@@ -143,8 +170,9 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
                 }
             }
             filers = newFilers;
+            filersLength = newLength;
 
-        } else if (f == filers.length - 1 && fseek > filers[f].length()) {
+        } else if (f == filersLength - 1 && fseek > filers[f].length()) {
             long newSize = filers[f].length() * 2;
             while (newSize < fseek) {
                 newSize *= 2;
@@ -176,10 +204,10 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
 
     @Override
     public long length() throws IOException {
-        if (filers.length == 0) {
+        if (filersLength == 0) {
             return 0;
         }
-        return ((filers.length - 1) * maxBufferSegmentSize) + filers[filers.length - 1].length();
+        return ((filersLength - 1) * maxBufferSegmentSize) + filers[filersLength - 1].length();
     }
 
     @Override
@@ -189,7 +217,7 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
 
     @Override
     public long getFilePointer() throws IOException {
-        if (filers.length == 0) {
+        if (filersLength == 0) {
             return 0;
         }
         return fpFilerOffset + filers[fpFilerIndex].getFilePointer();
@@ -210,7 +238,7 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
     @Override
     public int read() throws IOException {
         int read = filers[fpFilerIndex].read();
-        while (read == -1 && fpFilerIndex < filers.length - 1) {
+        while (read == -1 && fpFilerIndex < filersLength - 1) {
             fpFilerIndex++;
             fpFilerOffset += maxBufferSegmentSize;
             filers[fpFilerIndex].seek(0);
@@ -236,7 +264,7 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         }
         offset += read;
         remaining -= read;
-        while (remaining > 0 && fpFilerIndex < filers.length - 1) {
+        while (remaining > 0 && fpFilerIndex < filersLength - 1) {
             fpFilerIndex++;
             fpFilerOffset += maxBufferSegmentSize;
             filers[fpFilerIndex].seek(0);

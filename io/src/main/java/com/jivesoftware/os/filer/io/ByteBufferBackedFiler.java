@@ -17,9 +17,13 @@ import java.nio.ByteBuffer;
  */
 public class ByteBufferBackedFiler implements Filer {
 
-    final ByteBuffer buffer;
+    ByteBuffer buffer;
 
     public ByteBufferBackedFiler(ByteBuffer buffer) {
+        this.buffer = buffer;
+    }
+
+    public void mutate(ByteBuffer buffer) {
         this.buffer = buffer;
     }
 
