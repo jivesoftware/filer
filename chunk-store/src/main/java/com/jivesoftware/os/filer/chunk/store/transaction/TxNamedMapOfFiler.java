@@ -247,6 +247,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                     mapName, null, namedIndexCreator, namedIndexOpener, null,
                     (namedIndexMonkey, namedIndexFiler, stackBuffer3, namedIndexLock) -> {
                         byte[][][] partitionedFilerKeys = new byte[64][][];
+                        int[] numKeys = new int[64];
                         for (int i = 0; i < filerKeys.length; i++) {
                             byte[] filerKey = filerKeys[i];
                             if (filerKey != null) {
@@ -255,13 +256,18 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                                     partitionedFilerKeys[chunkPower1] = new byte[filerKeys.length][];
                                 }
                                 partitionedFilerKeys[chunkPower1][i] = filerKey;
+                                numKeys[chunkPower1]++;
                             }
                         }
 
                         for (int chunkPower1 = 0; chunkPower1 < partitionedFilerKeys.length; chunkPower1++) {
-                            int _chunkPower1 = chunkPower1;
                             if (partitionedFilerKeys[chunkPower1] != null) {
-                                namedIndexMonkey.readWriteAutoGrow(chunkStore, chunkPower1, 1, namedPowerCreator[chunkPower1], namedPowerOpener,
+                                int _chunkPower1 = chunkPower1;
+                                namedIndexMonkey.readWriteAutoGrow(chunkStore,
+                                    chunkPower1,
+                                    numKeys[chunkPower1],
+                                    namedPowerCreator[chunkPower1],
+                                    namedPowerOpener,
                                     namedPowerGrower,
                                     (namedPowerMonkey, namedPowerFiler, stackBuffer4, namedPowerLock) -> {
                                         // TODO consider using the provided filer in appropriate cases.

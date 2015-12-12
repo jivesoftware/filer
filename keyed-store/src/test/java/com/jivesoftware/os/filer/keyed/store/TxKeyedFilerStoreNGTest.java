@@ -21,7 +21,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.testng.Assert;
@@ -50,9 +49,9 @@ public class TxKeyedFilerStoreNGTest {
         StackBuffer stackBuffer = new StackBuffer();
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000, stackBuffer);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000, stackBuffer);
-        ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, 500, 5_000, stackBuffer);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 500, 5_000, stackBuffer);
+        ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
 
         TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(cogs,
             0,
@@ -126,9 +125,9 @@ public class TxKeyedFilerStoreNGTest {
 
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000, stackBuffer);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000, stackBuffer);
-        ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, 500, 5_000, stackBuffer);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 500, 5_000, stackBuffer);
+        ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
 
         TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(cogs,
             0,
@@ -205,9 +204,9 @@ public class TxKeyedFilerStoreNGTest {
         StackBuffer stackBuffer = new StackBuffer();
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000, stackBuffer);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000, stackBuffer);
-        ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, 500, 5_000, stackBuffer);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 500, 5_000, stackBuffer);
+        ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
 
         TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(cogs,
             0,
@@ -269,9 +268,9 @@ public class TxKeyedFilerStoreNGTest {
 
         File dir = Files.createTempDirectory("testNewChunkStore").toFile();
         HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
-        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000, stackBuffer);
-        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000, stackBuffer);
-        ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data1", 8, byteBufferFactory, 500, 5_000, stackBuffer);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[] { dir }, 0, "data2", 8, byteBufferFactory, 500, 5_000, stackBuffer);
+        ChunkStore[] chunkStores = new ChunkStore[] { chunkStore1, chunkStore2 };
 
         TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(cogs,
             0,
@@ -337,6 +336,26 @@ public class TxKeyedFilerStoreNGTest {
             }
             return null;
         }, new Void[3], stackBuffer);
+
+        // test the mapstore's ability to ensure capacity
+        int overflowCount = 10;
+        byte[][] lotsOfKeys = new byte[overflowCount][];
+        for (int i = 0; i < overflowCount; i++) {
+            lotsOfKeys[i] = FilerIO.intBytes(i);
+        }
+        store.multiWriteNewReplace(lotsOfKeys,
+            (monkey, oldFiler, stackBuffer1, oldLock, index) -> {
+                return new HintAndTransaction<>(newFilerInitialCapacity, (newMonkey, newFiler, stackBuffer2, newLock) -> {
+                    synchronized (newLock) {
+                        newFiler.seek(0);
+                        int value = (index + 1) * 10 + 1;
+                        FilerIO.writeInt(newFiler, value, "", stackBuffer2);
+                    }
+                    return null;
+                });
+            },
+            new Void[overflowCount],
+            stackBuffer);
     }
 
 }
