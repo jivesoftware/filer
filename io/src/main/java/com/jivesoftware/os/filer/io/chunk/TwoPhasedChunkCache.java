@@ -25,13 +25,13 @@ import java.io.IOException;
  */
 public class TwoPhasedChunkCache {
 
-    private static final ChunkMetrics.ChunkMetric EVICTED = ChunkMetrics.get("chunkCache", "evicted");
-    private static final ChunkMetrics.ChunkMetric EVICTIONS = ChunkMetrics.get("chunkCache", "evictions");
-    private static final ChunkMetrics.ChunkMetric REVIVALS = ChunkMetrics.get("chunkCache", "revivals");
-    private static final ChunkMetrics.ChunkMetric SLOUGHS_ALLOWED = ChunkMetrics.get("chunkCache", "sloughsAllowed");
-    private static final ChunkMetrics.ChunkMetric SLOUGHS_REFUSED = ChunkMetrics.get("chunkCache", "sloughsRefused");
-    private static final ChunkMetrics.ChunkMetric ROLLS_ALLOWED = ChunkMetrics.get("chunkCache", "rollsAllowed");
-    private static final ChunkMetrics.ChunkMetric ROLLS_REFUSED = ChunkMetrics.get("chunkCache", "rollsRefused");
+    private static final ChunkMetrics.ChunkMetric EVICTED = ChunkMetrics.get("TwoPhasedChunkCache", "chunkCache", "evicted");
+    private static final ChunkMetrics.ChunkMetric EVICTIONS = ChunkMetrics.get("TwoPhasedChunkCache", "chunkCache", "evictions");
+    private static final ChunkMetrics.ChunkMetric REVIVALS = ChunkMetrics.get("TwoPhasedChunkCache", "chunkCache", "revivals");
+    private static final ChunkMetrics.ChunkMetric SLOUGHS_ALLOWED = ChunkMetrics.get("TwoPhasedChunkCache", "chunkCache", "sloughsAllowed");
+    private static final ChunkMetrics.ChunkMetric SLOUGHS_REFUSED = ChunkMetrics.get("TwoPhasedChunkCache", "chunkCache", "sloughsRefused");
+    private static final ChunkMetrics.ChunkMetric ROLLS_ALLOWED = ChunkMetrics.get("TwoPhasedChunkCache", "chunkCache", "rollsAllowed");
+    private static final ChunkMetrics.ChunkMetric ROLLS_REFUSED = ChunkMetrics.get("TwoPhasedChunkCache", "chunkCache", "rollsRefused");
 
     private static final byte[] name = new byte[]{0};
 

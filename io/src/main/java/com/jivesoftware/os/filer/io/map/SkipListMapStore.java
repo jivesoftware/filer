@@ -4,6 +4,7 @@ import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.api.KeyRange;
 import com.jivesoftware.os.filer.io.api.StackBuffer;
+import com.jivesoftware.os.filer.io.chunk.ChunkMetrics;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -12,7 +13,7 @@ import java.util.List;
  * This is a skip list which is backed by a byte[]. This collection wastes quite a bit of space in favor of page in and out speed. May make sense to use a
  * compression strategy when sending over the wire. Each entry you sadd cost a fixed amount of space. This can be calculate by the following: entrySize =
  * entrySize+(1+(entrySize*maxColumHeight); maxColumHeight = ? where 2 ^ ? is > maxCount
- *
+ * <p>
  * The key composed of all BYTE.MIN_VALUE is typically reserved as the head of the list.
  *
  * @author jonathan
@@ -20,6 +21,28 @@ import java.util.List;
 public class SkipListMapStore {
 
     static public final SkipListMapStore INSTANCE = new SkipListMapStore();
+
+    private static final int maxChunkPower = 32;
+    private static ChunkMetrics.ChunkMetric[] addCounts = new ChunkMetrics.ChunkMetric[maxChunkPower];
+    private static ChunkMetrics.ChunkMetric[] addHits = new ChunkMetrics.ChunkMetric[maxChunkPower];
+    private static ChunkMetrics.ChunkMetric[] addSeeks = new ChunkMetrics.ChunkMetric[maxChunkPower];
+    private static ChunkMetrics.ChunkMetric[] addInserts = new ChunkMetrics.ChunkMetric[maxChunkPower];
+    private static ChunkMetrics.ChunkMetric[] addAppends = new ChunkMetrics.ChunkMetric[maxChunkPower];
+    private static ChunkMetrics.ChunkMetric[] copyToCounts = new ChunkMetrics.ChunkMetric[maxChunkPower];
+    private static ChunkMetrics.ChunkMetric[] copyToTimes = new ChunkMetrics.ChunkMetric[maxChunkPower];
+
+    static {
+        for (int i = 0; i < maxChunkPower; i++) {
+            String size = "2_pow_" + (i > 9 ? i : "0" + i);
+            addCounts[i] = ChunkMetrics.get("SkipListMapStore", size, "addCounts");
+            addHits[i] = ChunkMetrics.get("SkipListMapStore", size, "addHits");
+            addSeeks[i] = ChunkMetrics.get("SkipListMapStore", size, "addSeeks");
+            addInserts[i] = ChunkMetrics.get("SkipListMapStore", size, "addInserts");
+            addAppends[i] = ChunkMetrics.get("SkipListMapStore", size, "addAppends");
+            copyToCounts[i] = ChunkMetrics.get("SkipListMapStore", size, "copyToCounts");
+            copyToTimes[i] = ChunkMetrics.get("SkipListMapStore", size, "copyToTimes");
+        }
+    }
 
     private SkipListMapStore() {
     }
@@ -83,9 +106,13 @@ public class SkipListMapStore {
 
     public long add(Filer filer, SkipListMapContext context, byte[] key, byte[] _payload, StackBuffer stackBuffer) throws IOException {
 
+        int power = FilerIO.chunkPower(context.mapContext.capacity, 0);
+        addCounts[power].inc(1);
+
         int index = (int) MapStore.INSTANCE.get(filer, context.mapContext, key, stackBuffer);
         if (index != -1) { // aready exists so just update payload
             MapStore.INSTANCE.setPayloadAtIndex(filer, context.mapContext, index, columnSize(context.maxHeight), _payload, 0, _payload.length, stackBuffer);
+            addHits[power].inc(1);
             return index;
         }
 
@@ -98,6 +125,7 @@ public class SkipListMapStore {
         while (level > 0) {
             int nextIndex = rcolumnLevel(filer, context, atIndex, level, stackBuffer);
             if (nextIndex == -1) {
+                addAppends[power].inc(1);
                 if (level < ilevel) {
                     wcolumnLevel(filer, context, atIndex, level, insertsIndex, stackBuffer);
                     if (level == 1) {
@@ -111,8 +139,10 @@ public class SkipListMapStore {
                 if (compare == 0) {
                     throw new RuntimeException("should be impossible");
                 } else if (compare < 0) { // keep looking forward
+                    addSeeks[power].inc(1);
                     atIndex = nextIndex;
                 } else { // insert
+                    addInserts[power].inc(1);
                     if (level < ilevel) {
                         wcolumnLevel(filer, context, insertsIndex, level, nextIndex, stackBuffer);
                         wcolumnLevel(filer, context, atIndex, level, insertsIndex, stackBuffer);
@@ -297,10 +327,11 @@ public class SkipListMapStore {
 
     /**
      * this is a the lazy impl... this can be highly optimized when we have time!
-     *
      */
     public void copyTo(Filer f, SkipListMapContext from, final Filer t, final SkipListMapContext to, MapStore.CopyToStream stream, StackBuffer stackBuffer)
         throws IOException {
+        int power = FilerIO.chunkPower(to.mapContext.capacity, 0);
+        long start = System.currentTimeMillis();
         for (int fromIndex = 0; fromIndex < from.mapContext.capacity; fromIndex++) {
             if (fromIndex == from.headIndex) { // Barf
                 continue;
@@ -323,6 +354,8 @@ public class SkipListMapStore {
                 stream.copied(fromIndex, toIndex);
             }
         }
+        copyToCounts[power].inc(1);
+        copyToTimes[power].inc(System.currentTimeMillis() - start);
     }
 
     private byte[] newColumn(byte[] _payload, int _maxHeight, byte _height) {
@@ -411,7 +444,6 @@ public class SkipListMapStore {
     static public interface BytesToString {
 
         /**
-         *
          * @param bytes
          * @return
          */
@@ -424,7 +456,6 @@ public class SkipListMapStore {
     static public class BytesToDoubleString implements BytesToString {
 
         /**
-         *
          * @param bytes
          * @return
          */
@@ -440,7 +471,6 @@ public class SkipListMapStore {
     static public class BytesToBytesString implements BytesToString {
 
         /**
-         *
          * @param bytes
          * @return
          */

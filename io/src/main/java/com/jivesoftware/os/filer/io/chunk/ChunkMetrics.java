@@ -39,11 +39,11 @@ public class ChunkMetrics {
         public String getType();
     }
 
-    static class ChunkMetric implements ChunkMetricMXBean {
+    public static class ChunkMetric implements ChunkMetricMXBean {
 
         private volatile long count;
 
-        public void inc(int amount) {
+        public void inc(long amount) {
             count += amount;
         }
 
@@ -61,7 +61,7 @@ public class ChunkMetrics {
 
     static Map<String, ChunkMetric> metrics = new ConcurrentHashMap<>();
 
-    static ChunkMetric get(String... name) {
+    public static ChunkMetric get(String category, String... name) {
         StringBuilder sb = new StringBuilder();
         for (String n : name) {
             sb.append(n);
@@ -71,13 +71,13 @@ public class ChunkMetrics {
         if (metric == null) {
             metric = new ChunkMetric();
             metrics.put(sb.toString(), metric);
-            register(name, metric);
+            register(category, name, metric);
         }
         return metric;
 
     }
 
-    static private void register(String[] path, Object mbean) {
+    static private void register(String category, String[] path, Object mbean) {
 
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < path.length; i++) {
@@ -91,7 +91,7 @@ public class ChunkMetrics {
         }
 
         Class clazz = mbean.getClass();
-        String objectName = "ChunkStore:type=" + clazz.getSimpleName() + "," + sb.toString();
+        String objectName = category + ":type=" + clazz.getSimpleName() + "," + sb.toString();
 
         MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
 

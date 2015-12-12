@@ -41,10 +41,10 @@ public class ChunkStore implements Copyable<ChunkStore> {
     static {
         for (int i = 0; i < maxChunkPower; i++) {
             String size = "2_pow_" + (i > 9 ? i : "0" + i) + "_" + FilerIO.chunkLength(i) + "_bytes";
-            allocates[i] = ChunkMetrics.get(size, "allocate");
-            gets[i] = ChunkMetrics.get(size, "get");
-            reuses[i] = ChunkMetrics.get(size, "reuse");
-            removes[i] = ChunkMetrics.get(size, "remove");
+            allocates[i] = ChunkMetrics.get("ChunkStore", size, "allocate");
+            gets[i] = ChunkMetrics.get("ChunkStore", size, "get");
+            reuses[i] = ChunkMetrics.get("ChunkStore", size, "reuse");
+            removes[i] = ChunkMetrics.get("ChunkStore", size, "remove");
         }
     }
 
@@ -163,7 +163,9 @@ public class ChunkStore implements Copyable<ChunkStore> {
      * @return
      * @throws IOException
      */
-    public <M, H> long newChunk(final H hint, final CreateFiler<H, M, ChunkFiler> createFiler, StackBuffer stackBuffer) throws IOException, InterruptedException {
+    public <M, H> long newChunk(final H hint,
+        final CreateFiler<H, M, ChunkFiler> createFiler,
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
         long _capacity = createFiler.sizeInBytes(hint);
         final int chunkPower = FilerIO.chunkPower(_capacity, cMinPower);
         final long chunkLength = FilerIO.chunkLength(chunkPower)
@@ -269,7 +271,10 @@ public class ChunkStore implements Copyable<ChunkStore> {
      * @return
      * @throws IOException
      */
-    public <M, R> R execute(final long chunkFP, final OpenFiler<M, ChunkFiler> openFiler, final ChunkTransaction<M, R> chunkTransaction, StackBuffer stackBuffer)
+    public <M, R> R execute(final long chunkFP,
+        final OpenFiler<M, ChunkFiler> openFiler,
+        final ChunkTransaction<M, R> chunkTransaction,
+        StackBuffer stackBuffer)
         throws IOException, InterruptedException {
 
         final Chunky<M> chunky = filer.tx(chunkFP, (fp, chunkCache, filer) -> {

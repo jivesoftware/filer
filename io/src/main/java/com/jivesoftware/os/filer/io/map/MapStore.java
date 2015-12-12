@@ -17,7 +17,7 @@ public class MapStore {
     public static final MapStore INSTANCE = new MapStore();
 
     public static final byte cVariableSized = 1;
-    public static final byte cMapVersion = 1;
+    public static final byte cMapVersion = 2;
 
     private static final int cCountSize = 4;
     private static final int cMaxCountSize = 4;
