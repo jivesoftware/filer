@@ -34,15 +34,15 @@ public class SkipListMapTest {
         int keySize = 1;
         int payloadSize = 0;
         SkipListMapStore sls = SkipListMapStore.INSTANCE;
-        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize);
         ByteBufferBackedFiler f = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
 
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
-        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, f, stackBuffer);
+        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, LexSkipListComparator.cSingleton, f, stackBuffer);
 
         for (int i = 0; i < 96; i++) {
-            sls.add(f, from, new byte[]{(byte) i}, new byte[0], stackBuffer);
+            sls.add(f, from, new byte[] { (byte) i }, new byte[0], stackBuffer);
         }
     }
 
@@ -54,12 +54,12 @@ public class SkipListMapTest {
         int keySize = 4;
         int payloadSize = 4;
         SkipListMapStore sls = SkipListMapStore.INSTANCE;
-        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize);
         ByteBufferBackedFiler f = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
 
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
-        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, f, stackBuffer);
+        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, LexSkipListComparator.cSingleton, f, stackBuffer);
 
         for (int i = 0; i < 10; i++) {
             sls.add(f, from, FilerIO.intBytes(i), FilerIO.intBytes(Integer.MAX_VALUE - i), stackBuffer);
@@ -98,12 +98,12 @@ public class SkipListMapTest {
         int keySize = 4;
         int payloadSize = 4;
         SkipListMapStore sls = SkipListMapStore.INSTANCE;
-        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize);
         ByteBufferBackedFiler f = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
 
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
-        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, f, stackBuffer);
+        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, LexSkipListComparator.cSingleton, f, stackBuffer);
 
         for (int i = 0; i < capacity; i++) {
             sls.add(f, from, FilerIO.intBytes(i), FilerIO.intBytes(Integer.MAX_VALUE - i), stackBuffer);
@@ -122,12 +122,12 @@ public class SkipListMapTest {
         int keySize = 4;
         int payloadSize = 4;
         SkipListMapStore sls = SkipListMapStore.INSTANCE;
-        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize);
         ByteBufferBackedFiler f = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
 
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
-        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, f, stackBuffer);
+        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, LexSkipListComparator.cSingleton, f, stackBuffer);
 
         for (int i = capacity; i > 0; i--) {
             sls.add(f, from, FilerIO.intBytes(i), FilerIO.intBytes(Integer.MAX_VALUE - i), stackBuffer);
@@ -146,12 +146,12 @@ public class SkipListMapTest {
         int keySize = 4;
         int payloadSize = 4;
         SkipListMapStore sls = SkipListMapStore.INSTANCE;
-        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize);
         ByteBufferBackedFiler f = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
 
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
-        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, f, stackBuffer);
+        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, LexSkipListComparator.cSingleton, f, stackBuffer);
 
         int[] keys = new int[capacity];
         Random rand = new Random();
@@ -176,16 +176,16 @@ public class SkipListMapTest {
         int keySize = 1;
         int payloadSize = 0;
         SkipListMapStore sls = SkipListMapStore.INSTANCE;
-        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize);
         ByteBufferBackedFiler f = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
 
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
-        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, f, stackBuffer);
+        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, LexSkipListComparator.cSingleton, f, stackBuffer);
 
         final HashSet<Byte> expectedContains = new HashSet<Byte>();
         for (int i = 0; i < 10; i++) {
-            sls.add(f, from, new byte[]{(byte) i}, new byte[0], stackBuffer);
+            sls.add(f, from, new byte[] { (byte) i }, new byte[0], stackBuffer);
             expectedContains.add((byte) i);
         }
 
@@ -204,28 +204,28 @@ public class SkipListMapTest {
         int keySize = 1;
         int payloadSize = 1;
         SkipListMapStore sls = SkipListMapStore.INSTANCE;
-        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize);
         ByteBufferBackedFiler f = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
 
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
-        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, f, stackBuffer);
+        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, LexSkipListComparator.cSingleton, f, stackBuffer);
 
         for (int i = 0; i < 10; i++) {
-            sls.add(f, from, new byte[]{(byte) i}, new byte[]{(byte) i}, stackBuffer);
+            sls.add(f, from, new byte[] { (byte) i }, new byte[] { (byte) i }, stackBuffer);
         }
 
         assertEquals(10, sls.getCount(f, from, stackBuffer));
 
-        assertEquals(new byte[]{0}, sls.getFirst(f, from, stackBuffer));
-        assertEquals(new byte[]{1}, sls.getNextKey(f, from, new byte[]{0}, stackBuffer));
-        assertEquals(new byte[]{0}, sls.getPrior(f, from, new byte[]{1}, stackBuffer));
+        assertEquals(new byte[] { 0 }, sls.getFirst(f, from, stackBuffer));
+        assertEquals(new byte[] { 1 }, sls.getNextKey(f, from, new byte[] { 0 }, stackBuffer));
+        assertEquals(new byte[] { 0 }, sls.getPrior(f, from, new byte[] { 1 }, stackBuffer));
 
-        assertEquals(null, sls.getPrior(f, from, new byte[]{0}, stackBuffer));
-        assertEquals(null, sls.getNextKey(f, from, new byte[]{9}, stackBuffer));
+        assertEquals(null, sls.getPrior(f, from, new byte[] { 0 }, stackBuffer));
+        assertEquals(null, sls.getNextKey(f, from, new byte[] { 9 }, stackBuffer));
 
-        assertEquals(new byte[]{9}, sls.getExistingPayload(f, from, new byte[]{9}, stackBuffer));
-        assertEquals(null, sls.getExistingPayload(f, from, new byte[]{11}, stackBuffer));
+        assertEquals(new byte[] { 9 }, sls.getExistingPayload(f, from, new byte[] { 9 }, stackBuffer));
+        assertEquals(null, sls.getExistingPayload(f, from, new byte[] { 11 }, stackBuffer));
 
     }
 
@@ -237,47 +237,47 @@ public class SkipListMapTest {
         int keySize = 1;
         int payloadSize = 0;
         SkipListMapStore sls = SkipListMapStore.INSTANCE;
-        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize);
         ByteBufferBackedFiler f = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
 
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
-        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, f, stackBuffer);
+        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, LexSkipListComparator.cSingleton, f, stackBuffer);
 
         final HashSet<Byte> expectedContains = new HashSet<>();
         for (int i = 0; i < 10; i++) {
-            sls.add(f, from, new byte[]{(byte) i}, new byte[0], stackBuffer);
+            sls.add(f, from, new byte[] { (byte) i }, new byte[0], stackBuffer);
             expectedContains.add((byte) i);
         }
 
         assertContents(sls, f, from, new HashSet<>(expectedContains), stackBuffer);
 
         // remove from middle
-        sls.remove(f, from, new byte[]{5}, stackBuffer);
+        sls.remove(f, from, new byte[] { 5 }, stackBuffer);
         expectedContains.remove((byte) 5);
 
         assertContents(sls, f, from, new HashSet<>(expectedContains), stackBuffer);
 
         // remove first
-        sls.remove(f, from, new byte[]{0}, stackBuffer);
+        sls.remove(f, from, new byte[] { 0 }, stackBuffer);
         expectedContains.remove((byte) 0);
 
         assertContents(sls, f, from, new HashSet<>(expectedContains), stackBuffer);
 
         // remove last
-        sls.remove(f, from, new byte[]{9}, stackBuffer);
+        sls.remove(f, from, new byte[] { 9 }, stackBuffer);
         expectedContains.remove((byte) 9);
 
         assertContents(sls, f, from, new HashSet<>(expectedContains), stackBuffer);
 
         // remove second from last
-        sls.remove(f, from, new byte[]{7}, stackBuffer);
+        sls.remove(f, from, new byte[] { 7 }, stackBuffer);
         expectedContains.remove((byte) 7);
 
         assertContents(sls, f, from, new HashSet<>(expectedContains), stackBuffer);
 
         // remove second from first
-        sls.remove(f, from, new byte[]{2}, stackBuffer);
+        sls.remove(f, from, new byte[] { 2 }, stackBuffer);
         expectedContains.remove((byte) 2);
 
         assertContents(sls, f, from, new HashSet<>(expectedContains), stackBuffer);
@@ -305,26 +305,26 @@ public class SkipListMapTest {
         int keySize = 1;
         int payloadSize = 0;
         SkipListMapStore sls = SkipListMapStore.INSTANCE;
-        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize);
         ByteBufferBackedFiler f = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
 
         Random random = new Random(1234);
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
-        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, f, stackBuffer);
+        SkipListMapContext from = sls.create(capacity, headKey, keySize, true, payloadSize, LexSkipListComparator.cSingleton, f, stackBuffer);
         final HashSet<Byte> expectedContains = new HashSet<>();
         for (int i = 0; i < 10; i++) {
-            byte[] key = new byte[]{(byte) random.nextInt(64)};
+            byte[] key = new byte[] { (byte) random.nextInt(64) };
             System.out.println("add:" + Arrays.toString(key));
             sls.add(f, from, key, new byte[0], stackBuffer);
             expectedContains.add(key[0]);
         }
 
         capacity = 64;
-        slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize);
         ByteBufferBackedFiler t = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
 
-        SkipListMapContext to = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, t, stackBuffer);
+        SkipListMapContext to = sls.create(capacity, headKey, keySize, true, payloadSize, LexSkipListComparator.cSingleton, t, stackBuffer);
         sls.copyTo(f, from, t, to, (fromIndex, toIndex) -> System.out.println(fromIndex + " " + toIndex), stackBuffer);
 
         sls.toSysOut(t, to, new SkipListMapStore.BytesToBytesString(), stackBuffer);
@@ -339,13 +339,13 @@ public class SkipListMapTest {
         int keySize = 4;
         int payloadSize = 0;
         SkipListMapStore sls = SkipListMapStore.INSTANCE;
-        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize);
         ByteBufferBackedFiler filer = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
 
         Random random = new Random(1234);
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
-        SkipListMapContext context = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, filer,
+        SkipListMapContext context = sls.create(capacity, headKey, keySize, true, payloadSize, LexSkipListComparator.cSingleton, filer,
             stackBuffer);
 
         for (int i = 0; i < 2; i++) {
@@ -377,12 +377,12 @@ public class SkipListMapTest {
         int keySize = 4;
         int payloadSize = 0;
         SkipListMapStore sls = SkipListMapStore.INSTANCE;
-        long slsFilerSize = sls.computeFilerSize(capacity, keySize, false, payloadSize, (byte) 9);
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, false, payloadSize);
         ByteBufferBackedFiler filer = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
 
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
-        SkipListMapContext context = sls.create(capacity, headKey, keySize, false, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, filer,
+        SkipListMapContext context = sls.create(capacity, headKey, keySize, false, payloadSize, LexSkipListComparator.cSingleton, filer,
             stackBuffer);
 
         for (int i = 0; i < 200; i++) {
@@ -409,12 +409,12 @@ public class SkipListMapTest {
         int keySize = 2;
         int payloadSize = 0;
         SkipListMapStore sls = SkipListMapStore.INSTANCE;
-        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize, (byte) 9);
+        long slsFilerSize = sls.computeFilerSize(capacity, keySize, true, payloadSize);
         ByteBufferBackedFiler filer = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
 
         byte[] headKey = new byte[keySize];
         Arrays.fill(headKey, Byte.MIN_VALUE);
-        SkipListMapContext context = sls.create(capacity, headKey, keySize, true, payloadSize, (byte) 9, LexSkipListComparator.cSingleton, filer,
+        SkipListMapContext context = sls.create(capacity, headKey, keySize, true, payloadSize, LexSkipListComparator.cSingleton, filer,
             stackBuffer);
 
         Random random = new Random(1234);
@@ -430,7 +430,7 @@ public class SkipListMapTest {
         final AtomicInteger count = new AtomicInteger();
 
         List<KeyRange> ranges = new ArrayList<>();
-        ranges.add(new KeyRange(new byte[]{19, -5}, new byte[]{50}));
+        ranges.add(new KeyRange(new byte[] { 19, -5 }, new byte[] { 50 }));
         sls.streamKeys(filer, context, new Object(), ranges, key -> {
             System.out.println("stream:" + Arrays.toString(key));
             count.incrementAndGet();
@@ -441,7 +441,7 @@ public class SkipListMapTest {
         System.out.println("-------");
         count.set(0);
         ranges.clear();
-        ranges.add(new KeyRange(new byte[]{19}, new byte[]{50, -126}));
+        ranges.add(new KeyRange(new byte[] { 19 }, new byte[] { 50, -126 }));
         sls.streamKeys(filer, context, new Object(), ranges, key -> {
             System.out.println("stream:" + Arrays.toString(key));
             count.incrementAndGet();
@@ -452,7 +452,7 @@ public class SkipListMapTest {
         System.out.println("-------");
         count.set(0);
         ranges.clear();
-        ranges.add(new KeyRange(new byte[]{-11}, new byte[]{-4}));
+        ranges.add(new KeyRange(new byte[] { -11 }, new byte[] { -4 }));
         sls.streamKeys(filer, context, new Object(), ranges, key -> {
             System.out.println("stream:" + Arrays.toString(key));
             count.incrementAndGet();
@@ -463,7 +463,7 @@ public class SkipListMapTest {
         System.out.println("-------");
         count.set(0);
         ranges.clear();
-        ranges.add(new KeyRange(new byte[]{-11}, new byte[]{-5}));
+        ranges.add(new KeyRange(new byte[] { -11 }, new byte[] { -5 }));
         sls.streamKeys(filer, context, new Object(), ranges, key -> {
             System.out.println("stream:" + Arrays.toString(key));
             count.incrementAndGet();
@@ -474,7 +474,7 @@ public class SkipListMapTest {
         System.out.println("------- -2, -1");
         count.set(0);
         ranges.clear();
-        ranges.add(new KeyRange(new byte[]{-2}, new byte[]{-1}));
+        ranges.add(new KeyRange(new byte[] { -2 }, new byte[] { -1 }));
         sls.streamKeys(filer, context, new Object(), ranges, key -> {
             System.out.println("stream:" + Arrays.toString(key));
             count.incrementAndGet();
@@ -497,13 +497,13 @@ public class SkipListMapTest {
             ByteBufferFactory provider = new HeapByteBufferFactory();
 
             SkipListMapStore sls = SkipListMapStore.INSTANCE;
-            long slsFilerSize = sls.computeFilerSize(capacity, keySize, false, payloadSize, (byte) 9);
+            long slsFilerSize = sls.computeFilerSize(capacity, keySize, false, payloadSize);
             ByteBufferBackedFiler filer = new ByteBufferBackedFiler(provider.allocate("booya".getBytes(), slsFilerSize));
 
             Random random = new Random(1234);
             byte[] headKey = new byte[keySize];
             Arrays.fill(headKey, Byte.MIN_VALUE);
-            SkipListMapContext page = sls.create(capacity, headKey, keySize, false, payloadSize, (byte) 9, DoubleSkipListComparator.cSingleton, filer,
+            SkipListMapContext page = sls.create(capacity, headKey, keySize, false, payloadSize, DoubleSkipListComparator.cSingleton, filer,
                 stackBuffer);
             for (int i = 0; i < insert; i++) {
                 byte[] doubleBytes = FilerIO.doubleBytes(random.nextInt(range));

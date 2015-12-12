@@ -53,11 +53,18 @@ public class SkipListMapStore {
         int maxCount,
         int keySize,
         boolean variableKeySizes,
-        int payloadSize,
-        byte maxColumnHeight) throws IOException {
+        int payloadSize) throws IOException {
         maxCount += 2; // room for a head key and a tail key
+        byte maxColumnHeight = maxColumnHeight(maxCount, MapStore.cMapVersion);
         payloadSize = payloadSize(maxColumnHeight) + payloadSize;
         return MapStore.INSTANCE.computeFilerSize(maxCount, keySize, variableKeySizes, payloadSize, false);
+    }
+
+    byte maxColumnHeight(int maxCount, int version) {
+        if (version < 3) {
+            return (byte) 9;
+        }
+        return (byte) Math.max(8, Math.min(32, FilerIO.chunkLength(maxCount)));
     }
 
     int payloadSize(byte maxHeight) {
@@ -70,7 +77,7 @@ public class SkipListMapStore {
         int keySize,
         boolean variableKeySizes,
         int _payloadSize,
-        byte maxColumnHeight,
+        //byte maxColumnHeight,
         SkipListComparator _valueComparator,
         Filer filer,
         StackBuffer stackBuffer) throws IOException {
@@ -78,11 +85,12 @@ public class SkipListMapStore {
             throw new RuntimeException("Expected that headKey.length == keySize");
         }
         _maxCount += 2;
+        byte maxColumnHeight = maxColumnHeight(_maxCount, MapStore.cMapVersion);
         int columnAndPayload = payloadSize(maxColumnHeight) + _payloadSize;
         MapContext mapContext = MapStore.INSTANCE.create(_maxCount, keySize, variableKeySizes, columnAndPayload, false, filer, stackBuffer);
         int headKeyIndex = (int) MapStore.INSTANCE.add(filer, mapContext, (byte) 1, headKey,
             newColumn(new byte[_payloadSize], maxColumnHeight, maxColumnHeight), stackBuffer);
-        SkipListMapContext context = new SkipListMapContext(mapContext, headKeyIndex, headKey, _valueComparator);
+        SkipListMapContext context = new SkipListMapContext(mapContext, maxColumnHeight, headKeyIndex, headKey, _valueComparator);
         return context;
     }
 
@@ -96,7 +104,10 @@ public class SkipListMapStore {
         if (headKeyIndex == -1) {
             throw new RuntimeException("SkipListSetPage:Invalid Page!");
         }
-        SkipListMapContext context = new SkipListMapContext(mapContext, headKeyIndex, headKey, _valueComparator);
+        int maxCount = MapStore.INSTANCE.getMaxCount(filer, stackBuffer);
+        int version = MapStore.INSTANCE.getMapVersion(filer);
+        byte maxColumnHeight = maxColumnHeight(maxCount, version);
+        SkipListMapContext context = new SkipListMapContext(mapContext, maxColumnHeight, headKeyIndex, headKey, _valueComparator);
         return context;
     }
 

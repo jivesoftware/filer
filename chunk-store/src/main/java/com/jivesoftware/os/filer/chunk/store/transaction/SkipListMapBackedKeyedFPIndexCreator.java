@@ -72,8 +72,7 @@ public class SkipListMapBackedKeyedFPIndexCreator implements CreateFiler<Integer
         SkipListMapContext context = SkipListMapStore.INSTANCE.create(hint,
             headKey,
             keySize, variableKeySize, payloadSize,
-            (byte) 9,
-            LexSkipListComparator.cSingleton, 
+            LexSkipListComparator.cSingleton,
             filer,
             stackBuffer);
         Map<IBA, Long> keyFPCache = null;
@@ -87,6 +86,6 @@ public class SkipListMapBackedKeyedFPIndexCreator implements CreateFiler<Integer
     public long sizeInBytes(Integer hint) throws IOException {
         hint += initialCapacity;
         hint = hint < 2 ? 2 : hint;
-        return SkipListMapStore.INSTANCE.computeFilerSize(hint, keySize, variableKeySize, payloadSize, (byte) 9);
+        return SkipListMapStore.INSTANCE.computeFilerSize(hint, keySize, variableKeySize, payloadSize);
     }
 }

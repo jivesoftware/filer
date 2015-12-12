@@ -1,5 +1,7 @@
 package com.jivesoftware.os.filer.io.map;
 
+import java.util.Arrays;
+
 /**
  *
  * @author jonathan
@@ -13,14 +15,15 @@ public class SkipListMapContext {
     byte[] headKey;
 
     public SkipListMapContext(MapContext mapContext,
+        byte maxHeight,
         int headIndex,
         byte[] headKey,
         SkipListComparator valueComparator) {
         this.mapContext = mapContext;
+        this.maxHeight = maxHeight;
         this.headIndex = headIndex;
         this.headKey = headKey;
         this.keyComparator = valueComparator;
-        this.maxHeight = 9; // TODO expose to constructor
     }
 
     @Override
@@ -30,7 +33,7 @@ public class SkipListMapContext {
             + ", maxHeight=" + maxHeight
             + ", keyComparator=" + keyComparator
             + ", headIndex=" + headIndex
-            + ", headKey=" + headKey
+            + ", headKey=" + Arrays.toString(headKey)
             + '}';
     }
 
