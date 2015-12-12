@@ -15,10 +15,10 @@
  */
 package com.jivesoftware.os.filer.chunk.store.transaction;
 
-import com.google.common.collect.Lists;
 import com.jivesoftware.os.filer.io.PartitionFunction;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
 import com.jivesoftware.os.filer.io.api.IndexAlignedChunkTransaction;
+import com.jivesoftware.os.filer.io.api.IndexAlignedHintAndTransactionSupplier;
 import com.jivesoftware.os.filer.io.api.KeyRange;
 import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
@@ -58,6 +58,33 @@ public class TxPartitionedNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         ChunkTransaction<M, R> chunkTransaction,
         StackBuffer stackBuffer) throws IOException, InterruptedException {
         return stores[partitionFunction.partition(stores.length, partitionKey)].writeNewReplace(mapName, filerKey, sizeHint, chunkTransaction, stackBuffer);
+    }
+
+    public <R> void multiWriteNewReplace(byte[][] partitionKeys,
+        byte[] mapName,
+        byte[][] filerKeys,
+        IndexAlignedHintAndTransactionSupplier<H, M, R> supplier,
+        R[] results,
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
+
+        byte[][][] partitionedFilerKeys = new byte[stores.length][][];
+        for (int i = 0; i < partitionKeys.length; i++) {
+            byte[] partitionKey = partitionKeys[i];
+            byte[] filerKey = filerKeys[i];
+            if (partitionKey != null && filerKey != null) {
+                int p = partitionFunction.partition(stores.length, partitionKey);
+                if (partitionedFilerKeys[p] == null) {
+                    partitionedFilerKeys[p] = new byte[filerKeys.length][];
+                }
+                partitionedFilerKeys[p][i] = filerKey;
+            }
+        }
+
+        for (int p = 0; p < stores.length; p++) {
+            if (partitionedFilerKeys[p] != null) {
+                stores[p].multiWriteNewReplace(mapName, partitionedFilerKeys[p], supplier, results, stackBuffer);
+            }
+        }
     }
 
     public <R> R read(byte[] partitionKey, final byte[] mapName, final byte[] filerKey, final ChunkTransaction<M, R> filerTransaction, StackBuffer stackBuffer)

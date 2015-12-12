@@ -22,7 +22,9 @@ import com.jivesoftware.os.filer.io.NoOpCreateFiler;
 import com.jivesoftware.os.filer.io.NoOpOpenFiler;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
+import com.jivesoftware.os.filer.io.api.HintAndTransaction;
 import com.jivesoftware.os.filer.io.api.IndexAlignedChunkTransaction;
+import com.jivesoftware.os.filer.io.api.IndexAlignedHintAndTransactionSupplier;
 import com.jivesoftware.os.filer.io.api.KeyRange;
 import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkFiler;
@@ -225,6 +227,84 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         }, stackBuffer);
     }
 
+    public <R> void multiWriteNewReplace(byte[] mapName,
+        byte[][] filerKeys,
+        IndexAlignedHintAndTransactionSupplier<H, M, R> supplier,
+        R[] results,
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
+
+        synchronized (chunkStore) {
+            if (!chunkStore.isValid(constantFP, stackBuffer)) {
+                chunkStore.newChunk(null, skyHookIndexCreator, stackBuffer);
+            }
+        }
+        chunkStore.execute(constantFP, skyHookIndexOpener, (monkey, filer, stackBuffer1, lock) -> {
+
+            int chunkPower = FilerIO.chunkPower(mapName.length, 0);
+            monkey.readWriteAutoGrow(chunkStore, chunkPower, 2, skyhookCog.creators[chunkPower], skyhookCog.opener,
+                skyhookCog.grower,
+                (skyHookMonkey, skyHookFiler, stackBuffer2, skyHookLock) -> skyHookMonkey.readWriteAutoGrow(chunkStore,
+                    mapName, null, namedIndexCreator, namedIndexOpener, null,
+                    (namedIndexMonkey, namedIndexFiler, stackBuffer3, namedIndexLock) -> {
+                        byte[][][] partitionedFilerKeys = new byte[64][][];
+                        for (int i = 0; i < filerKeys.length; i++) {
+                            byte[] filerKey = filerKeys[i];
+                            if (filerKey != null) {
+                                int chunkPower1 = FilerIO.chunkPower(filerKey.length, 0);
+                                if (partitionedFilerKeys[chunkPower1] == null) {
+                                    partitionedFilerKeys[chunkPower1] = new byte[filerKeys.length][];
+                                }
+                                partitionedFilerKeys[chunkPower1][i] = filerKey;
+                            }
+                        }
+
+                        for (int chunkPower1 = 0; chunkPower1 < partitionedFilerKeys.length; chunkPower1++) {
+                            int _chunkPower1 = chunkPower1;
+                            if (partitionedFilerKeys[chunkPower1] != null) {
+                                namedIndexMonkey.readWriteAutoGrow(chunkStore, chunkPower1, 1, namedPowerCreator[chunkPower1], namedPowerOpener,
+                                    namedPowerGrower,
+                                    (namedPowerMonkey, namedPowerFiler, stackBuffer4, namedPowerLock) -> {
+                                        // TODO consider using the provided filer in appropriate cases.
+                                        byte[][] powerFilerKeys = partitionedFilerKeys[_chunkPower1];
+                                        for (int i = 0; i < powerFilerKeys.length; i++) {
+                                            byte[] filerKey = powerFilerKeys[i];
+                                            if (filerKey != null) {
+                                                writeMultiFilerKey(namedPowerMonkey, i, filerKey, supplier, results, stackBuffer4);
+                                            }
+                                        }
+                                        return null;
+                                    }, stackBuffer3);
+                            }
+                        }
+                        return null;
+                    }, stackBuffer2), stackBuffer1);
+            return null;
+        }, stackBuffer);
+    }
+
+    private <R> void writeMultiFilerKey(N namedPowerMonkey,
+        int index,
+        byte[] filerKey,
+        IndexAlignedHintAndTransactionSupplier<H, M, R> keyHintSupplier,
+        R[] results,
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
+        HintAndTransaction<H, M, R> hintAndTransaction = namedPowerMonkey.read(
+            chunkStore,
+            filerKey,
+            filerOpener,
+            (filerMonkey, filerFiler, stackBuffer5, filerLock) ->
+                keyHintSupplier.supply(filerMonkey, filerFiler, stackBuffer5, filerLock, index),
+            stackBuffer);
+
+        H sizeHint = hintAndTransaction.hint;
+        ChunkTransaction<M, R> chunkTransaction = hintAndTransaction.filerTransaction;
+        final AtomicReference<R> result = new AtomicReference<>();
+        GrowFiler<H, M, ChunkFiler> rewriteGrower = rewriteGrowerProvider.create(sizeHint, chunkTransaction, result);
+        results[index] = namedPowerMonkey.writeNewReplace(chunkStore, filerKey, sizeHint, filerCreator, filerOpener,
+            rewriteGrower,
+            (filerMonkey, filerFiler, stackBuffer5, filerLock) -> result.get(), stackBuffer);
+    }
+
     public <R> R read(final byte[] mapName,
         final byte[] filerKey,
         final ChunkTransaction<M, R> filerTransaction,
@@ -371,18 +451,25 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                                         if (namedPowerMonkey == null || namedPowerFiler == null) {
                                             return true;
                                         }
-                                        return namedPowerMonkey.stream(ranges, (byte[] filerKey) -> {
-                                            Boolean filerResult = namedPowerMonkey.read(chunkStore, filerKey, filerOpener,
-                                                (M filerMonkey, ChunkFiler filerFiler, StackBuffer stackBuffer5, Object filerLock)
-                                                    -> stream.stream(filerKey, filerMonkey, filerFiler, filerLock),
-                                                stackBuffer4);
-                                            return filerResult;
-                                        }, stackBuffer4);
+                                        return streamFilerKey(namedPowerMonkey, ranges, stream, stackBuffer4);
                                     }, stackBuffer3);
                                 return namedIndexResult;
                             }, stackBuffer3);
                         }, stackBuffer2);
                 }, stackBuffer1);
+        }, stackBuffer);
+    }
+
+    private Boolean streamFilerKey(N namedPowerMonkey,
+        List<KeyRange> ranges,
+        TxStream<byte[], M, ChunkFiler> stream,
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
+        return namedPowerMonkey.stream(ranges, (byte[] filerKey) -> {
+            Boolean filerResult = namedPowerMonkey.<H, M, Boolean>read(chunkStore, filerKey, filerOpener,
+                (M filerMonkey, ChunkFiler filerFiler, StackBuffer stackBuffer5, Object filerLock)
+                    -> stream.stream(filerKey, filerMonkey, filerFiler, filerLock),
+                stackBuffer);
+            return filerResult;
         }, stackBuffer);
     }
 

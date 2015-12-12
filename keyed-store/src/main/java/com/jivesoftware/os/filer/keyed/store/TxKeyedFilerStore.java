@@ -29,6 +29,7 @@ import com.jivesoftware.os.filer.io.Filer;
 import com.jivesoftware.os.filer.io.OpenFiler;
 import com.jivesoftware.os.filer.io.api.ChunkTransaction;
 import com.jivesoftware.os.filer.io.api.IndexAlignedChunkTransaction;
+import com.jivesoftware.os.filer.io.api.IndexAlignedHintAndTransactionSupplier;
 import com.jivesoftware.os.filer.io.api.KeyRange;
 import com.jivesoftware.os.filer.io.api.KeyValueStore;
 import com.jivesoftware.os.filer.io.api.KeyedFilerStore;
@@ -156,6 +157,14 @@ public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
         ChunkTransaction<M, R> transaction,
         StackBuffer stackBuffer) throws IOException, InterruptedException {
         return namedMapOfFiler.writeNewReplace(keyBytes, name, keyBytes, newFilerInitialCapacity, transaction, stackBuffer);
+    }
+
+    @Override
+    public <R> void multiWriteNewReplace(byte[][] eachKeyBytes,
+        IndexAlignedHintAndTransactionSupplier<H, M, R> supplier,
+        R[] results,
+        StackBuffer stackBuffer) throws IOException, InterruptedException {
+        namedMapOfFiler.multiWriteNewReplace(eachKeyBytes, name, eachKeyBytes, supplier, results, stackBuffer);
     }
 
     @Override

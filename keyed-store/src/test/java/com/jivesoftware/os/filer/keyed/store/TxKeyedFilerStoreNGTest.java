@@ -13,6 +13,7 @@ import com.jivesoftware.os.filer.chunk.store.transaction.TxCogs;
 import com.jivesoftware.os.filer.chunk.store.transaction.TxNamedMapOfFiler;
 import com.jivesoftware.os.filer.io.FilerIO;
 import com.jivesoftware.os.filer.io.HeapByteBufferFactory;
+import com.jivesoftware.os.filer.io.api.HintAndTransaction;
 import com.jivesoftware.os.filer.io.api.KeyRange;
 import com.jivesoftware.os.filer.io.api.StackBuffer;
 import com.jivesoftware.os.filer.io.chunk.ChunkStore;
@@ -252,4 +253,90 @@ public class TxKeyedFilerStoreNGTest {
 
         assertEquals(store.size(stackBuffer), 20);
     }
+
+    @Test
+    public void multiWriteNewTest() throws Exception {
+        assertMultiWriteNewTest(false);
+    }
+
+    @Test
+    public void orderedMultiWriteNewTest() throws Exception {
+        assertMultiWriteNewTest(true);
+    }
+
+    private void assertMultiWriteNewTest(boolean lexOrderKeys) throws IOException, Exception {
+        StackBuffer stackBuffer = new StackBuffer();
+
+        File dir = Files.createTempDirectory("testNewChunkStore").toFile();
+        HeapByteBufferFactory byteBufferFactory = new HeapByteBufferFactory();
+        ChunkStore chunkStore1 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data1", 8, byteBufferFactory, 500, 5_000, stackBuffer);
+        ChunkStore chunkStore2 = new ChunkStoreInitializer().openOrCreate(new File[]{dir}, 0, "data2", 8, byteBufferFactory, 500, 5_000, stackBuffer);
+        ChunkStore[] chunkStores = new ChunkStore[]{chunkStore1, chunkStore2};
+
+        TxKeyedFilerStore<Long, Void> store = new TxKeyedFilerStore<>(cogs,
+            0,
+            chunkStores,
+            "booya".getBytes(),
+            lexOrderKeys,
+            TxNamedMapOfFiler.CHUNK_FILER_CREATOR,
+            TxNamedMapOfFiler.CHUNK_FILER_OPENER,
+            TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
+            TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER);
+
+        long newFilerInitialCapacity = 512;
+
+        final byte[][] keys = { FilerIO.intBytes(1020), FilerIO.intBytes(2020), FilerIO.intBytes(3020) };
+        store.writeNewReplace(keys[0], newFilerInitialCapacity, (monkey, newFiler, _stackBuffer, newLock) -> {
+            synchronized (newLock) {
+                newFiler.seek(0);
+                FilerIO.writeInt(newFiler, 10, "", _stackBuffer);
+                return null;
+            }
+        }, stackBuffer);
+        store.writeNewReplace(keys[1], newFilerInitialCapacity, (monkey, newFiler, _stackBuffer, newLock) -> {
+            synchronized (newLock) {
+                newFiler.seek(0);
+                FilerIO.writeInt(newFiler, 20, "", _stackBuffer);
+                return null;
+            }
+        }, stackBuffer);
+        store.writeNewReplace(keys[2], newFilerInitialCapacity, (monkey, newFiler, _stackBuffer, newLock) -> {
+            synchronized (newLock) {
+                newFiler.seek(0);
+                FilerIO.writeInt(newFiler, 30, "", _stackBuffer);
+                return null;
+            }
+        }, stackBuffer);
+
+        Integer[] results = new Integer[3];
+        store.multiWriteNewReplace(keys,
+            (monkey, oldFiler, stackBuffer1, oldLock, index) -> {
+                synchronized (oldLock) {
+                    oldFiler.seek(0);
+                    assertEquals(FilerIO.readInt(oldFiler, "", stackBuffer1), (index + 1) * 10);
+                }
+                return new HintAndTransaction<>(newFilerInitialCapacity, (newMonkey, newFiler, stackBuffer2, newLock) -> {
+                    synchronized (newLock) {
+                        newFiler.seek(0);
+                        int value = (index + 1) * 10 + 1;
+                        FilerIO.writeInt(newFiler, value, "", stackBuffer2);
+                        return value;
+                    }
+                });
+            },
+            results,
+            stackBuffer);
+        assertEquals(results[0].intValue(), 11);
+        assertEquals(results[1].intValue(), 21);
+        assertEquals(results[2].intValue(), 31);
+
+        store.readEach(keys, null, (monkey, filer, stackBuffer1, lock, index) -> {
+            synchronized (lock) {
+                filer.seek(0);
+                assertEquals(FilerIO.readInt(filer, "", stackBuffer1), (index + 1) * 10 + 1);
+            }
+            return null;
+        }, new Void[3], stackBuffer);
+    }
+
 }

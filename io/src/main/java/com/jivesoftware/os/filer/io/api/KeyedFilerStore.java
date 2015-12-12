@@ -29,6 +29,11 @@ public interface KeyedFilerStore<H, M> {
         ChunkTransaction<M, R> transaction,
         StackBuffer stackBuffer) throws IOException, InterruptedException;
 
+    <R> void multiWriteNewReplace(byte[][] eachKeyBytes,
+        IndexAlignedHintAndTransactionSupplier<H, M, R> keyHintSupplier,
+        R[] results,
+        StackBuffer stackBuffer) throws IOException, InterruptedException;
+
     boolean stream(List<KeyRange> ranges, KeyValueStore.EntryStream<byte[], Filer> stream, StackBuffer stackBuffer) throws IOException, InterruptedException;
 
     /**
