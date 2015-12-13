@@ -302,13 +302,15 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
                 keyHintSupplier.supply(filerMonkey, filerFiler, stackBuffer5, filerLock, index),
             stackBuffer);
 
-        H sizeHint = hintAndTransaction.hint;
-        ChunkTransaction<M, R> chunkTransaction = hintAndTransaction.filerTransaction;
-        final AtomicReference<R> result = new AtomicReference<>();
-        GrowFiler<H, M, ChunkFiler> rewriteGrower = rewriteGrowerProvider.create(sizeHint, chunkTransaction, result);
-        results[index] = namedPowerMonkey.writeNewReplace(chunkStore, filerKey, sizeHint, filerCreator, filerOpener,
-            rewriteGrower,
-            (filerMonkey, filerFiler, stackBuffer5, filerLock) -> result.get(), stackBuffer);
+        if (hintAndTransaction != null) {
+            H sizeHint = hintAndTransaction.hint;
+            ChunkTransaction<M, R> chunkTransaction = hintAndTransaction.filerTransaction;
+            final AtomicReference<R> result = new AtomicReference<>();
+            GrowFiler<H, M, ChunkFiler> rewriteGrower = rewriteGrowerProvider.create(sizeHint, chunkTransaction, result);
+            results[index] = namedPowerMonkey.writeNewReplace(chunkStore, filerKey, sizeHint, filerCreator, filerOpener,
+                rewriteGrower,
+                (filerMonkey, filerFiler, stackBuffer5, filerLock) -> result.get(), stackBuffer);
+        }
     }
 
     public <R> R read(final byte[] mapName,
