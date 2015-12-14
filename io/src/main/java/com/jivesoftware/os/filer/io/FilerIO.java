@@ -1726,4 +1726,9 @@ public class FilerIO {
         return 1L << _chunkPower;
     }
 
+    public static void main(String[] args) {
+        for (int i : new int[] { 0, 16, 32, 64, 128, 256, 512, 1024, 32_768, 65_536, 1024 * 1024, 1024 * 1024 * 1024 }) {
+            System.out.println("chunkLength: " + i + " = " + chunkLength(i));
+        }
+    }
 }

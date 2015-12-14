@@ -17,7 +17,7 @@ public class MapStore {
     public static final MapStore INSTANCE = new MapStore();
 
     public static final byte cVariableSized = 1;
-    public static final byte cMapVersion = 3;
+    public static final byte cMapVersion = 4;
 
     private static final int cCountSize = 4;
     private static final int cMaxCountSize = 4;
@@ -57,7 +57,7 @@ public class MapStore {
         return (long) (maxCount * cSetDensity);
     }
 
-    public int calculateCapacity(int maxCount) {
+    public static int calculateCapacity(int maxCount) {
         return (int) (maxCount + (maxCount - (maxCount * cSetDensity)));
     }
 
@@ -87,6 +87,7 @@ public class MapStore {
         int payloadSize = getPayloadSize(filer, stackBuffer);
         byte payloadLengthSize = getPayloadLengthSize(filer);
         long count = getCount(filer, stackBuffer);
+        byte version = getMapVersion(filer);
         return new MapContext(keySize,
             keyLengthSize,
             payloadSize,
@@ -94,6 +95,7 @@ public class MapStore {
             getCapacity(filer, stackBuffer),
             getMaxCount(filer, stackBuffer),
             keyLengthSize + keySize + payloadLengthSize + payloadSize,
+            version,
             count);
     }
 
@@ -142,6 +144,7 @@ public class MapStore {
             maxCapacity,
             maxCount,
             keyLengthSize + keySize + payloadLengthSize + payloadSize,
+            cMapVersion,
             0);
         setCount(context, filer, 0, stackBuffer);
         return context;
@@ -195,6 +198,9 @@ public class MapStore {
     public boolean acquire(MapContext context, int n) {
         context.requested += n;
         //System.out.println("requested: " + context.requested + " max:" + context.maxCount + " count:" + context.count);
+        if (context.version < MapStore.cMapVersion) {
+            return false;
+        }
         return (context.requested <= (context.maxCount - context.count));
     }
 

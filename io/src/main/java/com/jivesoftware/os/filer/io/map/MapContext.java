@@ -12,10 +12,19 @@ public class MapContext {
     public final int capacity; // read only
     public final int maxCount; // read only
     public final int entrySize; // read only
+    public final byte version; // read only
     transient long count;
     transient long requested;
 
-    public MapContext(int keySize, byte keyLengthSize, int payloadSize, byte payloadLengthSize, int capacity, int maxCount, int entrySize, long count) {
+    public MapContext(int keySize,
+        byte keyLengthSize,
+        int payloadSize,
+        byte payloadLengthSize,
+        int capacity,
+        int maxCount,
+        int entrySize,
+        byte version,
+        long count) {
         this.keySize = keySize;
         this.keyLengthSize = keyLengthSize;
         this.payloadSize = payloadSize;
@@ -23,6 +32,7 @@ public class MapContext {
         this.capacity = capacity;
         this.maxCount = maxCount;
         this.entrySize = entrySize;
+        this.version = version;
         this.count = count;
         this.requested = 0;
         if (keySize == 0 || capacity == 0 || maxCount == 0 || entrySize == 0) {
@@ -42,6 +52,7 @@ public class MapContext {
             + ", capacity=" + capacity
             + ", maxCount=" + maxCount
             + ", entrySize=" + entrySize
+            + ", version=" + version
             + ", count=" + count + '}';
     }
 

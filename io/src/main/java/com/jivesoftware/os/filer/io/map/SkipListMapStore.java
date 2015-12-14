@@ -23,6 +23,8 @@ public class SkipListMapStore {
     static public final SkipListMapStore INSTANCE = new SkipListMapStore();
 
     private static final int maxChunkPower = 32;
+    private static ChunkMetrics.ChunkMetric[] openCounts = new ChunkMetrics.ChunkMetric[maxChunkPower];
+    private static ChunkMetrics.ChunkMetric[] createCounts = new ChunkMetrics.ChunkMetric[maxChunkPower];
     private static ChunkMetrics.ChunkMetric[] addCounts = new ChunkMetrics.ChunkMetric[maxChunkPower];
     private static ChunkMetrics.ChunkMetric[] addHits = new ChunkMetrics.ChunkMetric[maxChunkPower];
     private static ChunkMetrics.ChunkMetric[] addSeeks = new ChunkMetrics.ChunkMetric[maxChunkPower];
@@ -34,6 +36,8 @@ public class SkipListMapStore {
     static {
         for (int i = 0; i < maxChunkPower; i++) {
             String size = "2_pow_" + (i > 9 ? i : "0" + i);
+            openCounts[i] = ChunkMetrics.get("SkipListMapStore", size, "openCounts");
+            createCounts[i] = ChunkMetrics.get("SkipListMapStore", size, "createCounts");
             addCounts[i] = ChunkMetrics.get("SkipListMapStore", size, "addCounts");
             addHits[i] = ChunkMetrics.get("SkipListMapStore", size, "addHits");
             addSeeks[i] = ChunkMetrics.get("SkipListMapStore", size, "addSeeks");
@@ -63,8 +67,12 @@ public class SkipListMapStore {
     byte maxColumnHeight(int maxCount, int version) {
         if (version < 3) {
             return (byte) 9;
+        } else if (version == 3) {
+            return (byte) Math.max(8, Math.min(32, FilerIO.chunkLength(maxCount))); // lol
+        } else {
+            int capacity = MapStore.calculateCapacity(maxCount);
+            return (byte) Math.max(8, Math.min(32, FilerIO.chunkPower(capacity, 0)));
         }
-        return (byte) Math.max(8, Math.min(32, FilerIO.chunkLength(maxCount)));
     }
 
     int payloadSize(byte maxHeight) {
@@ -91,6 +99,10 @@ public class SkipListMapStore {
         int headKeyIndex = (int) MapStore.INSTANCE.add(filer, mapContext, (byte) 1, headKey,
             newColumn(new byte[_payloadSize], maxColumnHeight, maxColumnHeight), stackBuffer);
         SkipListMapContext context = new SkipListMapContext(mapContext, maxColumnHeight, headKeyIndex, headKey, _valueComparator);
+
+        int power = FilerIO.chunkPower(context.mapContext.capacity, 0);
+        createCounts[power].inc(1);
+
         return context;
     }
 
@@ -108,6 +120,10 @@ public class SkipListMapStore {
         int version = MapStore.INSTANCE.getMapVersion(filer);
         byte maxColumnHeight = maxColumnHeight(maxCount, version);
         SkipListMapContext context = new SkipListMapContext(mapContext, maxColumnHeight, headKeyIndex, headKey, _valueComparator);
+
+        int power = FilerIO.chunkPower(context.mapContext.capacity, 0);
+        openCounts[power].inc(1);
+
         return context;
     }
 
