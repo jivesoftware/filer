@@ -34,17 +34,19 @@ public class ChunkStore implements Copyable<ChunkStore> {
 
     private static final int maxChunkPower = 32;
     private static ChunkMetrics.ChunkMetric[] allocates = new ChunkMetrics.ChunkMetric[maxChunkPower];
-    private static ChunkMetrics.ChunkMetric[] gets = new ChunkMetrics.ChunkMetric[maxChunkPower];
     private static ChunkMetrics.ChunkMetric[] reuses = new ChunkMetrics.ChunkMetric[maxChunkPower];
     private static ChunkMetrics.ChunkMetric[] removes = new ChunkMetrics.ChunkMetric[maxChunkPower];
+    private static ChunkMetrics.ChunkMetric[] executeHits = new ChunkMetrics.ChunkMetric[maxChunkPower];
+    private static ChunkMetrics.ChunkMetric[] executeMisses = new ChunkMetrics.ChunkMetric[maxChunkPower];
 
     static {
         for (int i = 0; i < maxChunkPower; i++) {
-            String size = "2_pow_" + (i > 9 ? i : "0" + i) + "_" + FilerIO.chunkLength(i) + "_bytes";
+            String size = (i == 0) ? "total" : "2_pow_" + (i > 9 ? i : "0" + i) + "_" + FilerIO.chunkLength(i) + "_bytes";
             allocates[i] = ChunkMetrics.get("ChunkStore", size, "allocate");
-            gets[i] = ChunkMetrics.get("ChunkStore", size, "get");
             reuses[i] = ChunkMetrics.get("ChunkStore", size, "reuse");
             removes[i] = ChunkMetrics.get("ChunkStore", size, "remove");
+            executeHits[i] = ChunkMetrics.get("ChunkStore", size, "executeHit");
+            executeMisses[i] = ChunkMetrics.get("ChunkStore", size, "executeMiss");
         }
     }
 
@@ -202,8 +204,10 @@ public class ChunkStore implements Copyable<ChunkStore> {
         });
 
         if (reused.get()) {
+            reuses[0].inc(1);
             reuses[chunkPower].inc(1);
         } else {
+            allocates[0].inc(1);
             allocates[chunkPower].inc(1);
         }
 
@@ -221,7 +225,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
             ChunkFiler chunkFiler = new ChunkFiler(ChunkStore.this, filer.duplicate(startOfFP, endOfFP), fp, startOfFP, endOfFP);
             chunkFiler.seek(0);
             M monkey = createFiler.create(hint, chunkFiler, stackBuffer);
-            chunkCache.set(fp, new Chunk<>(monkey, fp, startOfFP, endOfFP), 2, stackBuffer);
+            chunkCache.set(fp, new Chunk<>(monkey, fp, chunkPower, startOfFP, endOfFP), 2, stackBuffer);
             return null;
         });
         return chunkFP.get();
@@ -295,8 +299,14 @@ public class ChunkStore implements Copyable<ChunkStore> {
                 chunkFiler.seek(0);
 
                 M monkey = openFiler.open(chunkFiler, stackBuffer);
-                chunk = new Chunk<>(monkey, chunkFP, startOfFP, endOfFP);
+                chunk = new Chunk<>(monkey, chunkFP, chunkPower, startOfFP, endOfFP);
                 chunkCache.promoteAndAcquire(chunkFP, chunk, 2, stackBuffer);
+
+                executeMisses[0].inc(1);
+                executeMisses[chunkPower].inc(1);
+            } else {
+                executeHits[0].inc(1);
+                executeHits[chunk.chunkPower].inc(1);
             }
 
             ChunkFiler chunkFiler = new ChunkFiler(ChunkStore.this, filer.duplicate(chunk.startOfFP, chunk.endOfFP), chunkFP, chunk.startOfFP,
@@ -377,6 +387,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
             return null;
         });
 
+        removes[0].inc(1);
         removes[chunkPower].inc(1);
     }
 
