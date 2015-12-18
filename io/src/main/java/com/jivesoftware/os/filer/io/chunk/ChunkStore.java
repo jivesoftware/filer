@@ -55,29 +55,11 @@ public class ChunkStore implements Copyable<ChunkStore> {
     static final long cMagicNumber = Long.MAX_VALUE;
     static final int cMinPower = 8;
 
-    //private final TwoPhasedChunkCache chunkCache;
     private long lengthOfFile = 8 + 8 + (8 * (64 - cMinPower));
     private long referenceNumber = 0;
 
-    //private final Object headerLock = new Object();
-    //private AutoGrowingByteBufferBackedFiler filer;
     private StripedFiler filer;
 
-    /*
-     New Call Sequence
-     ChunkStore chunks = new ChunkStore(locks);
-     chunks.setup(100);
-     chunks.createAndOpen(_filer);
-     */
-    //public ChunkStore(ByteBufferFactory byteBufferFactory, int initialCacheSize, int maxNewCacheSize) {
-    //this.chunkCache = new TwoPhasedChunkCache(byteBufferFactory, initialCacheSize, maxNewCacheSize);
-    //}
-
-    /*
-     Existing Call Sequence
-     ChunkStore chunks = new ChunkStore(locks, filer);
-     chunks.open();
-     */
     public ChunkStore(StripedFiler filer) throws Exception {
         this.filer = filer;
     }
@@ -224,7 +206,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
             FilerIO.readLong(filer, "chunkLength", stackBuffer);
             long startOfFP = filer.getFilePointer();
             long endOfFP = startOfFP + FilerIO.chunkLength(chunkPower1);
-            ChunkFiler chunkFiler = new ChunkFiler(ChunkStore.this, filer.duplicate(startOfFP, endOfFP), fp, startOfFP, endOfFP);
+            ChunkFiler chunkFiler = new ChunkFiler(ChunkStore.this, filer.duplicate(stackBuffer.duplicateBuffer, startOfFP, endOfFP), fp, startOfFP, endOfFP);
             chunkFiler.seek(0);
             M monkey = createFiler.create(hint, chunkFiler, stackBuffer);
             chunkCache.set(fp, new Chunk<>(monkey, fp, chunkPower, startOfFP, endOfFP), 2, stackBuffer);
@@ -297,7 +279,8 @@ public class ChunkStore implements Copyable<ChunkStore> {
                 long startOfFP = filer.getFilePointer();
 
                 long endOfFP = startOfFP + FilerIO.chunkLength(chunkPower);
-                ChunkFiler chunkFiler = new ChunkFiler(ChunkStore.this, filer.duplicate(startOfFP, endOfFP), chunkFP, startOfFP, endOfFP);
+                ChunkFiler chunkFiler = stackBuffer.chunkFiler(ChunkStore.this, filer.duplicate(stackBuffer.duplicateBuffer, startOfFP, endOfFP), chunkFP,
+                    startOfFP, endOfFP);
                 chunkFiler.seek(0);
 
                 M monkey = openFiler.open(chunkFiler, stackBuffer);
@@ -336,7 +319,6 @@ public class ChunkStore implements Copyable<ChunkStore> {
             stackBuffer.recycle(chunky);
         }
     }
-
 
     public void remove(long chunkFP, StackBuffer stackBuffer) throws IOException, InterruptedException {
 
