@@ -128,7 +128,6 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog,
         int seed,
         ChunkStore chunkStore,
-        long constantFP,
         CreateFiler<Integer, N, ChunkFiler>[] namedPowerCreator,
         OpenFiler<N, ChunkFiler> namedPowerOpener,
         GrowFiler<Integer, N, ChunkFiler> namedPowerGrower,
@@ -140,7 +139,7 @@ public class TxNamedMapOfFiler<N extends FPIndex<byte[], N>, H, M> {
         TxNamedMapOfFilerRewriteGrowerProvider<H, M> rewriteGrowerProvider) {
         this.skyhookCog = skyhookCog;
         this.chunkStore = chunkStore;
-        this.constantFP = constantFP;
+        this.constantFP = chunkStore.getSkyHookFp();
 
         this.skyHookIndexCreator = new KeyedFPIndexCreator(seed, KeyedFPIndexCreator.DEFAULT_MAGIC_HEADER, KeyedFPIndexCreator.DEFAULT_MAX_KEY_SIZE_POWER,
             skyHookKeySemaphores);

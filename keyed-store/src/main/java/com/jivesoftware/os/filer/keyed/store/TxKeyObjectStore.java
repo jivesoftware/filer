@@ -42,7 +42,6 @@ import java.util.List;
  */
 public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
 
-    static final long SKY_HOOK_FP = 464; // I died a little bit doing this.
     static final byte[] EMPTY_PAYLOAD = new byte[0];
 
     private final KeyMarshaller<K> keyMarshaller;
@@ -129,7 +128,7 @@ public class TxKeyObjectStore<K, V> implements KeyValueStore<K, V> {
             }
         };
 
-        this.namedMap = new TxNamedMap(skyHookCog, seed, chunkStore, SKY_HOOK_FP, creator, opener, grower, keySemaphores);
+        this.namedMap = new TxNamedMap(skyHookCog, seed, chunkStore, creator, opener, grower, keySemaphores);
     }
 
     @Override

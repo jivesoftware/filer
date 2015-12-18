@@ -52,16 +52,21 @@ public class ChunkStore implements Copyable<ChunkStore> {
         }
     }
 
-    static final long cMagicNumber = Long.MAX_VALUE;
-    static final int cMinPower = 8;
-
-    private long lengthOfFile = 8 + 8 + (8 * (64 - cMinPower));
-    private long referenceNumber = 0;
+    private static final long cMagicNumber = Long.MAX_VALUE;
+    private static final byte[] zerosMax = new byte[(int) Math.pow(2, 16)]; // 65536 max used until min needed
 
     private StripedFiler filer;
+    private byte[] zerosMin;
+    private int minPower;
+    private long lengthOfFile;
+    private long referenceNumber = 0;
 
     public ChunkStore(StripedFiler filer) throws Exception {
         this.filer = filer;
+    }
+
+    public long getSkyHookFp() {
+        return 8 + 8 + (8 * (64 - minPower));
     }
 
     /*
@@ -74,8 +79,10 @@ public class ChunkStore implements Copyable<ChunkStore> {
      * free 2^64
      */
     public void setup(long _referenceNumber) {
-        lengthOfFile = 8 + 8 + (8 * (64 - cMinPower));
         referenceNumber = _referenceNumber;
+        minPower = referenceNumber < 2 ? 8 : 0;
+        zerosMin = new byte[(int) Math.pow(2, minPower)];
+        lengthOfFile = 8 + 8 + (8 * (64 - minPower));
     }
 
     /**
@@ -94,7 +101,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
             txFiler.seek(0);
             FilerIO.writeLong(txFiler, lengthOfFile, "lengthOfFile", stackBuffer);
             FilerIO.writeLong(txFiler, referenceNumber, "referenceNumber", stackBuffer);
-            for (int i = cMinPower; i < 65; i++) {
+            for (int i = minPower; i < 65; i++) {
                 FilerIO.writeLong(txFiler, -1, "free", stackBuffer);
             }
             txFiler.flush();
@@ -108,6 +115,8 @@ public class ChunkStore implements Copyable<ChunkStore> {
             filer.seek(0);
             lengthOfFile = FilerIO.readLong(filer, "lengthOfFile", stackBuffer);
             referenceNumber = FilerIO.readLong(filer, "referenceNumber", stackBuffer);
+            minPower = referenceNumber < 2 ? 8 : 0;
+            zerosMin = new byte[(int) Math.pow(2, minPower)];
             filer.seek(lengthOfFile);
             return null;
         });
@@ -153,7 +162,7 @@ public class ChunkStore implements Copyable<ChunkStore> {
         final CreateFiler<H, M, ChunkFiler> createFiler,
         StackBuffer stackBuffer) throws IOException, InterruptedException {
         long _capacity = createFiler.sizeInBytes(hint);
-        final int chunkPower = FilerIO.chunkPower(_capacity, cMinPower);
+        final int chunkPower = FilerIO.chunkPower(_capacity, minPower);
         final long chunkLength = FilerIO.chunkLength(chunkPower)
             + 8 // add magicNumber
             + 8 // add chunkPower
@@ -373,11 +382,8 @@ public class ChunkStore implements Copyable<ChunkStore> {
     }
 
     private long freeSeek(long _chunkPower) {
-        return 8 + 8 + ((_chunkPower - cMinPower) * 8);
+        return 8 + 8 + ((_chunkPower - minPower) * 8);
     }
-
-    private static final byte[] zerosMin = new byte[(int) Math.pow(2, cMinPower)]; // never too big
-    private static final byte[] zerosMax = new byte[(int) Math.pow(2, 16)]; // 65536 max used until min needed
 
     public boolean isValid(final long chunkFP, StackBuffer stackBuffer) throws IOException, InterruptedException {
         return filer.tx(chunkFP, (fp, chunkCache, filer) -> {
@@ -388,7 +394,6 @@ public class ChunkStore implements Copyable<ChunkStore> {
             long magicNumber = FilerIO.readLong(filer, "magicNumber", stackBuffer);
             return magicNumber == cMagicNumber;
         });
-
     }
 
 }

@@ -43,7 +43,6 @@ import java.util.List;
  */
 public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
 
-    static final long SKY_HOOK_FP = 464; // I died a little bit doing this.
     private final KeyValueMarshaller<K, V> keyValueMarshaller;
     private final byte[] name;
     private final TxPartitionedNamedMap namedMap;
@@ -64,7 +63,7 @@ public class TxKeyValueStore<K, V> implements KeyValueStore<K, V> {
         // TODO consider replacing with builder pattern
         TxNamedMap[] stores = new TxNamedMap[chunkStores.length];
         for (int i = 0; i < stores.length; i++) {
-            stores[i] = new TxNamedMap(skyhookCog, seed, chunkStores[i], SKY_HOOK_FP,
+            stores[i] = new TxNamedMap(skyhookCog, seed, chunkStores[i],
                 new MapCreator(2, keySize, variableKeySize, payloadSize, variablePayloadSize),
                 MapOpener.INSTANCE,
                 new MapGrower<>(),

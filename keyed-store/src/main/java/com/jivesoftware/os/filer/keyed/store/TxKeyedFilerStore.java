@@ -46,8 +46,7 @@ import java.util.List;
  */
 public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
 
-    static final long SKY_HOOK_FP = 464; // I died a little bit doing this.
-
+   
     private final byte[] name;
     private final TxPartitionedNamedMapOfFiler<?, H, M> namedMapOfFiler;
 
@@ -82,7 +81,7 @@ public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
         @SuppressWarnings("unchecked")
         TxNamedMapOfFiler<SkipListMapBackedKeyedFPIndex, H, M>[] stores = new TxNamedMapOfFiler[chunkStores.length];
         for (int i = 0; i < stores.length; i++) {
-            stores[i] = new TxNamedMapOfFiler<>(skyhookCog, seed, chunkStores[i], SKY_HOOK_FP,
+            stores[i] = new TxNamedMapOfFiler<>(skyhookCog, seed, chunkStores[i],
                 skipListPowerCog.creators,
                 skipListPowerCog.opener,
                 skipListPowerCog.grower,
@@ -111,7 +110,7 @@ public class TxKeyedFilerStore<H, M> implements KeyedFilerStore<H, M> {
         TxNamedMapOfFiler<MapBackedKeyedFPIndex, H, M>[] stores = new TxNamedMapOfFiler[chunkStores.length];
         for (int i = 0; i < stores.length; i++) {
 
-            stores[i] = new TxNamedMapOfFiler<>(skyhookCog, seed, chunkStores[i], SKY_HOOK_FP,
+            stores[i] = new TxNamedMapOfFiler<>(skyhookCog, seed, chunkStores[i],
                 powerCog.creators,
                 powerCog.opener,
                 powerCog.grower,

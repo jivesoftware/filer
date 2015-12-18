@@ -14,7 +14,7 @@ import java.io.IOException;
  */
 public class ChunkStoreInitializer {
 
-    private static final long referenceNumber = 1;
+    private static final long referenceNumber = 2;
 
     public ChunkStore openOrCreate(File[] dirs,
         int directoryOffset,

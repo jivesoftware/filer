@@ -47,7 +47,6 @@ public class TxNamedMap {
     public TxNamedMap(TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyHookCog,
         int seed,
         ChunkStore chunkStore,
-        long constantFP,
         CreateFiler<Integer, MapContext, ChunkFiler> mapCreator,
         OpenFiler<MapContext, ChunkFiler> mapOpener,
         GrowFiler<Integer, MapContext, ChunkFiler> mapGrower,
@@ -55,7 +54,7 @@ public class TxNamedMap {
 
         this.skyHookCog = skyHookCog;
         this.chunkStore = chunkStore;
-        this.constantFP = constantFP;
+        this.constantFP = chunkStore.getSkyHookFp();
 
         this.skyHookIndexCreator = new KeyedFPIndexCreator(seed, KeyedFPIndexCreator.DEFAULT_MAGIC_HEADER, KeyedFPIndexCreator.DEFAULT_MAX_KEY_SIZE_POWER,
             skyHookKeySemaphores);

@@ -50,9 +50,9 @@ public class NamedMapsNGTest {
         TxCog<Integer, MapBackedKeyedFPIndex, ChunkFiler> skyhookCog = cogs.getSkyhookCog(0);
 
         TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[]{
-            new TxNamedMap(skyhookCog, 0, chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
+            new TxNamedMap(skyhookCog, 0, chunkStore1, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
             cogs.getSkyHookKeySemaphores()),
-            new TxNamedMap(skyhookCog, 0, chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
+            new TxNamedMap(skyhookCog, 0, chunkStore2, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
             cogs.getSkyHookKeySemaphores())
         });
 
@@ -159,7 +159,7 @@ public class NamedMapsNGTest {
         TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(
             ByteArrayPartitionFunction.INSTANCE,
             (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[]{
-                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore1, 464,
+                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore1,
                     powerCog.creators,
                     powerCog.opener,
                     powerCog.grower,
@@ -169,7 +169,7 @@ public class NamedMapsNGTest {
                     cogs.getNamedKeySemaphores(),
                     TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
                     TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER),
-                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore2, 464,
+                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore2,
                     powerCog.creators,
                     powerCog.opener,
                     powerCog.grower,
@@ -243,7 +243,7 @@ public class NamedMapsNGTest {
         TxPartitionedNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock> namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(
             ByteArrayPartitionFunction.INSTANCE,
             (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[]{
-                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore1, 464,
+                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore1,
                     powerCog.creators,
                     powerCog.opener,
                     powerCog.grower,
@@ -253,7 +253,7 @@ public class NamedMapsNGTest {
                     cogs.getNamedKeySemaphores(),
                     TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
                     TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER),
-                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore2, 464,
+                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore2,
                     powerCog.creators,
                     powerCog.opener,
                     powerCog.grower,
@@ -266,9 +266,9 @@ public class NamedMapsNGTest {
             });
 
         TxPartitionedNamedMap namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[]{
-            new TxNamedMap(skyhookCog, 0, chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
+            new TxNamedMap(skyhookCog, 0, chunkStore1, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
             cogs.getSkyHookKeySemaphores()),
-            new TxNamedMap(skyhookCog, 0, chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
+            new TxNamedMap(skyhookCog, 0, chunkStore2, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
             cogs.getSkyHookKeySemaphores())
         });
 
@@ -363,7 +363,7 @@ public class NamedMapsNGTest {
 
         namedMapOfFilers = new TxPartitionedNamedMapOfFiler<>(ByteArrayPartitionFunction.INSTANCE,
             (TxNamedMapOfFiler<MapBackedKeyedFPIndex, Long, FilerLock>[]) new TxNamedMapOfFiler[]{
-                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore1, 464,
+                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore1,
                     powerCog.creators,
                     powerCog.opener,
                     powerCog.grower,
@@ -373,7 +373,7 @@ public class NamedMapsNGTest {
                     cogs.getNamedKeySemaphores(),
                     TxNamedMapOfFiler.OVERWRITE_GROWER_PROVIDER,
                     TxNamedMapOfFiler.REWRITE_GROWER_PROVIDER),
-                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore2, 464,
+                new TxNamedMapOfFiler<>(skyhookCog, 0, chunkStore2,
                     powerCog.creators,
                     powerCog.opener,
                     powerCog.grower,
@@ -386,9 +386,9 @@ public class NamedMapsNGTest {
             });
 
         namedMap = new TxPartitionedNamedMap(ByteArrayPartitionFunction.INSTANCE, new TxNamedMap[]{
-            new TxNamedMap(skyhookCog, 0, chunkStore1, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
+            new TxNamedMap(skyhookCog, 0, chunkStore1, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
             cogs.getSkyHookKeySemaphores()),
-            new TxNamedMap(skyhookCog, 0, chunkStore2, 464, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
+            new TxNamedMap(skyhookCog, 0, chunkStore2, new MapCreator(2, 4, true, 8, false), MapOpener.INSTANCE, new MapGrower<>(),
             cogs.getSkyHookKeySemaphores())
         });
 
