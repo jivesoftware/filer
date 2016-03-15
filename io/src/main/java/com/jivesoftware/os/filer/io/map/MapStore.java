@@ -289,21 +289,21 @@ public class MapStore {
             i = (++i) % k, j++) { // wraps around table
 
             long ai = index(i, context.entrySize);
-            byte currentMode = read(filer, (int) ai);
+            byte currentMode = read(filer, ai);
             if (currentMode == cNull || currentMode == cSkip) {
                 if (context.count >= context.maxCount) {
                     throw new OverCapacityException(context.count + " > " + context.maxCount + " ? " + context.requested);
                 }
-                write(filer, (int) ai, mode);
-                write(filer, (int) (ai + 1), 0, context.keyLengthSize, key, keySize, keyOffset, stackBuffer);
-                write(filer, (int) (ai + 1 + context.keyLengthSize + keySize), 0, context.payloadLengthSize, payload, payloadSize, _payloadOffset,
+                write(filer, ai, mode);
+                write(filer, (ai + 1), 0, context.keyLengthSize, key, keySize, keyOffset, stackBuffer);
+                write(filer, (ai + 1 + context.keyLengthSize + keySize), 0, context.payloadLengthSize, payload, payloadSize, _payloadOffset,
                     stackBuffer);
                 setCount(context, filer, context.count + 1, stackBuffer);
                 return i;
             }
             if (equals(filer, ai, context.keyLengthSize, key.length, key, keyOffset, stackBuffer)) {
-                write(filer, (int) ai, mode);
-                write(filer, (int) (ai + 1 + context.keyLengthSize + keySize), 0, context.payloadLengthSize, payload, payloadSize, _payloadOffset,
+                write(filer, ai, mode);
+                write(filer, (ai + 1 + context.keyLengthSize + keySize), 0, context.payloadLengthSize, payload, payloadSize, _payloadOffset,
                     stackBuffer);
                 return i;
             }
@@ -311,7 +311,7 @@ public class MapStore {
         return -1;
     }
 
-    private void write(Filer filer, int offset, int destOffset, int length, byte[] key, int size, int keyOffset, StackBuffer stackBuffer) throws IOException {
+    private void write(Filer filer, long offset, int destOffset, int length, byte[] key, int size, int keyOffset, StackBuffer stackBuffer) throws IOException {
 
         if (length == 0) {
         } else if (length == 1) {
@@ -335,13 +335,13 @@ public class MapStore {
         return get(filer, context, _key, stackBuffer) != -1;
     }
 
-    public int startOfKey(long setIndex, int entrySize) {
-        return (int) (index(setIndex, entrySize) + 1); //  +1 to skip mode
+    public long startOfKey(long setIndex, int entrySize) {
+        return (index(setIndex, entrySize) + 1); //  +1 to skip mode
     }
 
     public byte[] getKeyAtIndex(Filer filer, MapContext context, long i, StackBuffer stackBuffer) throws IOException {
         long ai = index(i, context.entrySize);
-        byte mode = read(filer, (int) ai);
+        byte mode = read(filer, ai);
         if (mode == cSkip || mode == cNull) {
             return null;
         }
@@ -358,7 +358,7 @@ public class MapStore {
             throw new RuntimeException("Requested index (" + i + ") is out of bounds (0->" + (getCapacity(filer, stackBuffer) - 1) + ")");
         }
         long ai = index(i, context.entrySize);
-        byte mode = read(filer, (int) ai);
+        byte mode = read(filer, ai);
         if (mode == cSkip || mode == cNull) {
             return null;
         }
@@ -371,11 +371,11 @@ public class MapStore {
             throw new RuntimeException("Requested index (" + i + ") is out of bounds (0->" + (getCapacity(filer, stackBuffer) - 1) + ")");
         }
         long ai = index(i, context.entrySize);
-        byte mode = read(filer, (int) ai);
+        byte mode = read(filer, ai);
         if (mode == cSkip || mode == cNull) {
             return;
         }
-        int offset = (int) (ai + 1 + context.keyLengthSize + context.keySize);
+        long offset = (ai + 1 + context.keyLengthSize + context.keySize);
         write(filer, offset, _destOffset, context.payloadLengthSize, payload, context.payloadSize, _poffset, stackBuffer);
     }
 
@@ -412,7 +412,7 @@ public class MapStore {
             i = (++i) % k, j++) { // wraps around table
 
             long ai = index(i, entrySize);
-            byte mode = read(filer, (int) ai);
+            byte mode = read(filer, ai);
             if (mode == cSkip) {
                 continue;
             }
@@ -435,7 +435,7 @@ public class MapStore {
         long ai = index(i, context.entrySize);
         int length = length(filer, context.keyLengthSize, context.keySize, ai + 1, stackBuffer);
         byte[] k = new byte[length];
-        read(filer, (int) ai + 1 + context.keyLengthSize, k, 0, length);
+        read(filer, ai + 1 + context.keyLengthSize, k, 0, length);
         return k;
     }
 
@@ -456,7 +456,7 @@ public class MapStore {
         long offest = ai + 1 + context.keyLengthSize + context.keySize;
         int length = length(filer, context.payloadLengthSize, context.payloadSize, offest, stackBuffer);
         byte[] p = new byte[length];
-        read(filer, (int) offest + context.payloadLengthSize, p, 0, length);
+        read(filer, offest + context.payloadLengthSize, p, 0, length);
         return p;
     }
 
@@ -483,7 +483,7 @@ public class MapStore {
             i = (++i) % k, j++) { // wraps around table
 
             long ai = index(i, context.entrySize);
-            byte mode = read(filer, (int) ai);
+            byte mode = read(filer, ai);
             if (mode == cSkip) {
                 continue;
             }
@@ -492,16 +492,16 @@ public class MapStore {
             }
             if (equals(filer, ai, context.keyLengthSize, key.length, key, keyOffset, stackBuffer)) {
                 long next = (i + 1) % k;
-                if (read(filer, (int) index(next, entrySize)) == cNull) {
+                if (read(filer, index(next, entrySize)) == cNull) {
                     for (long z = i; z >= 0; z--) {
-                        if (read(filer, (int) index(z, entrySize)) != cSkip) {
+                        if (read(filer, index(z, entrySize)) != cSkip) {
                             break;
                         }
-                        write(filer, (int) index(z, entrySize), cNull);
+                        write(filer, index(z, entrySize), cNull);
                     }
-                    write(filer, (int) index(i, entrySize), cNull);
+                    write(filer, index(i, entrySize), cNull);
                 } else {
-                    write(filer, (int) index(i, entrySize), cSkip);
+                    write(filer, index(i, entrySize), cSkip);
                 }
                 setCount(context, filer, context.count - 1, stackBuffer);
                 return i;
@@ -516,10 +516,10 @@ public class MapStore {
             long count = context.count;
             for (int i = 0; i < capacity; i++) {
                 long ai = index(i, context.entrySize);
-                if (read(filer, (int) ai) == cNull) {
+                if (read(filer, ai) == cNull) {
                     continue;
                 }
-                if (read(filer, (int) ai) == cSkip) {
+                if (read(filer, ai) == cSkip) {
                     continue;
                 }
                 count--;
@@ -564,7 +564,7 @@ public class MapStore {
 
         for (int fromIndex = 0; fromIndex < fcapacity; fromIndex++) {
             long ai = index(fromIndex, fromContext.entrySize);
-            byte mode = read(fromFiler, (int) ai);
+            byte mode = read(fromFiler, ai);
             if (mode == cNull) {
                 continue;
             }
@@ -596,11 +596,11 @@ public class MapStore {
             int capacity = context.capacity;
             for (int i = 0; i < capacity; i++) {
                 long ai = index(i, context.entrySize);
-                if (read(filer, (int) ai) == cNull) {
+                if (read(filer, ai) == cNull) {
                     System.out.println("\t" + i + "): null");
                     continue;
                 }
-                if (read(filer, (int) ai) == cSkip) {
+                if (read(filer, ai) == cSkip) {
                     System.out.println("\t" + i + "): skip");
                     continue;
                 }
@@ -699,7 +699,7 @@ public class MapStore {
             }
             start += 2;
         } else if (keyLength == 4) {
-            if (readInt(filer, (int) (start), stackBuffer) != keySize) {
+            if (readInt(filer, start, stackBuffer) != keySize) {
                 return false;
             }
             start += 4;
@@ -838,12 +838,12 @@ public class MapStore {
         filer.write(stackBuffer.primitiveBuffer, 0, 4);
     }
 
-    void read(Filer filer, int start, byte[] read, int offset, int length) throws IOException {
+    void read(Filer filer, long start, byte[] read, int offset, int length) throws IOException {
         filer.seek(start);
         filer.read(read, offset, length);
     }
 
-    void write(Filer filer, int start, byte[] towrite, int offest, int length) throws IOException {
+    void write(Filer filer, long start, byte[] towrite, int offest, int length) throws IOException {
         filer.seek(start);
         filer.write(towrite, offest, length);
     }

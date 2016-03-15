@@ -10,6 +10,7 @@ package com.jivesoftware.os.filer.io;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 
 /**
  *
@@ -62,6 +63,10 @@ public class ByteBufferBackedFiler implements Filer {
 
     @Override
     public void flush() throws IOException {
+        //TODO should we hard fsync?
+        /*if (buffer instanceof MappedByteBuffer) {
+            ((MappedByteBuffer) buffer).force();
+        }*/
     }
 
     @Override

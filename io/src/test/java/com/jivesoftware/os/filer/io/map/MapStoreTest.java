@@ -19,6 +19,33 @@ import org.testng.annotations.Test;
  */
 public class MapStoreTest {
 
+    @Test(enabled = false)
+    public void testPerformance() throws Exception {
+        StackBuffer stackBuffer = new StackBuffer();
+
+        int cardinality = 4_000_000;
+
+        Random r = new Random();
+        int filerSize = MapStore.INSTANCE.computeFilerSize(cardinality, 4, false, 4, false);
+        ByteBufferBackedFiler filer = new ByteBufferBackedFiler(ByteBuffer.allocate(filerSize));
+        MapContext context = MapStore.INSTANCE.create(cardinality, 4, false, 4, false, filer, stackBuffer);
+        for (int i = 0; i < cardinality; i++) {
+            byte[] k = FilerIO.intBytes(i);
+            byte[] v = FilerIO.intBytes(r.nextInt(100_000));
+            MapStore.INSTANCE.add(filer, context, (byte) 1, k, v, stackBuffer);
+        }
+
+        for (int run = 0; run < 100; run++) {
+            long start = System.currentTimeMillis();
+            for (int i = 0; i < 1_000_000; i++) {
+                byte[] k = FilerIO.intBytes(r.nextInt(cardinality));
+                byte[] v = MapStore.INSTANCE.getPayload(filer, context, k, stackBuffer);
+                Assert.assertEquals(v.length, 4);
+            }
+            System.out.println("Second 1M finished in " + (System.currentTimeMillis() - start));
+        }
+    }
+
     @Test
     public void addRemove() throws IOException {
          StackBuffer stackBuffer = new StackBuffer();
