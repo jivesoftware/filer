@@ -127,13 +127,13 @@ public class ChunkCache {
 
     void ensureCapacity(int initialCapacity, StackBuffer stackBuffer) throws IOException {
         if (mapContext == null) {
-            int size = MapStore.INSTANCE.computeFilerSize(initialCapacity, 8, false, 0, false);
+            long size = MapStore.INSTANCE.computeFilerSize(initialCapacity, 8, false, 0, false);
             mapFiler = new ByteBufferBackedFiler(bufferFactory.allocate(name, size));
             mapContext = MapStore.INSTANCE.create(initialCapacity, 8, false, 0, false, mapFiler, stackBuffer);
             chunks = new Chunk[mapContext.capacity];
         } else if (MapStore.INSTANCE.isFull(mapContext)) {
             int nextGrowSize = MapStore.INSTANCE.nextGrowSize(mapContext);
-            int newSize = MapStore.INSTANCE.computeFilerSize(nextGrowSize, 8, false, 0, false);
+            long newSize = MapStore.INSTANCE.computeFilerSize(nextGrowSize, 8, false, 0, false);
             ByteBufferBackedFiler newMapFiler = new ByteBufferBackedFiler(bufferFactory.allocate(name, newSize));
             MapContext newMapContext = MapStore.INSTANCE.create(nextGrowSize, 8, false, 0, false, newMapFiler, stackBuffer);
             final Chunk<?>[] newChunks = new Chunk[newMapContext.capacity];

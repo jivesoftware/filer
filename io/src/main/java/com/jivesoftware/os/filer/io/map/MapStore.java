@@ -43,10 +43,10 @@ public class MapStore {
     private MapStore() {
     }
 
-    int cost(int _maxKeys, int _keySize, int _payloadSize) {
+    long cost(int _maxKeys, int _keySize, int _payloadSize) {
         int maxCapacity = calculateCapacity(_maxKeys);
         // 1+ for head of entry status byte. 0 and -1 reserved
-        int entrySize = 1 + _keySize + _payloadSize;
+        long entrySize = 1 + _keySize + _payloadSize;
         return cHeaderSize + (entrySize * maxCapacity);
     }
 
@@ -61,7 +61,7 @@ public class MapStore {
         return (int) (maxCount + (maxCount - (maxCount * cSetDensity)));
     }
 
-    public int computeFilerSize(int maxCount,
+    public long computeFilerSize(int maxCount,
         MapContext mapContext) throws IOException {
         return computeFilerSize(maxCount, mapContext.keySize,
             mapContext.keyLengthSize > 0,
@@ -69,7 +69,7 @@ public class MapStore {
             mapContext.payloadLengthSize > 0);
     }
 
-    public int computeFilerSize(int maxCount,
+    public long computeFilerSize(int maxCount,
         int keySize,
         boolean variableKeySizes,
         int payloadSize,

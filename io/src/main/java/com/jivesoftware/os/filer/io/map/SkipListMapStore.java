@@ -70,7 +70,7 @@ public class SkipListMapStore {
         } else if (version == 3) {
             return (byte) Math.max(8, Math.min(32, FilerIO.chunkLength(maxCount))); // lol
         } else {
-            int capacity = MapStore.calculateCapacity(maxCount);
+            long capacity = MapStore.calculateCapacity(maxCount);
             return (byte) Math.max(8, Math.min(32, FilerIO.chunkPower(capacity, 0)));
         }
     }
