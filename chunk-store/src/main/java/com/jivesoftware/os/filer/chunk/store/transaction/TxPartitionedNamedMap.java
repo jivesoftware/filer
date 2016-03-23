@@ -41,8 +41,10 @@ public class TxPartitionedNamedMap {
         byte[][][] partitionedKeysBytes = new byte[namedMaps.length][keysBytes.length][];
         boolean[][] partitionedContains = new boolean[namedMaps.length][keysBytes.length];
         for (int i = 0; i < keysBytes.length; i++) {
-            int p = partitionFunction.partition(namedMaps.length, keysBytes[i]);
-            partitionedKeysBytes[p][i] = keysBytes[i];
+            if (keysBytes[i] != null) {
+                int p = partitionFunction.partition(namedMaps.length, keysBytes[i]);
+                partitionedKeysBytes[p][i] = keysBytes[i];
+            }
         }
 
         for (int p = 0; p < namedMaps.length; p++) {
@@ -85,9 +87,11 @@ public class TxPartitionedNamedMap {
         byte[][][] partitionedKeysBytes = new byte[namedMaps.length][keysBytes.length][];
         int[] additionalCapacity = new int[namedMaps.length];
         for (int i = 0; i < keysBytes.length; i++) {
-            int p = partitionFunction.partition(namedMaps.length, keysBytes[i]);
-            partitionedKeysBytes[p][i] = keysBytes[i];
-            additionalCapacity[p]++;
+            if (keysBytes[i] != null) {
+                int p = partitionFunction.partition(namedMaps.length, keysBytes[i]);
+                partitionedKeysBytes[p][i] = keysBytes[i];
+                additionalCapacity[p]++;
+            }
         }
 
         for (int p = 0; p < namedMaps.length; p++) {
