@@ -74,7 +74,12 @@ abstract public class FileJournal<V> {
             return;
         }
         Arrays.sort(allPages,
-            (o1, o2) -> new UniqueOrderableFileName(o1.getName()).getOrderId().compareTo(new UniqueOrderableFileName(o2.getName()).getOrderId()));
+            (o1, o2) -> {
+                if (o1.getName().endsWith("corrupt")) {
+                    return 0;
+                }
+                return new UniqueOrderableFileName(o1.getName()).getOrderId().compareTo(new UniqueOrderableFileName(o2.getName()).getOrderId());
+            });
         final MutableBoolean callerStopped = new MutableBoolean(false);
         for (File page : allPages) {
             FileQueue journal = new FileQueue(page, false);
