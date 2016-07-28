@@ -18,7 +18,6 @@ package com.jivesoftware.os.filer.io;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Random;
 
 /**
  * @author jonathan.colt
