@@ -18,7 +18,6 @@ package com.jivesoftware.os.filer.io;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Random;
 
 /**
  * @author jonathan.colt
@@ -70,6 +69,7 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         long length,
         int fShift,
         long fseekMask) {
+
         this.byteBufferFactory = null;
         this.initialBufferSegmentSize = -1;
         this.maxBufferSegmentSize = maxBufferSegmentSize;
