@@ -4,51 +4,51 @@
     <parent>
         <groupId>com.jivesoftware.os.filer.inheritance.poms</groupId>
         <artifactId>global-repo-management</artifactId>
-        <version>0.97</version>
+        <version>0.98</version>
         <relativePath>../global-repo-management/pom.xml</relativePath>
     </parent>
     <artifactId>global-version-management</artifactId>
     <packaging>pom</packaging>
     <properties>
-        <jive.utils.version>0.93</jive.utils.version>
-        <mlogger.version>0.15</mlogger.version>
+        <jive.utils.version>0.108</jive.utils.version>
+        <mlogger.version>0.23</mlogger.version>
     </properties>
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>com.jivesoftware.os.filer</groupId>
                 <artifactId>io</artifactId>
-                <version>0.97</version>
+                <version>0.98</version>
             </dependency>
             <dependency>
                 <groupId>com.jivesoftware.os.filer</groupId>
                 <artifactId>queue-processor</artifactId>
-                <version>0.97</version>
+                <version>0.98</version>
             </dependency>
             <dependency>
                 <groupId>com.jivesoftware.os.filer</groupId>
                 <artifactId>queue-store</artifactId>
-                <version>0.97</version>
+                <version>0.98</version>
             </dependency>
             <dependency>
                 <groupId>com.jivesoftware.os.filer</groupId>
                 <artifactId>queue-guaranteed-delivery</artifactId>
-                <version>0.97</version>
+                <version>0.98</version>
             </dependency>
             <dependency>
                 <groupId>com.jivesoftware.os.filer</groupId>
                 <artifactId>map-store</artifactId>
-                <version>0.97</version>
+                <version>0.98</version>
             </dependency>
             <dependency>
                 <groupId>com.jivesoftware.os.filer</groupId>
                 <artifactId>keyed-store</artifactId>
-                <version>0.97</version>
+                <version>0.98</version>
             </dependency>
             <dependency>
                 <groupId>com.jivesoftware.os.filer</groupId>
                 <artifactId>chunk-store</artifactId>
-                <version>0.97</version>
+                <version>0.98</version>
             </dependency>
             <dependency>
                 <groupId>com.jivesoftware.os.mlogger</groupId>

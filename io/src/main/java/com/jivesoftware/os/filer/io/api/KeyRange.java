@@ -23,6 +23,7 @@ import java.util.Comparator;
  * @author jonathan.colt
  */
 public class KeyRange {
+
     static final Comparator<byte[]> lexicographicalComparator = UnsignedBytes.lexicographicalComparator();
     private final byte[] startInclusiveKey;
     private final byte[] stopExclusiveKey;

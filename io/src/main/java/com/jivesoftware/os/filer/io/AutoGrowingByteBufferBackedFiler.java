@@ -69,6 +69,7 @@ public class AutoGrowingByteBufferBackedFiler implements Filer {
         long length,
         int fShift,
         long fseekMask) {
+
         this.byteBufferFactory = null;
         this.initialBufferSegmentSize = -1;
         this.maxBufferSegmentSize = maxBufferSegmentSize;
